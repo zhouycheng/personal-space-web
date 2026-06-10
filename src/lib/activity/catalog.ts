@@ -93,6 +93,13 @@ const ACTIVITY_ENTRIES = [
     },
   },
   {
+    aliases: ["ghostty"],
+    text: {
+      zh: "正在使用终端",
+      en: "Working in terminal",
+    },
+  },
+  {
     aliases: ["intellij idea"],
     text: {
       zh: "正在写后端代码",
