@@ -29,7 +29,6 @@ export function HomeRevealStage({ hero, children }: HomeRevealStageProps) {
       <div className="home-scene-layer home-scene-layer--content">
         <IntroHero
           id="about"
-          className="snap-start snap-always"
           content={hero.primary}
           variant="primary"
           enableMotionSensor

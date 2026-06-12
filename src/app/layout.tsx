@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 import { ThemeBootstrapScript } from "@/components/theme/theme-bootstrap-script";
@@ -19,6 +19,12 @@ export async function generateMetadata(): Promise<Metadata> {
     description: metadata.description,
   };
 }
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export default async function RootLayout({
   children,

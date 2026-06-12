@@ -24,6 +24,10 @@ body {
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .snap-container {
+  height: 100vh;
+  height: 100dvh;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }

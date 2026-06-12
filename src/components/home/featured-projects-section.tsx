@@ -102,7 +102,7 @@ export function FeaturedProjectsSection({ locale }: FeaturedProjectsSectionProps
   const section = SECTION_COPY[locale];
 
   return (
-    <div className="w-full max-w-6xl px-6 pb-12 pt-28 md:px-10 md:pb-14 md:pt-28 lg:px-12">
+    <div className="featured-projects-shell w-full max-w-6xl px-6 md:px-10 lg:px-12">
       <header className="project-index-header">
         <div>
           <p className="site-label font-home-mono">{section.eyebrow}</p>

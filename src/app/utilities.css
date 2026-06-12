@@ -1,6 +1,11 @@
 /* ---- Reduced Motion ---- */
 
 @media (prefers-reduced-motion: reduce) {
+  .snap-container {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+
   body,
   .site-panel,
   .site-panel-muted,

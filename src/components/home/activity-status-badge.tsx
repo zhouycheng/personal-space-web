@@ -23,8 +23,8 @@ export function ActivityStatusBadge({ locale }: ActivityStatusBadgeProps) {
       aria-live="polite"
       className="site-status-badge flex items-center gap-2 rounded-xl px-4 py-3 font-home-system text-[12px] font-medium"
     >
-      <span className="h-2 w-2 rounded-full bg-[var(--page-accent)]" />
-      <span className="max-w-[220px] truncate">{text}</span>
+      <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--page-accent)]" />
+      <span className="site-status-copy min-w-0 max-w-[220px] truncate">{text}</span>
     </div>
   );
 }

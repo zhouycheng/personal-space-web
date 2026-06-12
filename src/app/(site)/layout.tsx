@@ -14,7 +14,7 @@ export default async function SiteLayout({ children }: SiteLayoutProps) {
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-40">
+      <div className="site-header-fixed fixed inset-x-0 top-0 z-40">
         <SiteHeader
           avatarLabel={navigation.avatarLabel}
           brandLabel={navigation.brandLabel}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Locale } from "@/lib/i18n/config";
 import type { SiteNavigationItem } from "@/lib/site/content";
@@ -51,6 +51,32 @@ function isActivePath(pathname: string, href: string): boolean {
 export function SiteHeader({ brandLabel, avatarLabel, locale, navItems }: SiteHeaderProps) {
   const pathname = usePathname();
   const [activeSection, setActiveSection] = useState<string>("about");
+  const [isHomeHeaderElevated, setIsHomeHeaderElevated] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const isHeaderElevated = pathname !== "/" || isHomeHeaderElevated;
+
+  useEffect(() => {
+    if (pathname !== "/") {
+      return;
+    }
+
+    const scrollRoot = document.querySelector<HTMLElement>(".snap-container");
+    if (!scrollRoot) {
+      return;
+    }
+
+    const updateHeaderElevation = () => {
+      setIsHomeHeaderElevated(scrollRoot.scrollTop > 24);
+    };
+
+    const initialFrame = window.requestAnimationFrame(updateHeaderElevation);
+    scrollRoot.addEventListener("scroll", updateHeaderElevation, { passive: true });
+
+    return () => {
+      window.cancelAnimationFrame(initialFrame);
+      scrollRoot.removeEventListener("scroll", updateHeaderElevation);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     // Only run on home page
@@ -103,6 +129,22 @@ export function SiteHeader({ brandLabel, avatarLabel, locale, navItems }: SiteHe
     };
   }, [navItems, pathname]);
 
+  useEffect(() => {
+    if (pathname !== "/") {
+      return;
+    }
+
+    const activeButton = navRef.current?.querySelector<HTMLElement>(
+      `[data-section-id="${activeSection}"]`
+    );
+
+    activeButton?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [activeSection, pathname]);
+
   const handleNavClick = (href: string) => {
     const sectionId = getSectionIdFromHref(href);
     if (!sectionId) return;
@@ -126,16 +168,19 @@ export function SiteHeader({ brandLabel, avatarLabel, locale, navItems }: SiteHe
   };
 
   return (
-    <header className="site-header-shell relative z-20 px-6 pb-4 pt-5 md:px-10 md:pb-0 lg:px-12">
-      <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 md:grid-cols-[1fr_auto_1fr] md:gap-y-6">
+    <header
+      className="site-header-shell relative z-20 px-6 pb-4 pt-5 md:px-10 md:pb-0 lg:px-12"
+      data-elevated={isHeaderElevated ? "true" : "false"}
+    >
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-x-4 md:gap-y-6">
         <Link
           href="/"
-          className="justify-self-start font-home-system text-[22px] font-semibold tracking-[-0.03em] text-[var(--page-heading)] md:col-start-1 md:row-start-1"
+          className="hidden justify-self-start font-home-system text-[22px] font-semibold tracking-[-0.03em] text-[var(--page-heading)] md:col-start-1 md:row-start-1 md:block"
         >
           {brandLabel}
         </Link>
 
-        <div className="flex items-center justify-self-end gap-3 md:col-start-3 md:row-start-1">
+        <div className="site-header-actions relative col-start-2 row-start-1 flex min-w-0 items-start justify-self-end gap-2 md:col-start-3 md:items-center md:gap-3">
           <ActivityStatusBadge locale={locale} />
 
           <div
@@ -145,7 +190,11 @@ export function SiteHeader({ brandLabel, avatarLabel, locale, navItems }: SiteHe
           />
         </div>
 
-        <nav className="col-span-2 row-start-2 flex items-center gap-2 overflow-visible px-1 py-1 font-home-system text-[13px] text-[var(--page-heading)] md:col-span-1 md:col-start-2 md:row-start-1 md:justify-self-center md:text-[14px]">
+        <nav
+          ref={navRef}
+          aria-label={locale === "zh" ? "主页章节" : "Home sections"}
+          className="site-header-nav col-start-1 row-start-1 flex min-w-0 max-w-full items-center justify-self-start gap-1 overflow-x-auto px-1 py-1 font-home-system text-[13px] text-[var(--page-heading)] md:col-span-1 md:col-start-2 md:row-start-1 md:justify-self-center md:gap-2 md:overflow-visible md:text-[14px]"
+        >
           {navItems.map((item) => {
             const isHome = pathname === "/";
             const sectionId = getSectionIdFromHref(item.href);
@@ -157,10 +206,11 @@ export function SiteHeader({ brandLabel, avatarLabel, locale, navItems }: SiteHe
               <button
                 key={item.href}
                 type="button"
+                data-section-id={sectionId ?? undefined}
                 onClick={() => handleNavClick(item.href)}
                 aria-current={active ? "location" : undefined}
                 className={[
-                  "site-nav-link shrink-0 rounded-xl px-4 py-3 leading-none",
+                  "site-nav-link min-h-11 shrink-0 rounded-xl px-3 py-3 leading-none md:px-4",
                   active ? "site-nav-link--active font-medium" : "site-nav-link--idle font-normal",
                 ].join(" ")}
               >

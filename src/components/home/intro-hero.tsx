@@ -28,7 +28,7 @@ export function IntroHero({
     <section
       id={id}
       className={[
-        "relative z-10 flex min-h-screen items-center justify-center px-6 pb-24 pt-28 md:px-10 md:pb-28 md:pt-32",
+        "home-screen-section home-intro-hero relative z-10 flex items-center justify-center px-6 md:px-10",
         className,
       ]
         .filter(Boolean)
