@@ -1,0 +1,114 @@
+.jk-cursor-reveal {
+  --cursor-x: 50%;
+  --cursor-y: 50%;
+  --cursor-radius: 8.75rem;
+  --cursor-scale: 1;
+  --cursor-opacity: 0;
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  overflow: hidden;
+  background: #fbf7ee;
+  color: #002fa7;
+}
+
+.jk-cursor-reveal__backdrop,
+.jk-cursor-reveal__content,
+.jk-cursor-reveal__mask {
+  position: absolute;
+  inset: 0;
+}
+
+.jk-cursor-reveal__backdrop {
+  background-size: 2rem 2rem;
+}
+
+.jk-cursor-reveal__backdrop--primary {
+  background:
+    radial-gradient(circle, rgba(0, 47, 167, 0.18) 1.25px, transparent 1.25px),
+    #fbf7ee;
+}
+
+.jk-cursor-reveal__backdrop--reveal {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.18) 1.25px, transparent 1.25px),
+    #002fa7;
+}
+
+.jk-cursor-reveal__content {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.jk-cursor-reveal__content h1 {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.26em;
+  max-width: min(62rem, 92vw);
+  margin: 0;
+  font-family: "Arial Black", "Helvetica Neue", system-ui, sans-serif;
+  font-size: clamp(3rem, 11vw, 8.5rem);
+  line-height: 0.9;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.jk-cursor-reveal__content span,
+.jk-cursor-reveal__content strong {
+  display: inline-block;
+}
+
+.jk-cursor-reveal__content p {
+  max-width: 34rem;
+  margin: 0;
+  font: 500 clamp(1rem, 2vw, 1.3rem) / 1.55 ui-sans-serif, system-ui, sans-serif;
+}
+
+.jk-cursor-reveal__content--primary strong {
+  color: #e84a5f;
+}
+
+.jk-cursor-reveal__content--reveal {
+  color: #fffdf6;
+}
+
+.jk-cursor-reveal__content--reveal strong {
+  color: #f4d758;
+}
+
+.jk-cursor-reveal__mask {
+  z-index: 3;
+  opacity: var(--cursor-opacity);
+  clip-path: circle(
+    calc(var(--cursor-radius) * var(--cursor-scale))
+    at var(--cursor-x) var(--cursor-y)
+  );
+  pointer-events: none;
+  will-change: clip-path, opacity;
+}
+
+.jk-cursor-reveal[data-cursor-active="true"],
+.jk-cursor-reveal[data-cursor-active="true"] * {
+  cursor: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .jk-cursor-reveal__mask {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jk-cursor-reveal__mask {
+    display: none;
+  }
+}

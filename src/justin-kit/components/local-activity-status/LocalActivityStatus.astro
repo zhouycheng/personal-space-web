@@ -1,0 +1,37 @@
+---
+import "./local-activity-status.css";
+
+interface Props {
+  streamUrl?: string;
+  idleText?: string;
+  offlineText?: string;
+  class?: string;
+}
+
+const {
+  streamUrl = "/api/activity/stream",
+  idleText = "等待本地监听器连接",
+  offlineText = "本地监听器离线",
+  class: className,
+} = Astro.props;
+---
+
+<div
+  class:list={["jk-activity-status", className]}
+  data-local-activity-status
+  data-stream-url={streamUrl}
+  data-idle-text={idleText}
+  data-offline-text={offlineText}
+  data-state="connecting"
+  aria-live="polite"
+>
+  <span class="jk-activity-status__dot" aria-hidden="true"></span>
+  <span class="jk-activity-status__copy" data-activity-status-text>{idleText}</span>
+  <small class="jk-activity-status__meta" data-activity-status-meta>SSE connecting</small>
+</div>
+
+<script>
+  import { initLocalActivityStatusBadges } from "./local-activity-status";
+
+  initLocalActivityStatusBadges();
+</script>

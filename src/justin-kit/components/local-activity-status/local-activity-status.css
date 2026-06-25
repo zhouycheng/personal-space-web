@@ -1,0 +1,57 @@
+.jk-activity-status {
+  --jk-activity-bg: #fffdf6;
+  --jk-activity-fg: #002fa7;
+  --jk-activity-muted: #60657a;
+  --jk-activity-dot: #f4d758;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.18rem 0.62rem;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid rgba(0, 47, 167, 0.12);
+  border-radius: 999px;
+  padding: 0.68rem 0.9rem;
+  background: var(--jk-activity-bg);
+  color: var(--jk-activity-fg);
+  box-shadow: 0 0.85rem 2rem rgba(0, 13, 70, 0.18);
+}
+
+.jk-activity-status__dot {
+  grid-row: span 2;
+  width: 0.68rem;
+  height: 0.68rem;
+  border-radius: 50%;
+  background: var(--jk-activity-dot);
+  box-shadow: 0 0 0 0.3rem rgba(244, 215, 88, 0.22);
+}
+
+.jk-activity-status__copy {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+}
+
+.jk-activity-status__meta {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--jk-activity-muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jk-activity-status[data-state="active"] {
+  --jk-activity-dot: #e84a5f;
+}
+
+.jk-activity-status[data-state="idle"] {
+  --jk-activity-dot: #f4d758;
+}
+
+.jk-activity-status[data-state="error"] {
+  --jk-activity-dot: #8d9096;
+}

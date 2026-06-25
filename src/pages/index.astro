@@ -1,0 +1,845 @@
+---
+import BaseLayout from "/src/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Justin OS">
+  <main class="app-shell" aria-label="Justin OS">
+    <!-- 内容区域：导航切换时只刷新这里 -->
+    <div class="app-content">
+      <!-- 首页 -->
+      <section id="page-home" class="app-page is-active" aria-label="首页">
+        <div class="launch-stage" data-launch-stage>
+          <div class="laptop" aria-label="Justin terminal on MacBook" data-laptop>
+            <div class="laptop-lid">
+              <div class="terminal-screen" data-terminal-screen>
+                <div class="terminal-scanlines" aria-hidden="true"></div>
+
+                <div class="terminal-chrome">
+                  <div class="traffic-lights" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <p>justin@universe ~ zsh</p>
+                </div>
+
+                <div class="terminal-rule" aria-hidden="true"></div>
+
+                <div class="terminal-copy" aria-label="Terminal intro" aria-live="polite" data-terminal-copy>
+                </div>
+
+                <div class="os-desktop" data-os-desktop aria-hidden="true"></div>
+              </div>
+            </div>
+
+            <div class="laptop-base" aria-hidden="true">
+              <div class="base-lip"></div>
+            </div>
+            <div class="laptop-shadow" aria-hidden="true"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 作品集 -->
+      <section id="page-works" class="app-page" aria-label="作品集" style="display: none;">
+        <div class="launch-stage">
+          <p style="color: var(--muted); font-size: 1.1rem;">作品集页面开发中…</p>
+        </div>
+      </section>
+
+      <!-- 我的OS -->
+      <section id="page-os" class="app-page" aria-label="我的OS" style="display: none;">
+        <div class="launch-stage">
+          <p style="color: var(--muted); font-size: 1.1rem;">我的 OS 页面开发中…</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="os-fullscreen-projection" data-os-fullscreen aria-hidden="true">
+      <header class="os-menu-bar" aria-label="JustinOS fullscreen menu bar">
+        <div class="os-menu-group os-menu-left">
+          <strong>Justin OS</strong>
+          <span>About</span>
+          <span>Works</span>
+          <span>Now</span>
+        </div>
+        <div class="os-menu-group os-menu-right">
+          <time data-os-time>--:--</time>
+        </div>
+      </header>
+    </div>
+
+    <!-- 固定底部导航栏：不随页面切换刷新 -->
+    <nav class="app-dock" aria-label="主导航">
+      <a class="is-active" data-page="home" href="#home"><span>01</span>首页</a>
+      <a data-page="works" href="#works"><span>02</span>作品集</a>
+      <a data-page="os" href="#os"><span>03</span>我的OS</a>
+    </nav>
+  </main>
+
+  <script>
+    (() => {
+      const BOOT_PLAYED_KEY = "justin-terminal-boot-played";
+      const OS_OPENED_KEY = "justin-terminal-os-opened";
+      const terminalCopy = document.querySelector("[data-terminal-copy]");
+      const terminalScreen = document.querySelector("[data-terminal-screen]");
+      const launchStage = document.querySelector("[data-launch-stage]");
+      const laptop = document.querySelector("[data-laptop]");
+      const appContent = document.querySelector(".app-content");
+      const appDock = document.querySelector(".app-dock");
+      const osDesktop = document.querySelector("[data-os-desktop]");
+      const osFullscreen = document.querySelector("[data-os-fullscreen]");
+      const osTimes = document.querySelectorAll("[data-os-time]");
+      const navLinks = document.querySelectorAll(".app-dock a");
+      const pages = {
+        home: document.getElementById("page-home"),
+        works: document.getElementById("page-works"),
+        os: document.getElementById("page-os"),
+      };
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const CAMERA_SCROLL_DISTANCE = 860;
+      const PROJECTION_SETTLE_MS = 1200;
+
+      let awaitingLaunch = false;
+      let launchInProgress = false;
+      let bootIsPlaying = false;
+      let cameraProgress = 1;
+      let cameraFrame = 0;
+      let cameraIsFinishing = false;
+      let cameraState = null;
+      let bootRunId = 0;
+      let projectionSettleTimer = 0;
+
+      if (!terminalCopy || !terminalScreen || !launchStage || !laptop || !appContent || !appDock || !osFullscreen) {
+        return;
+      }
+
+      function readSessionFlag(key) {
+        try {
+          return window.sessionStorage.getItem(key) === "1";
+        } catch {
+          return false;
+        }
+      }
+
+      function writeSessionFlag(key) {
+        try {
+          window.sessionStorage.setItem(key, "1");
+        } catch {
+          // The animation still works when storage is unavailable.
+        }
+      }
+
+      function removeSessionFlag(key) {
+        try {
+          window.sessionStorage.removeItem(key);
+        } catch {
+          // The animation still works when storage is unavailable.
+        }
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => {
+          window.setTimeout(resolve, ms);
+        });
+      }
+
+      function nextFrame() {
+        return new Promise((resolve) => {
+          window.requestAnimationFrame(() => resolve());
+        });
+      }
+
+      function isHomeVisible() {
+        return pages.home ? pages.home.style.display !== "none" : true;
+      }
+
+      function createCursor(extraClass = "") {
+        const cursor = document.createElement("span");
+        cursor.className = `terminal-cursor${extraClass ? ` ${extraClass}` : ""}`;
+        cursor.setAttribute("aria-hidden", "true");
+        return cursor;
+      }
+
+      function clearTerminal() {
+        terminalCopy.replaceChildren();
+      }
+
+      function renderFreshTerminalPrompt() {
+        clearTerminal();
+        appendCommandLine("", { cursor: true });
+        awaitingLaunch = false;
+      }
+
+      function appendCommandLine(command = "", options = {}) {
+        const line = document.createElement("p");
+        line.className = `terminal-line${options.gap ? " command-gap" : ""}`;
+
+        const prompt = document.createElement("b");
+        prompt.textContent = "$";
+
+        const spacer = document.createTextNode(" ");
+        const input = document.createElement("span");
+        input.className = "terminal-input";
+        input.textContent = command;
+
+        line.append(prompt, spacer, input);
+        if (options.cursor) line.append(createCursor());
+        terminalCopy.append(line);
+
+        return { line, input };
+      }
+
+      function appendOutputLine(text, className = "output") {
+        const line = document.createElement("p");
+        line.className = `terminal-line ${className}`;
+        line.textContent = text;
+        terminalCopy.append(line);
+      }
+
+      function appendProgressLine() {
+        const line = document.createElement("p");
+        line.className = "terminal-line terminal-progress-line command-gap";
+        line.textContent = formatProgressText(0);
+        terminalCopy.append(line);
+
+        return line;
+      }
+
+      function formatProgressText(value) {
+        const total = 24;
+        const done = Math.round((value / 100) * total);
+        const dots = ".".repeat(done).padEnd(total, " ");
+        const percent = String(value).padStart(value < 100 ? 2 : 3, "0");
+        return `launchd [${dots}] ${percent}%`;
+      }
+
+      function removeCursor(line) {
+        line.querySelector(".terminal-cursor")?.remove();
+      }
+
+      function typeDelay(char, index, profile = "machine") {
+        const base = profile === "human" ? 56 : 38;
+        if (char === " ") return base + 55;
+        if (char === "\"" || char === ".") return base + 28;
+        if (profile === "human" && index % 9 === 0) return base + 95;
+        if (profile === "human" && index % 5 === 0) return base + 36;
+        return base + (index % 3) * 12;
+      }
+
+      function pickRandomItem(items) {
+        return items[Math.floor(Math.random() * items.length)];
+      }
+
+      function pickTypoChar(correctChar) {
+        const keyboardNeighbors = {
+          a: "qwsz",
+          b: "vghn",
+          c: "xdfv",
+          d: "ersfcx",
+          e: "wrsd",
+          f: "rtgdvc",
+          g: "tyhfvb",
+          h: "yujgbn",
+          i: "ujko",
+          j: "uikhmn",
+          k: "ijolm",
+          l: "kop",
+          m: "njk",
+          n: "bhjm",
+          o: "iklp",
+          p: "ol",
+          q: "wa",
+          r: "etdf",
+          s: "awedxz",
+          t: "rygf",
+          u: "yhji",
+          v: "cfgb",
+          w: "qase",
+          x: "zsdc",
+          y: "tugh",
+          z: "asx",
+        };
+        const lower = correctChar.toLowerCase();
+        const neighbors = keyboardNeighbors[lower] ?? "abcdefghijklmnopqrstuvwxyz";
+        let typo = pickRandomItem([...neighbors]);
+        if (typo === lower) typo = lower === "a" ? "s" : "a";
+        return correctChar === lower ? typo : typo.toUpperCase();
+      }
+
+      function createRandomTypoActions(text) {
+        const candidates = [...text]
+          .map((char, index) => ({ char, index }))
+          .filter(({ char, index }) => index > 5 && /[a-z]/i.test(char));
+        const typoTotal = Math.min(candidates.length, 1 + Math.floor(Math.random() * 3));
+        const typoIndexes = new Set();
+
+        while (typoIndexes.size < typoTotal) {
+          typoIndexes.add(pickRandomItem(candidates).index);
+        }
+
+        const actions = [];
+        let chunk = "";
+
+        for (let index = 0; index < text.length; index += 1) {
+          const char = text[index];
+          if (!typoIndexes.has(index)) {
+            chunk += char;
+            continue;
+          }
+
+          if (chunk) {
+            actions.push(chunk);
+            chunk = "";
+          }
+
+          actions.push(
+            { type: "type", text: pickTypoChar(char), profile: "human" },
+            { type: "pause", ms: 150 + Math.round(Math.random() * 230) },
+            { type: "backspace", count: 1 },
+            { type: "pause", ms: 90 + Math.round(Math.random() * 110) },
+            { type: "type", text: char, profile: "human" },
+          );
+        }
+
+        if (chunk) actions.push(chunk);
+        return actions;
+      }
+
+      function isBootStale(runId) {
+        return runId !== bootRunId;
+      }
+
+      async function typeText(input, text, profile = "machine", runId = null) {
+        for (let index = 0; index < text.length; index += 1) {
+          if (runId !== null && isBootStale(runId)) return false;
+          input.textContent += text[index];
+          await sleep(typeDelay(text[index], index, profile));
+        }
+        return true;
+      }
+
+      async function backspaceText(input, count, runId = null) {
+        for (let index = 0; index < count; index += 1) {
+          if (runId !== null && isBootStale(runId)) return false;
+          input.textContent = input.textContent.slice(0, -1);
+          await sleep(72);
+        }
+        return true;
+      }
+
+      async function runTypingActions(input, actions, profile = "machine", runId = null) {
+        for (const action of actions) {
+          if (runId !== null && isBootStale(runId)) return false;
+          if (typeof action === "string") {
+            if (!(await typeText(input, action, profile, runId))) return false;
+          } else if (action.type === "pause") {
+            await sleep(action.ms);
+          } else if (action.type === "backspace") {
+            if (!(await backspaceText(input, action.count, runId))) return false;
+          } else if (action.type === "type") {
+            if (!(await typeText(input, action.text, action.profile ?? profile, runId))) return false;
+          }
+        }
+        return true;
+      }
+
+      async function playCommand(command, runId = null) {
+        const current = command.line ?? appendCommandLine("", { gap: command.gap, cursor: true });
+        if (command.actions) {
+          if (!(await runTypingActions(current.input, command.actions, command.profile, runId))) return false;
+        } else {
+          if (!(await typeText(current.input, command.text, command.profile, runId))) return false;
+        }
+        await sleep(command.afterTypeDelay ?? 220);
+        if (runId !== null && isBootStale(runId)) return false;
+        removeCursor(current.line);
+        await sleep(command.afterEnterDelay ?? 180);
+        if (runId !== null && isBootStale(runId)) return false;
+
+        for (const output of command.outputs) {
+          appendOutputLine(output.text, output.className);
+          await sleep(output.delay ?? 92);
+          if (runId !== null && isBootStale(runId)) return false;
+        }
+
+        await sleep(command.afterOutputsDelay ?? 460);
+        return !(runId !== null && isBootStale(runId));
+      }
+
+      async function playLaunchProgress() {
+        const line = appendProgressLine();
+
+        if (reduceMotion) {
+          line.textContent = formatProgressText(100);
+          await sleep(80);
+          return;
+        }
+
+        const startedAt = performance.now();
+        const duration = 1350;
+
+        while (true) {
+          const elapsed = performance.now() - startedAt;
+          const t = Math.min(1, elapsed / duration);
+          const eased = 1 - Math.pow(1 - t, 2.6);
+          const value = Math.min(100, Math.round(eased * 100));
+          line.textContent = formatProgressText(value);
+
+          if (t >= 1) break;
+          await sleep(34 + (value % 5) * 3);
+        }
+
+        await sleep(220);
+      }
+
+      function renderFinalTerminal(readyForLaunch = true) {
+        clearTerminal();
+        appendCommandLine("whoami");
+        appendOutputLine("> JUSTIN ZHOU");
+        appendCommandLine("cat about.md", { gap: true });
+        appendOutputLine("> 热衷 Flutter 这个技术栈的男生");
+        appendOutputLine("  和 CodeX 搭档的第 1 年");
+        appendCommandLine("echo \"I need some tokens and coffee\"", { gap: true });
+        appendOutputLine("> I need some tokens and coffee", "highlight");
+        appendCommandLine("open JustinOS.app", { gap: true, cursor: true });
+        awaitingLaunch = readyForLaunch;
+        writeSessionFlag(BOOT_PLAYED_KEY);
+      }
+
+      async function playTerminalBoot() {
+        const runId = ++bootRunId;
+        bootIsPlaying = true;
+        clearTerminal();
+        const firstLine = appendCommandLine("", { cursor: true });
+        await sleep(800);
+        if (isBootStale(runId)) return;
+
+        if (!(await playCommand({
+          line: firstLine,
+          text: "whoami",
+          profile: "machine",
+          outputs: [{ text: "> JUSTIN ZHOU" }],
+        }, runId))) return;
+
+        if (!(await playCommand({
+          gap: true,
+          text: "cat about.md",
+          profile: "machine",
+          outputs: [
+            { text: "> 热衷 Flutter 这个技术栈的男生" },
+            { text: "  和 CodeX 搭档的第 1 年" },
+          ],
+        }, runId))) return;
+
+        if (!(await playCommand({
+          gap: true,
+          profile: "human",
+          actions: createRandomTypoActions("echo \"I need some tokens and coffee\""),
+          outputs: [{ text: "> I need some tokens and coffee", className: "highlight" }],
+          afterOutputsDelay: 560,
+        }, runId))) return;
+
+        const finalLine = appendCommandLine("", { gap: true, cursor: true });
+        if (!(await typeText(finalLine.input, "open JustinOS.app", "machine", runId))) return;
+        awaitingLaunch = true;
+        bootIsPlaying = false;
+        writeSessionFlag(BOOT_PLAYED_KEY);
+      }
+
+      function skipTerminalBoot() {
+        if (!bootIsPlaying) return;
+        bootRunId += 1;
+        bootIsPlaying = false;
+        renderFinalTerminal(true);
+      }
+
+      function getLaunchTargetRect() {
+        return {
+          left: 0,
+          top: 0,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        };
+      }
+
+      function updateExpandedBounds() {
+        if (!launchStage.classList.contains("is-camera-open") || cameraProgress > 0) return;
+        measureLaptopCameraState();
+        applyCameraProgress(0);
+      }
+
+      function measureLaptopCameraState() {
+        const targetRect = getLaunchTargetRect();
+        const laptopRect = laptop.getBoundingClientRect();
+        const rect = terminalScreen.getBoundingClientRect();
+        const laptopCenter = {
+          x: laptopRect.left + laptopRect.width / 2,
+          y: laptopRect.top + laptopRect.height / 2,
+        };
+        const screenCenter = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+        const targetCenter = {
+          x: targetRect.left + targetRect.width / 2,
+          y: targetRect.top + targetRect.height / 2,
+        };
+        const cameraScale = Math.max(targetRect.width / rect.width, targetRect.height / rect.height) * 1.055;
+
+        cameraState = {
+          laptopRect: {
+            left: laptopRect.left,
+            top: laptopRect.top,
+            width: laptopRect.width,
+          },
+          scale: cameraScale,
+          x: targetCenter.x - (laptopCenter.x + (screenCenter.x - laptopCenter.x) * cameraScale),
+          y: targetCenter.y - (laptopCenter.y + (screenCenter.y - laptopCenter.y) * cameraScale),
+        };
+
+        laptop.style.setProperty("--camera-laptop-left", `${cameraState.laptopRect.left}px`);
+        laptop.style.setProperty("--camera-laptop-top", `${cameraState.laptopRect.top}px`);
+        laptop.style.setProperty("--camera-laptop-width", `${cameraState.laptopRect.width}px`);
+      }
+
+      function clearScreenInlineGeometry() {
+        terminalScreen.style.left = "";
+        terminalScreen.style.top = "";
+        terminalScreen.style.width = "";
+        terminalScreen.style.height = "";
+        terminalScreen.style.borderRadius = "";
+        terminalScreen.style.removeProperty("--desktop-opacity");
+        terminalScreen.style.removeProperty("--collapse-progress");
+        laptop.style.removeProperty("--camera-laptop-left");
+        laptop.style.removeProperty("--camera-laptop-top");
+        laptop.style.removeProperty("--camera-laptop-width");
+        laptop.style.removeProperty("--camera-x");
+        laptop.style.removeProperty("--camera-y");
+        laptop.style.removeProperty("--camera-scale");
+        laptop.style.removeProperty("--camera-tilt");
+        laptop.style.removeProperty("--shell-opacity");
+        terminalScreen.style.removeProperty("--moire-opacity");
+        terminalScreen.style.removeProperty("--desktop-blur");
+        osFullscreen.style.removeProperty("--projection-left");
+        osFullscreen.style.removeProperty("--projection-top");
+        osFullscreen.style.removeProperty("--projection-width");
+        osFullscreen.style.removeProperty("--projection-height");
+        osFullscreen.style.removeProperty("--projection-radius");
+        osFullscreen.style.removeProperty("--projection-opacity");
+        osFullscreen.style.removeProperty("--projection-blur");
+        osFullscreen.style.removeProperty("--projection-moire-opacity");
+      }
+
+      function clearProjectionSettleTimer() {
+        if (!projectionSettleTimer) return;
+        window.clearTimeout(projectionSettleTimer);
+        projectionSettleTimer = 0;
+      }
+
+      function setProjectionMode(mode) {
+        clearProjectionSettleTimer();
+        osFullscreen.classList.remove("is-transitioning", "is-moire-settling", "is-settled");
+        if (mode) osFullscreen.classList.add(mode);
+      }
+
+      function beginProjectionSettling() {
+        clearProjectionSettleTimer();
+        osFullscreen.classList.remove("is-transitioning", "is-moire-settling", "is-settled");
+        osFullscreen.classList.add("is-moire-settling", "is-settled");
+        osFullscreen.style.setProperty("--projection-opacity", "1");
+        osFullscreen.style.setProperty("--projection-blur", "0px");
+        osFullscreen.style.setProperty("--projection-moire-opacity", "0");
+
+        return new Promise((resolve) => {
+          projectionSettleTimer = window.setTimeout(() => {
+            projectionSettleTimer = 0;
+            osFullscreen.classList.remove("is-moire-settling");
+            osFullscreen.classList.add("is-settled");
+            osFullscreen.style.setProperty("--projection-moire-opacity", "0");
+            resolve();
+          }, PROJECTION_SETTLE_MS);
+        });
+      }
+
+      function lerp(from, to, amount) {
+        return from + (to - from) * amount;
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function easeCollapse(value) {
+        return 1 - Math.pow(1 - value, 2.15);
+      }
+
+      function applyProjectionGeometry(progress, transitionActive) {
+        const viewportRect = getLaunchTargetRect();
+        const screenRect = terminalScreen.getBoundingClientRect();
+        const morphToScreen = transitionActive ? clamp(progress / 0.22, 0, 1) : 0;
+        const opacity = transitionActive ? clamp(1 - progress / 0.68, 0, 1) : 1;
+        const screenRadius = clamp(screenRect.width * 0.007, 4, 18);
+
+        osFullscreen.style.setProperty("--projection-left", `${lerp(viewportRect.left, screenRect.left, morphToScreen)}px`);
+        osFullscreen.style.setProperty("--projection-top", `${lerp(viewportRect.top, screenRect.top, morphToScreen)}px`);
+        osFullscreen.style.setProperty("--projection-width", `${lerp(viewportRect.width, screenRect.width, morphToScreen)}px`);
+        osFullscreen.style.setProperty("--projection-height", `${lerp(viewportRect.height, screenRect.height, morphToScreen)}px`);
+        osFullscreen.style.setProperty("--projection-radius", `${lerp(0, screenRadius, morphToScreen)}px`);
+        osFullscreen.style.setProperty("--projection-opacity", String(opacity));
+        osFullscreen.style.setProperty("--projection-blur", `${transitionActive ? progress * 7 : 0}px`);
+        osFullscreen.style.setProperty(
+          "--projection-moire-opacity",
+          String(transitionActive ? opacity * clamp(0.08 + Math.sin(progress * Math.PI) * 0.16, 0, 0.22) : 0),
+        );
+      }
+
+      function applyCameraProgress(progress) {
+        if (!cameraState) measureLaptopCameraState();
+        if (!cameraState) return;
+        const eased = easeCollapse(progress);
+        const scale = lerp(cameraState.scale, 1, eased);
+        const x = lerp(cameraState.x, 0, eased);
+        const y = lerp(cameraState.y, 0, eased);
+        const cameraTilt = Math.sin(eased * Math.PI) * -1.4;
+        const shellOpacity = clamp(progress / 0.18, 0, 1);
+        const desktopOpacity = clamp(1 - Math.max(0, progress - 0.78) / 0.18, 0, 1);
+        const transitionActive =
+          launchStage.classList.contains("is-camera-approaching") ||
+          launchStage.classList.contains("is-camera-collapsing");
+        const moireOpacity = transitionActive
+          ? clamp(0.04 + Math.sin(progress * Math.PI) * 0.24, 0, 0.3)
+          : 0;
+        const desktopBlur = transitionActive ? clamp((1 - Math.abs(progress - 0.5) * 2) * 2.2, 0, 2.2) : 0;
+
+        laptop.style.setProperty("--camera-x", `${x}px`);
+        laptop.style.setProperty("--camera-y", `${y}px`);
+        laptop.style.setProperty("--camera-scale", String(scale));
+        laptop.style.setProperty("--camera-tilt", `${cameraTilt}deg`);
+        laptop.style.setProperty("--shell-opacity", String(shellOpacity));
+        terminalScreen.style.setProperty("--collapse-progress", String(progress));
+        terminalScreen.style.setProperty("--desktop-opacity", String(desktopOpacity));
+        terminalScreen.style.setProperty("--moire-opacity", String(moireOpacity));
+        terminalScreen.style.setProperty("--desktop-blur", `${desktopBlur}px`);
+        applyProjectionGeometry(progress, transitionActive);
+        cameraProgress = progress;
+      }
+
+      function resetCollapseState() {
+        cameraProgress = 0;
+        cameraIsFinishing = false;
+        if (cameraFrame) {
+          window.cancelAnimationFrame(cameraFrame);
+          cameraFrame = 0;
+        }
+        launchStage.classList.remove("is-camera-collapsing");
+        terminalScreen.style.removeProperty("--desktop-opacity");
+        terminalScreen.style.removeProperty("--collapse-progress");
+      }
+
+      function animateCameraTo(targetProgress, duration) {
+        const startProgress = cameraProgress;
+        const startedAt = performance.now();
+
+        return new Promise((resolve) => {
+          const tick = (now) => {
+            const t = Math.min(1, (now - startedAt) / duration);
+            const eased = 1 - Math.pow(1 - t, 3);
+            applyCameraProgress(lerp(startProgress, targetProgress, eased));
+
+            if (t >= 1) {
+              resolve();
+              return;
+            }
+            cameraFrame = window.requestAnimationFrame(tick);
+          };
+
+          if (cameraFrame) window.cancelAnimationFrame(cameraFrame);
+          cameraFrame = window.requestAnimationFrame(tick);
+        });
+      }
+
+      async function openJustinOs() {
+        if (!awaitingLaunch || launchInProgress || !isHomeVisible()) return;
+        awaitingLaunch = false;
+        launchInProgress = true;
+        writeSessionFlag(BOOT_PLAYED_KEY);
+
+        await playLaunchProgress();
+
+        if (reduceMotion) {
+          showJustinOsDesktop(true);
+          launchInProgress = false;
+          return;
+        }
+
+        measureLaptopCameraState();
+        renderFinalTerminal(false);
+        launchStage.classList.add("is-os-open", "is-camera-open", "is-camera-approaching");
+        setProjectionMode("is-transitioning");
+        terminalScreen.classList.add("is-terminal-fading", "is-desktop", "is-opening-glow");
+        osDesktop?.setAttribute("aria-hidden", "false");
+        osFullscreen.setAttribute("aria-hidden", "false");
+        applyCameraProgress(1);
+
+        await animateCameraTo(0, 1320);
+
+        launchStage.classList.remove("is-camera-approaching");
+        terminalScreen.classList.remove("is-terminal-fading");
+        void beginProjectionSettling();
+        writeSessionFlag(OS_OPENED_KEY);
+        resetCollapseState();
+        launchInProgress = false;
+      }
+
+      function showJustinOsDesktop(instant = false) {
+        measureLaptopCameraState();
+        launchStage.classList.add("is-os-open", "is-camera-open");
+        setProjectionMode("is-settled");
+        applyCameraProgress(0);
+        terminalScreen.classList.remove("is-terminal-fading");
+        terminalScreen.classList.add("is-desktop");
+        if (instant) terminalScreen.classList.add("is-instant");
+        osDesktop?.setAttribute("aria-hidden", "false");
+        osFullscreen.setAttribute("aria-hidden", "false");
+        awaitingLaunch = false;
+        writeSessionFlag(BOOT_PLAYED_KEY);
+        writeSessionFlag(OS_OPENED_KEY);
+        resetCollapseState();
+      }
+
+      function isDesktopReadyForCollapse() {
+        return (
+          isHomeVisible() &&
+          terminalScreen.classList.contains("is-desktop") &&
+          !launchInProgress &&
+          !bootIsPlaying &&
+          !cameraIsFinishing
+        );
+      }
+
+      function settleFullscreenFromWheel() {
+        if (cameraProgress > 0 || cameraIsFinishing) return;
+        launchStage.classList.remove("is-camera-collapsing");
+        applyCameraProgress(0);
+        void beginProjectionSettling();
+      }
+
+      async function finishCollapseToTerminal() {
+        if (cameraIsFinishing) return;
+        cameraIsFinishing = true;
+        launchInProgress = true;
+        if (cameraFrame) {
+          window.cancelAnimationFrame(cameraFrame);
+          cameraFrame = 0;
+        }
+        cameraProgress = 1;
+        applyCameraProgress(cameraProgress);
+        await nextFrame();
+        removeSessionFlag(OS_OPENED_KEY);
+        removeSessionFlag(BOOT_PLAYED_KEY);
+
+        await sleep(260);
+
+        renderFreshTerminalPrompt();
+        osDesktop?.setAttribute("aria-hidden", "true");
+        osFullscreen.setAttribute("aria-hidden", "true");
+        setProjectionMode(null);
+        launchStage.classList.remove("is-os-open", "is-camera-open", "is-camera-collapsing", "is-camera-approaching");
+        terminalScreen.classList.remove(
+          "is-desktop",
+          "is-opening-glow",
+          "is-terminal-fading",
+          "is-instant",
+        );
+        clearScreenInlineGeometry();
+        resetCollapseState();
+
+        await sleep(140);
+        launchInProgress = false;
+        void playTerminalBoot();
+      }
+
+      function handleDesktopWheel(event) {
+        if (!isDesktopReadyForCollapse()) return;
+        if (event.deltaY <= 0 && cameraProgress <= 0) return;
+
+        event.preventDefault();
+        launchStage.classList.add("is-camera-collapsing");
+        setProjectionMode("is-transitioning");
+
+        cameraProgress = clamp(cameraProgress + event.deltaY / CAMERA_SCROLL_DISTANCE, 0, 1);
+
+        if (cameraFrame) window.cancelAnimationFrame(cameraFrame);
+        cameraFrame = window.requestAnimationFrame(() => {
+          applyCameraProgress(cameraProgress);
+          cameraFrame = 0;
+          if (cameraProgress <= 0) settleFullscreenFromWheel();
+        });
+
+        if (cameraProgress >= 1) {
+          void finishCollapseToTerminal();
+        }
+      }
+
+      function updateClock() {
+        const timeText = new Intl.DateTimeFormat("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(new Date());
+        osTimes.forEach((osTime) => {
+          osTime.textContent = timeText;
+        });
+      }
+
+      function switchPage(name) {
+        navLinks.forEach((link) => {
+          link.classList.toggle("is-active", link.dataset.page === name);
+        });
+        Object.entries(pages).forEach(([key, el]) => {
+          if (el) el.style.display = key === name ? "" : "none";
+        });
+        if (name === "home") updateExpandedBounds();
+      }
+
+      navLinks.forEach((link) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          switchPage(link.dataset.page);
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        if (!awaitingLaunch || bootIsPlaying || !isHomeVisible()) return;
+        event.preventDefault();
+        void openJustinOs();
+      });
+
+      terminalScreen.addEventListener("pointerdown", () => {
+        if (bootIsPlaying) {
+          skipTerminalBoot();
+          return;
+        }
+        if (!awaitingLaunch || launchInProgress || !isHomeVisible()) return;
+        void openJustinOs();
+      });
+
+      window.addEventListener("wheel", handleDesktopWheel, { passive: false });
+      window.addEventListener("resize", updateExpandedBounds);
+
+      updateClock();
+      window.setInterval(updateClock, 30_000);
+
+      if (readSessionFlag(OS_OPENED_KEY)) {
+        renderFinalTerminal();
+        showJustinOsDesktop(true);
+      } else if (reduceMotion || readSessionFlag(BOOT_PLAYED_KEY)) {
+        renderFinalTerminal();
+      } else {
+        void playTerminalBoot();
+      }
+    })();
+  </script>
+</BaseLayout>

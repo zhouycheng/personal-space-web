@@ -1,0 +1,56 @@
+---
+import "./cursor-reveal-hero.css";
+
+interface Props {
+  primaryLeading?: string;
+  primaryAccent?: string;
+  primarySubtitle?: string;
+  revealLeading?: string;
+  revealAccent?: string;
+  revealSubtitle?: string;
+  class?: string;
+}
+
+const {
+  primaryLeading = "你好，我是",
+  primaryAccent = "耀程",
+  primarySubtitle = "Flutter engineer building personal tools with AI.",
+  revealLeading = "Hello, I'm",
+  revealAccent = "Justin",
+  revealSubtitle = "A second layer appears through the cursor mask.",
+  class: className,
+} = Astro.props;
+---
+
+<section
+  class:list={["jk-cursor-reveal", className]}
+  data-cursor-reveal-hero
+  aria-label="Cursor reveal hero"
+>
+  <div class="jk-cursor-reveal__backdrop jk-cursor-reveal__backdrop--primary" aria-hidden="true"></div>
+
+  <div class="jk-cursor-reveal__content jk-cursor-reveal__content--primary">
+    <h1>
+      <span>{primaryLeading}</span>
+      <strong>{primaryAccent}</strong>
+    </h1>
+    <p>{primarySubtitle}</p>
+  </div>
+
+  <div class="jk-cursor-reveal__mask" aria-hidden="true">
+    <div class="jk-cursor-reveal__backdrop jk-cursor-reveal__backdrop--reveal"></div>
+    <div class="jk-cursor-reveal__content jk-cursor-reveal__content--reveal">
+      <h1>
+        <span>{revealLeading}</span>
+        <strong>{revealAccent}</strong>
+      </h1>
+      <p>{revealSubtitle}</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { initCursorRevealHeroes } from "./cursor-reveal-hero";
+
+  initCursorRevealHeroes();
+</script>

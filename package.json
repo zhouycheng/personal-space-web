@@ -1,30 +1,23 @@
 {
-  "name": "justinview",
+  "name": "astro-justin-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "dev": "next dev --webpack",
-    "dev:turbo": "next dev",
-    "build": "next build --webpack",
-    "start": "next start",
-    "lint": "eslint",
-    "monitor:activity:setup": "node scripts/setup-activity-monitor.mjs",
-    "monitor:activity": "node scripts/activity-monitor.mjs"
+    "dev": "astro dev --host 0.0.0.0 --port 4321",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0 --port 4321",
+    "monitor:activity": "node src/justin-kit/components/local-activity-status/scripts/activity-monitor.mjs"
   },
   "dependencies": {
-    "next": "16.2.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "@astrojs/node": "^10.1.4",
+    "astro": "^6.3.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/node": "^20.19.25",
+    "typescript": "^5.9.3"
   }
 }
