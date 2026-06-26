@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 700" role="img" aria-labelledby="title desc">
+  <title id="title">FrameLean preview placeholder</title>
+  <desc id="desc">Gray software preview placeholder for FrameLean.</desc>
+  <rect width="760" height="700" rx="8" fill="#d8d8d8"/>
+  <text x="380" y="350" text-anchor="middle" dominant-baseline="middle" fill="#111111" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="500">软件预览图</text>
+</svg>

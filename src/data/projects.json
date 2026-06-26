@@ -1,0 +1,77 @@
+[
+  {
+    "id": "framelean",
+    "navLabel": "FrameLean",
+    "title": "FrameLean",
+    "tags": ["Flutter", "FFmpeg", "Windows", "MacOS"],
+    "description": "是一个本地桌面媒体压缩与格式处理工具，基于 Flutter、FFmpeg / FFprobe、Riverpod 等技术构建。\n可以处理常用的视频、图片、音频等媒体任务，对齐进行压缩、格式转换，让用户不用手写 FFmpeg 命令也能处理本地媒体文件。\nFrameLean 当前仍以视频压缩链路最完整：导入视频，分析源文件信息，选择推荐方案或自定义目标体积，配置编码、分辨率和输出格式，然后执行 FFmpeg 任务。图片和音频已进入同一任务模型，支持导入、分析、分类型配置、基础输出处理和完成结果展示。",
+    "lastUpdatedText": "最近一次更新：26 年 6 月 25 日",
+    "startedText": "开发周期：从 26 年 5 月开始",
+    "preview": {
+      "src": "/src/assets/projects/framelean-preview.svg",
+      "alt": "FrameLean 软件预览图"
+    },
+    "links": [
+      {
+        "kind": "github",
+        "label": "GitHub",
+        "href": "https://github.com/leftzhou/FrameLean"
+      },
+      {
+        "kind": "gitee",
+        "label": "Gitee",
+        "href": "https://gitee.com/leftzhou/framelean"
+      }
+    ]
+  },
+  {
+    "id": "facileim",
+    "navLabel": "FacileIM",
+    "title": "FacileIM",
+    "tags": ["Flutter", "Rust", "全平台"],
+    "description": "是一款 IM 即时通信应用，目前处于开发阶段。\n使用 Flutter、Rust + Axum + Tokio 构建，目标是在多端提供轻量、顺手、可持续扩展的聊天体验。",
+    "lastUpdatedText": "最近一次更新：26 年 6 月 20 日",
+    "startedText": "开发周期：从 26 年 6 月开始",
+    "preview": {
+      "src": "/src/assets/projects/facileim-preview.svg",
+      "alt": "FacileIM 软件预览图"
+    },
+    "links": [
+      {
+        "kind": "github",
+        "label": "GitHub",
+        "href": "https://github.com/leftzhou/FacileIM"
+      },
+      {
+        "kind": "gitee",
+        "label": "Gitee",
+        "href": "https://gitee.com/leftzhou/facileim"
+      }
+    ]
+  },
+  {
+    "id": "exercises-eagles",
+    "navLabel": "ExercisesEagles",
+    "title": "ExercisesEagles",
+    "tags": ["微信小程序", "Web"],
+    "description": "解决大学生期中期末考试需要重复刷题的痛点。\n让大学生可以在电脑、手机、Pad 中轻松刷题，包含大学语文、大学英语、Python 等科目。",
+    "lastUpdatedText": "最近一次更新：26 年 6 月 24 日",
+    "startedText": "开发周期：从 26 年 6 月开始",
+    "preview": {
+      "src": "/src/assets/projects/exercises-eagles-preview.svg",
+      "alt": "ExercisesEagles 软件预览图"
+    },
+    "links": [
+      {
+        "kind": "github",
+        "label": "GitHub",
+        "href": "https://github.com/leftzhou/ExercisesEagles"
+      },
+      {
+        "kind": "gitee",
+        "label": "Gitee",
+        "href": "https://gitee.com/leftzhou/exercises-eagles"
+      }
+    ]
+  }
+]
