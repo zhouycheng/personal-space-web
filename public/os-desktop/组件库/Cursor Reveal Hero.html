@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cursor Reveal Hero</title>
+    <style>
+      :root {
+        --blue: #002fa7;
+        --ink: #171824;
+        --paper: #fbfaf4;
+        --cursor-x: 50%;
+        --cursor-y: 50%;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        position: relative;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+
+      .hero,
+      .hero-reveal {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: clamp(2rem, 6vw, 5rem);
+      }
+
+      .hero {
+        background:
+          linear-gradient(90deg, rgba(0, 47, 167, 0.08) 1px, transparent 1px) 0 0 / 28px 28px,
+          #fbfaf4;
+      }
+
+      .hero-reveal {
+        background:
+          radial-gradient(circle at 30% 22%, rgba(255, 216, 75, 0.2), transparent 18rem),
+          var(--blue);
+        color: white;
+        clip-path: circle(9rem at var(--cursor-x) var(--cursor-y));
+        will-change: clip-path;
+      }
+
+      article {
+        width: min(760px, 100%);
+      }
+
+      p {
+        margin: 0;
+        color: #747687;
+        font: 700 clamp(0.9rem, 2vw, 1.15rem) / 1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .hero-reveal p {
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      h1 {
+        margin: 0 0 1rem;
+        letter-spacing: 0;
+        font: 900 clamp(3.8rem, 13vw, 9.8rem) / 0.82 "Snell Roundhand", "Marker Felt", cursive;
+      }
+
+      .hint {
+        position: fixed;
+        left: 1.5rem;
+        bottom: 1.3rem;
+        color: rgba(23, 24, 36, 0.52);
+        font: 800 0.78rem / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .hero-reveal {
+          clip-path: circle(80rem at 50% 50%);
+          will-change: auto;
+        }
+
+        .hint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="stage">
+      <section class="hero" aria-hidden="true">
+        <article>
+          <h1>Cursor Reveal</h1>
+          <p>黑白双层 Hero，用光标位置控制显影区域。</p>
+        </article>
+      </section>
+      <section class="hero-reveal">
+        <article>
+          <h1>Justin Kit</h1>
+          <p>适合首页开场、作品集封面和强视觉入口。</p>
+        </article>
+      </section>
+      <div class="hint">move pointer</div>
+    </main>
+    <script>
+      const stage = document.getElementById("stage");
+      const root = document.documentElement;
+      let cursorX = window.innerWidth / 2;
+      let cursorY = window.innerHeight / 2;
+      let pendingFrame = false;
+
+      function commitCursorPosition() {
+        pendingFrame = false;
+        root.style.setProperty("--cursor-x", `${cursorX}px`);
+        root.style.setProperty("--cursor-y", `${cursorY}px`);
+      }
+
+      stage.addEventListener("pointermove", (event) => {
+        cursorX = event.clientX;
+        cursorY = event.clientY;
+        if (pendingFrame) return;
+        pendingFrame = true;
+        requestAnimationFrame(commitCursorPosition);
+      }, { passive: true });
+    </script>
+  </body>
+</html>

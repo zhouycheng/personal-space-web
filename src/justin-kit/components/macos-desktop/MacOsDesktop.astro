@@ -1,0 +1,1388 @@
+---
+import type { DesktopEntry } from "./runtime/types";
+import "./macos-desktop.css";
+
+type Props = {
+  entries: DesktopEntry[];
+  storageKey?: string;
+  ariaLabel?: string;
+};
+
+const {
+  entries,
+  storageKey = "justin-os-desktop-icon-layout",
+  ariaLabel = "桌面文件",
+} = Astro.props;
+
+const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\\u003c");
+const stars = [
+  { x: 2, y: 44, size: "small" },
+  { x: 9, y: 91, size: "medium" },
+  { x: 16, y: 13, size: "large" },
+  { x: 19, y: 73, size: "small" },
+  { x: 27, y: 22, size: "medium" },
+  { x: 34, y: 55, size: "tiny" },
+  { x: 40, y: 36, size: "small" },
+  { x: 48, y: 85, size: "tiny" },
+  { x: 51, y: 3, size: "tiny" },
+  { x: 55, y: 69, size: "large" },
+  { x: 62, y: 25, size: "large" },
+  { x: 69, y: 54, size: "medium" },
+  { x: 76, y: 40, size: "large" },
+  { x: 80, y: 9, size: "small" },
+  { x: 79, y: 93, size: "small" },
+  { x: 86, y: 73, size: "tiny" },
+];
+---
+
+<div class="macos-desktop" data-macos-desktop>
+  <div class="macos-starfield" aria-hidden="true">
+    {stars.map((star) => (
+      <span
+        class={`macos-star macos-star--${star.size}`}
+        style={`--star-x: ${star.x}%; --star-y: ${star.y}%;`}
+      ></span>
+    ))}
+  </div>
+
+  <div class="macos-desktop-icons" data-macos-desktop-icons aria-label={ariaLabel}>
+    {entries.map((entry) => (
+      <button
+        type="button"
+        class={`macos-desktop-icon macos-desktop-icon--${entry.icon}`}
+        data-desktop-entry={entry.id}
+        aria-label={`打开 ${entry.title}`}
+      >
+        <span class="macos-icon-art" aria-hidden="true">
+          {(entry.icon === "html" || entry.icon === "markdown") && (
+            <span class="macos-file-badge">{entry.icon === "html" ? ".html" : ".md"}</span>
+          )}
+        </span>
+        <span class="macos-desktop-label">{entry.title}</span>
+      </button>
+    ))}
+  </div>
+
+  <div class="macos-selection-box" data-macos-selection-box aria-hidden="true"></div>
+  <div class="macos-window-layer" data-macos-window-layer aria-live="polite"></div>
+  <script type="application/json" data-macos-desktop-data set:html={desktopDataJson}></script>
+</div>
+
+<script>
+  (() => {
+    const VIEW_SETTINGS_KEY = "justin-os-desktop-view-settings";
+    const WINDOW_SIZE_STORAGE_KEY = "justin-os-window-sizes";
+    const DEFAULT_VIEW_SETTINGS = {
+      iconSize: 48,
+      labelSize: 8.5,
+    };
+    const ICON_SIZE_RANGE = {
+      min: 40,
+      max: 72,
+    };
+    const LABEL_SIZE_RANGE = {
+      min: 7.5,
+      max: 12,
+    };
+    const SYSTEM_DISPLAY_CONTROLS_ID = "__justin-os/display-controls";
+    const SYSTEM_DISPLAY_CONTROLS_ENTRY = {
+      id: SYSTEM_DISPLAY_CONTROLS_ID,
+      title: "显示控制",
+      kind: "system",
+      icon: "system",
+      window: {
+        title: "显示控制",
+        renderer: "display-controls",
+        width: 430,
+        height: 330,
+        minWidth: 360,
+        minHeight: 300,
+      },
+    };
+    const ICON_RIGHT_INSET = 12;
+    const ICON_COLUMN_GAP = 14;
+    const ICON_ROW_GAP = 10;
+    const ICON_SAFE_SIDE = 10;
+    const MENU_SAFE_GAP = 8;
+    const DOCK_SAFE_GAP = 12;
+    const DRAG_THRESHOLD = 4;
+    const SELECTION_HOLD_MS = 120;
+    const SELECTION_DRAG_THRESHOLD = 6;
+
+    document.querySelectorAll("[data-macos-desktop]").forEach((desktopRoot) => {
+      initMacOsDesktop(desktopRoot);
+    });
+
+    function initMacOsDesktop(root) {
+      const dataElement = root.querySelector("[data-macos-desktop-data]");
+      const iconLayer = root.querySelector("[data-macos-desktop-icons]");
+      const selectionBox = root.querySelector("[data-macos-selection-box]");
+      const windowLayer = root.querySelector("[data-macos-window-layer]");
+      if (!dataElement || !iconLayer || !selectionBox || !windowLayer) return;
+
+      const config = readDesktopConfig(dataElement);
+      const entries = config.entries || [];
+      const storageKey = config.storageKey || "justin-os-desktop-icon-layout";
+      const entryById = new Map();
+      const iconStateById = new Map();
+      const selectedIconIds = new Set();
+      const openWindows = new Map();
+      let viewSettings = readViewSettings();
+      let iconMetrics = getIconMetrics();
+
+      let topWindowZ = 120;
+      let windowCascadeIndex = 0;
+      let activeWindowGesture = null;
+      let selectionGesture = null;
+      let desktopLayoutFrame = 0;
+
+      collectEntries(entries, entryById);
+      entryById.set(SYSTEM_DISPLAY_CONTROLS_ID, SYSTEM_DISPLAY_CONTROLS_ENTRY);
+      applyViewSettings(viewSettings, { relayout: false });
+
+      iconLayer.querySelectorAll("[data-desktop-entry]").forEach((iconElement) => {
+        const id = iconElement.dataset.desktopEntry;
+        const entry = entryById.get(id);
+        if (!entry) return;
+        iconStateById.set(id, {
+          id,
+          entry,
+          el: iconElement,
+          left: 0,
+          top: 0,
+        });
+        bindDesktopIcon(iconElement, id);
+      });
+
+      bindDesktopSelection();
+      layoutDesktopIcons();
+      syncIconWindowState();
+
+      window.addEventListener("resize", scheduleDesktopLayout);
+      window.addEventListener("justin-os-desktop:clear-windows", clearWindowState);
+      window.addEventListener("justin-os-desktop:open-display-controls", openDisplayControlsWindow);
+      window.addEventListener("justin-os-desktop:arrange-icons", () => arrangeDesktopIcons({ animate: true }));
+
+      function readDesktopConfig(element) {
+        try {
+          return JSON.parse(element.textContent || "{}");
+        } catch {
+          return { entries: [], storageKey: "justin-os-desktop-icon-layout" };
+        }
+      }
+
+      function collectEntries(items, target) {
+        items.forEach((entry) => {
+          target.set(entry.id, entry);
+          if (Array.isArray(entry.children)) collectEntries(entry.children, target);
+        });
+      }
+
+      function getIconViewport() {
+        const rect = iconLayer.getBoundingClientRect();
+        return {
+          width: rect.width || window.innerWidth,
+          height: rect.height || window.innerHeight,
+        };
+      }
+
+      function getWindowViewport() {
+        const rect = root.getBoundingClientRect();
+        return {
+          width: rect.width || window.innerWidth,
+          height: rect.height || window.innerHeight,
+        };
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function scheduleDesktopLayout() {
+        if (desktopLayoutFrame) return;
+        desktopLayoutFrame = window.requestAnimationFrame(() => {
+          desktopLayoutFrame = 0;
+          layoutDesktopIcons();
+          layoutWindowsForViewport();
+        });
+      }
+
+      function clampNumber(value, range, fallback) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return fallback;
+        return clamp(number, range.min, range.max);
+      }
+
+      function readViewSettings() {
+        try {
+          const parsed = JSON.parse(window.localStorage.getItem(VIEW_SETTINGS_KEY) || "{}");
+          return {
+            iconSize: clampNumber(parsed.iconSize, ICON_SIZE_RANGE, DEFAULT_VIEW_SETTINGS.iconSize),
+            labelSize: clampNumber(parsed.labelSize, LABEL_SIZE_RANGE, DEFAULT_VIEW_SETTINGS.labelSize),
+          };
+        } catch {
+          return { ...DEFAULT_VIEW_SETTINGS };
+        }
+      }
+
+      function saveViewSettings() {
+        try {
+          window.localStorage.setItem(VIEW_SETTINGS_KEY, JSON.stringify(viewSettings));
+        } catch {
+          // The desktop still works when storage is unavailable.
+        }
+      }
+
+      function getIconMetrics(settings = viewSettings) {
+        const labelLineHeight = settings.labelSize * 1.25;
+        const labelHeight = Math.ceil(labelLineHeight * 2);
+        const width = Math.ceil(Math.max(64, settings.iconSize + 24));
+        const height = Math.ceil(settings.iconSize + 5 + labelHeight + 3);
+
+        return {
+          artSize: settings.iconSize,
+          labelSize: settings.labelSize,
+          labelHeight,
+          width,
+          height,
+        };
+      }
+
+      function applyViewSettings(settings, options = {}) {
+        viewSettings = {
+          iconSize: clampNumber(settings.iconSize, ICON_SIZE_RANGE, DEFAULT_VIEW_SETTINGS.iconSize),
+          labelSize: clampNumber(settings.labelSize, LABEL_SIZE_RANGE, DEFAULT_VIEW_SETTINGS.labelSize),
+        };
+        iconMetrics = getIconMetrics(viewSettings);
+        root.style.setProperty("--macos-icon-art-size", `${iconMetrics.artSize}px`);
+        root.style.setProperty("--macos-icon-label-size", `${iconMetrics.labelSize}px`);
+        root.style.setProperty("--macos-icon-label-max-height", `${iconMetrics.labelHeight}px`);
+        root.style.setProperty("--macos-icon-cell-width", `${iconMetrics.width}px`);
+        root.style.setProperty("--macos-icon-cell-height", `${iconMetrics.height}px`);
+        if (options.persist) saveViewSettings();
+        if (options.relayout) layoutDesktopIcons({ animate: Boolean(options.animate) });
+      }
+
+      function getDesktopBounds() {
+        const viewport = getIconViewport();
+        const rootRect = root.getBoundingClientRect();
+        const projection = root.closest("[data-os-fullscreen]");
+        const menuBar = projection?.querySelector(".os-menu-bar");
+        const dock = document.querySelector(".app-dock");
+        let top = ICON_SAFE_SIDE;
+        let bottom = viewport.height - ICON_SAFE_SIDE;
+
+        if (menuBar) {
+          const menuRect = menuBar.getBoundingClientRect();
+          if (menuRect.bottom > rootRect.top && menuRect.top < rootRect.bottom) {
+            top = Math.max(top, menuRect.bottom - rootRect.top + MENU_SAFE_GAP);
+          }
+        }
+
+        if (dock) {
+          const dockRect = dock.getBoundingClientRect();
+          if (dockRect.top > rootRect.top && dockRect.top < rootRect.bottom) {
+            bottom = Math.min(bottom, dockRect.top - rootRect.top - DOCK_SAFE_GAP);
+          }
+        }
+
+        return {
+          left: ICON_SAFE_SIDE,
+          top,
+          right: Math.max(ICON_SAFE_SIDE, viewport.width - ICON_SAFE_SIDE),
+          bottom: Math.max(top + iconMetrics.height, bottom),
+        };
+      }
+
+      function clampIconPosition(position) {
+        const bounds = getDesktopBounds();
+        return {
+          left: clamp(position.left, bounds.left, Math.max(bounds.left, bounds.right - iconMetrics.width)),
+          top: clamp(position.top, bounds.top, Math.max(bounds.top, bounds.bottom - iconMetrics.height)),
+        };
+      }
+
+      function getDefaultIconPositions() {
+        const bounds = getDesktopBounds();
+        const availableHeight = Math.max(iconMetrics.height, bounds.bottom - bounds.top);
+        const rowsPerColumn = Math.max(1, Math.floor((availableHeight + ICON_ROW_GAP) / (iconMetrics.height + ICON_ROW_GAP)));
+        const positions = new Map();
+
+        [...iconStateById.values()].forEach((state, index) => {
+          const column = Math.floor(index / rowsPerColumn);
+          const row = index % rowsPerColumn;
+          positions.set(state.id, clampIconPosition({
+            left: bounds.right - ICON_RIGHT_INSET - iconMetrics.width - column * (iconMetrics.width + ICON_COLUMN_GAP),
+            top: bounds.top + row * (iconMetrics.height + ICON_ROW_GAP),
+          }));
+        });
+
+        return positions;
+      }
+
+      function readStoredIconPositions() {
+        try {
+          const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "{}");
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function saveIconPositions() {
+        const positions = {};
+        iconStateById.forEach((state, id) => {
+          positions[id] = {
+            left: Math.round(state.left),
+            top: Math.round(state.top),
+          };
+        });
+
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify(positions));
+        } catch {
+          // The desktop still works when storage is unavailable.
+        }
+      }
+
+      function layoutDesktopIcons(options = {}) {
+        const firstFrames = options.animate ? captureIconFrames() : null;
+        const defaultPositions = getDefaultIconPositions();
+        const storedPositions = readStoredIconPositions();
+
+        iconStateById.forEach((state, id) => {
+          const stored = storedPositions[id];
+          const fallback = defaultPositions.get(id) || { left: 0, top: 0 };
+          const next = stored && Number.isFinite(stored.left) && Number.isFinite(stored.top)
+            ? clampIconPosition(stored)
+            : fallback;
+          applyIconPosition(state, next);
+        });
+
+        resolveIconCollisions(null, { animate: Boolean(options.animate), firstFrames });
+        iconLayer.classList.add("is-ready");
+      }
+
+      function applyIconPosition(state, position) {
+        state.left = position.left;
+        state.top = position.top;
+        state.el.style.left = `${state.left}px`;
+        state.el.style.top = `${state.top}px`;
+      }
+
+      function captureIconFrames(states = [...iconStateById.values()]) {
+        const frames = new Map();
+        states.forEach((state) => {
+          frames.set(state.id, {
+            left: state.left,
+            top: state.top,
+          });
+        });
+        return frames;
+      }
+
+      function playIconFlip(state, firstFrame, options = {}) {
+        if (!firstFrame) return;
+        const dx = firstFrame.left - state.left;
+        const dy = firstFrame.top - state.top;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+
+        const icon = state.el;
+        icon.classList.add("is-bumping");
+        icon.style.transition = "transform 0s";
+        icon.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${options.scale || 1.045})`;
+        icon.getBoundingClientRect();
+
+        window.requestAnimationFrame(() => {
+          icon.style.transition = "transform 560ms cubic-bezier(0.17, 1.42, 0.28, 1)";
+          icon.style.transform = "";
+        });
+
+        window.setTimeout(() => {
+          icon.classList.remove("is-bumping");
+          icon.style.transition = "";
+          icon.style.transform = "";
+        }, 620);
+      }
+
+      function animateIconsFrom(firstFrames, options = {}) {
+        if (!firstFrames) return;
+        iconStateById.forEach((state, id) => {
+          playIconFlip(state, firstFrames.get(id), options);
+        });
+      }
+
+      function arrangeDesktopIcons(options = {}) {
+        const firstFrames = captureIconFrames();
+        const defaultPositions = getDefaultIconPositions();
+        iconStateById.forEach((state, id) => {
+          applyIconPosition(state, defaultPositions.get(id) || clampIconPosition({ left: 0, top: 0 }));
+        });
+        resolveIconCollisions(null, { animate: false });
+        if (options.animate) animateIconsFrom(firstFrames, { scale: 1.03 });
+        saveIconPositions();
+      }
+
+      function syncIconSelectionState() {
+        iconStateById.forEach((state, id) => {
+          state.el.classList.toggle("is-selected", selectedIconIds.has(id));
+        });
+      }
+
+      function clearIconSelection() {
+        if (!selectedIconIds.size) return;
+        selectedIconIds.clear();
+        syncIconSelectionState();
+      }
+
+      function getIconLayerPoint(event) {
+        const rect = iconLayer.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        };
+      }
+
+      function clampPointToDesktop(point) {
+        const bounds = getDesktopBounds();
+        return {
+          x: clamp(point.x, bounds.left, bounds.right),
+          y: clamp(point.y, bounds.top, bounds.bottom),
+        };
+      }
+
+      function getSelectionRect(start, current) {
+        const left = Math.min(start.x, current.x);
+        const top = Math.min(start.y, current.y);
+        const right = Math.max(start.x, current.x);
+        const bottom = Math.max(start.y, current.y);
+        return {
+          left,
+          top,
+          right,
+          bottom,
+          width: right - left,
+          height: bottom - top,
+        };
+      }
+
+      function paintSelectionBox(rect) {
+        selectionBox.style.left = `${rect.left}px`;
+        selectionBox.style.top = `${rect.top}px`;
+        selectionBox.style.width = `${rect.width}px`;
+        selectionBox.style.height = `${rect.height}px`;
+      }
+
+      function hideSelectionBox() {
+        selectionBox.classList.remove("is-active");
+        selectionBox.style.width = "0px";
+        selectionBox.style.height = "0px";
+      }
+
+      function selectIconsByRect(rect) {
+        selectedIconIds.clear();
+        iconStateById.forEach((state, id) => {
+          if (boxesOverlap(rect, getIconBox(state))) selectedIconIds.add(id);
+        });
+        syncIconSelectionState();
+      }
+
+      function getSelectedIconStates() {
+        return [...selectedIconIds]
+          .map((id) => iconStateById.get(id))
+          .filter(Boolean);
+      }
+
+      function getStatesBounds(states, positions = null) {
+        if (!states.length) {
+          return {
+            left: 0,
+            top: 0,
+            right: iconMetrics.width,
+            bottom: iconMetrics.height,
+          };
+        }
+
+        return states.reduce((bounds, state) => {
+          const position = positions?.get(state.id) || state;
+          return {
+            left: Math.min(bounds.left, position.left),
+            top: Math.min(bounds.top, position.top),
+            right: Math.max(bounds.right, position.left + iconMetrics.width),
+            bottom: Math.max(bounds.bottom, position.top + iconMetrics.height),
+          };
+        }, {
+          left: Infinity,
+          top: Infinity,
+          right: -Infinity,
+          bottom: -Infinity,
+        });
+      }
+
+      function clampDelta(value, min, max) {
+        if (min > max) return (min + max) / 2;
+        return clamp(value, min, max);
+      }
+
+      function getClampedGroupDelta(states, startPositions, dx, dy) {
+        const bounds = getDesktopBounds();
+        const groupBounds = getStatesBounds(states, startPositions);
+
+        return {
+          dx: clampDelta(dx, bounds.left - groupBounds.left, bounds.right - groupBounds.right),
+          dy: clampDelta(dy, bounds.top - groupBounds.top, bounds.bottom - groupBounds.bottom),
+        };
+      }
+
+      function bindDesktopSelection() {
+        iconLayer.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) return;
+          const target = event.target;
+          if (target instanceof Element && target.closest("[data-desktop-entry]")) return;
+
+          event.preventDefault();
+          clearIconSelection();
+
+          const startPoint = clampPointToDesktop(getIconLayerPoint(event));
+          let currentPoint = startPoint;
+          let didSelect = false;
+          let holdReady = false;
+
+          function maybeStartSelection() {
+            if (didSelect || !holdReady) return;
+            const distance = Math.hypot(currentPoint.x - startPoint.x, currentPoint.y - startPoint.y);
+            if (distance < SELECTION_DRAG_THRESHOLD) return;
+            didSelect = true;
+            selectionBox.classList.add("is-active");
+            document.body.classList.add("is-macos-selecting");
+          }
+
+          const holdTimer = window.setTimeout(() => {
+            holdReady = true;
+            maybeStartSelection();
+          }, SELECTION_HOLD_MS);
+
+          iconLayer.setPointerCapture?.(event.pointerId);
+
+          const handleMove = (moveEvent) => {
+            currentPoint = clampPointToDesktop(getIconLayerPoint(moveEvent));
+            maybeStartSelection();
+            if (!didSelect) return;
+
+            selectionGesture = {
+              start: startPoint,
+              current: currentPoint,
+            };
+            const rect = getSelectionRect(startPoint, currentPoint);
+            paintSelectionBox(rect);
+            selectIconsByRect(rect);
+          };
+
+          const handleUp = (upEvent) => {
+            window.clearTimeout(holdTimer);
+            iconLayer.releasePointerCapture?.(upEvent.pointerId);
+            iconLayer.removeEventListener("pointermove", handleMove);
+            iconLayer.removeEventListener("pointerup", handleUp);
+            iconLayer.removeEventListener("pointercancel", handleUp);
+            document.body.classList.remove("is-macos-selecting");
+            selectionGesture = null;
+            hideSelectionBox();
+
+            if (!didSelect) clearIconSelection();
+          };
+
+          iconLayer.addEventListener("pointermove", handleMove);
+          iconLayer.addEventListener("pointerup", handleUp);
+          iconLayer.addEventListener("pointercancel", handleUp);
+        });
+      }
+
+      function bindDesktopIcon(iconElement, id) {
+        iconElement.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) return;
+          const state = iconStateById.get(id);
+          if (!state) return;
+
+          event.preventDefault();
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const shouldDragGroup = selectedIconIds.has(id) && selectedIconIds.size > 1;
+          const dragStates = shouldDragGroup ? getSelectedIconStates() : [state];
+          const startPositions = new Map(dragStates.map((dragState) => [
+            dragState.id,
+            {
+              left: dragState.left,
+              top: dragState.top,
+            },
+          ]));
+          let didDrag = false;
+
+          iconElement.setPointerCapture?.(event.pointerId);
+
+          const handleMove = (moveEvent) => {
+            const dx = moveEvent.clientX - startX;
+            const dy = moveEvent.clientY - startY;
+            if (!didDrag && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+            didDrag = true;
+            if (!selectedIconIds.has(id)) clearIconSelection();
+            dragStates.forEach((dragState) => dragState.el.classList.add("is-dragging"));
+            document.body.classList.add("is-macos-icon-dragging");
+
+            if (dragStates.length > 1) {
+              const delta = getClampedGroupDelta(dragStates, startPositions, dx, dy);
+              dragStates.forEach((dragState) => {
+                const startPosition = startPositions.get(dragState.id);
+                if (!startPosition) return;
+                applyIconPosition(dragState, clampIconPosition({
+                  left: startPosition.left + delta.dx,
+                  top: startPosition.top + delta.dy,
+                }));
+              });
+              return;
+            }
+
+            const startPosition = startPositions.get(state.id);
+            if (!startPosition) return;
+            applyIconPosition(state, clampIconPosition({
+              left: startPosition.left + dx,
+              top: startPosition.top + dy,
+            }));
+          };
+
+          const handleUp = (upEvent) => {
+            iconElement.releasePointerCapture?.(upEvent.pointerId);
+            iconElement.removeEventListener("pointermove", handleMove);
+            iconElement.removeEventListener("pointerup", handleUp);
+            iconElement.removeEventListener("pointercancel", handleUp);
+            document.body.classList.remove("is-macos-icon-dragging");
+            dragStates.forEach((dragState) => dragState.el.classList.remove("is-dragging"));
+
+            if (!didDrag) {
+              openWindow(id);
+              return;
+            }
+
+            resolveIconCollisions(id, { animate: true });
+            saveIconPositions();
+          };
+
+          iconElement.addEventListener("pointermove", handleMove);
+          iconElement.addEventListener("pointerup", handleUp);
+          iconElement.addEventListener("pointercancel", handleUp);
+        });
+      }
+
+      function getIconBox(state) {
+        return {
+          left: state.left,
+          top: state.top,
+          right: state.left + iconMetrics.width,
+          bottom: state.top + iconMetrics.height,
+          centerX: state.left + iconMetrics.width / 2,
+          centerY: state.top + iconMetrics.height / 2,
+        };
+      }
+
+      function boxesOverlap(a, b) {
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      }
+
+      function resolveIconCollisions(sourceId = null, options = {}) {
+        const states = [...iconStateById.values()];
+        const firstFrames = options.firstFrames || (options.animate ? captureIconFrames(states) : null);
+        const bumped = new Set();
+
+        for (let iteration = 0; iteration < 18; iteration += 1) {
+          let moved = false;
+
+          for (let aIndex = 0; aIndex < states.length; aIndex += 1) {
+            for (let bIndex = aIndex + 1; bIndex < states.length; bIndex += 1) {
+              const a = states[aIndex];
+              const b = states[bIndex];
+              const aBox = getIconBox(a);
+              const bBox = getIconBox(b);
+              if (!boxesOverlap(aBox, bBox)) continue;
+
+              const overlapX = Math.min(aBox.right - bBox.left, bBox.right - aBox.left);
+              const overlapY = Math.min(aBox.bottom - bBox.top, bBox.bottom - aBox.top);
+              const angleSeed = (a.id.length * 17 + b.id.length * 31 + iteration * 11) % 360;
+              const directionX = aBox.centerX === bBox.centerX
+                ? Math.cos((angleSeed * Math.PI) / 180)
+                : Math.sign(aBox.centerX - bBox.centerX);
+              const directionY = aBox.centerY === bBox.centerY
+                ? Math.sin((angleSeed * Math.PI) / 180)
+                : Math.sign(aBox.centerY - bBox.centerY);
+              const pushX = Math.max(8, overlapX / 2 + 7) * (directionX || 1);
+              const pushY = Math.max(8, overlapY / 2 + 7) * (directionY || 1);
+              const aWeight = sourceId === a.id ? 0.35 : 0.5;
+              const bWeight = sourceId === b.id ? 0.35 : 0.5;
+
+              applyIconPosition(a, clampIconPosition({
+                left: a.left + pushX * aWeight,
+                top: a.top + pushY * aWeight,
+              }));
+              applyIconPosition(b, clampIconPosition({
+                left: b.left - pushX * bWeight,
+                top: b.top - pushY * bWeight,
+              }));
+              bumped.add(a.el);
+              bumped.add(b.el);
+              moved = true;
+            }
+          }
+
+          if (!moved) break;
+        }
+
+        if (firstFrames) {
+          bumped.forEach((icon) => {
+            const state = states.find((candidate) => candidate.el === icon);
+            if (state) playIconFlip(state, firstFrames.get(state.id));
+          });
+          return;
+        }
+
+        bumped.forEach((icon) => {
+          icon.classList.add("is-bumping");
+          window.setTimeout(() => icon.classList.remove("is-bumping"), 360);
+        });
+      }
+
+      function syncIconWindowState() {
+        iconStateById.forEach((state, id) => {
+          const windowState = openWindows.get(id);
+          state.el.classList.toggle("is-open", Boolean(windowState));
+          state.el.classList.toggle("is-minimized", Boolean(windowState?.minimized));
+          state.el.classList.toggle("is-front", Boolean(windowState && windowState.z === topWindowZ && !windowState.minimized));
+        });
+      }
+
+      function focusWindow(id) {
+        const state = openWindows.get(id);
+        if (!state) return;
+        state.minimized = false;
+        state.el.hidden = false;
+        state.z = ++topWindowZ;
+        state.el.style.zIndex = String(state.z);
+        openWindows.forEach((candidate) => {
+          candidate.el.classList.toggle("is-active", candidate.id === id);
+        });
+        syncIconWindowState();
+      }
+
+      function clampWindowFrame(frame, minWidth, minHeight) {
+        const viewport = getWindowViewport();
+        const safeTop = 44;
+        const safeBottom = 96;
+        const safeSide = 12;
+        const effectiveMinWidth = Math.min(minWidth, Math.max(280, viewport.width - safeSide * 2));
+        const effectiveMinHeight = Math.min(minHeight, Math.max(240, viewport.height - safeTop - 24));
+        const maxWidth = Math.max(effectiveMinWidth, viewport.width - safeSide * 2);
+        const maxHeight = Math.max(effectiveMinHeight, viewport.height - safeTop - safeBottom);
+        const width = clamp(frame.width, effectiveMinWidth, maxWidth);
+        const height = clamp(frame.height, effectiveMinHeight, maxHeight);
+        const maxLeft = Math.max(safeSide, viewport.width - width - safeSide);
+        const maxTop = Math.max(safeTop, viewport.height - height - safeBottom);
+
+        return {
+          left: clamp(frame.left, safeSide, maxLeft),
+          top: clamp(frame.top, safeTop, maxTop),
+          width,
+          height,
+        };
+      }
+
+      function readStoredWindowSizes() {
+        try {
+          const parsed = JSON.parse(window.localStorage.getItem(WINDOW_SIZE_STORAGE_KEY) || "{}");
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function readStoredWindowSize(id) {
+        const stored = readStoredWindowSizes()[id];
+        if (!stored || typeof stored !== "object") return null;
+        const width = Number(stored.width);
+        const height = Number(stored.height);
+        if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+        return { width, height };
+      }
+
+      function saveWindowSize(state) {
+        if (!state || state.fullscreen) return;
+        const sizes = readStoredWindowSizes();
+        sizes[state.id] = {
+          width: Math.round(state.width),
+          height: Math.round(state.height),
+        };
+
+        try {
+          window.localStorage.setItem(WINDOW_SIZE_STORAGE_KEY, JSON.stringify(sizes));
+        } catch {
+          // The window still opens with its default size when storage is unavailable.
+        }
+      }
+
+      function applyWindowFrame(state, frame) {
+        state.left = frame.left;
+        state.top = frame.top;
+        state.width = frame.width;
+        state.height = frame.height;
+        state.el.style.left = `${state.left}px`;
+        state.el.style.top = `${state.top}px`;
+        state.el.style.width = `${state.width}px`;
+        state.el.style.height = `${state.height}px`;
+      }
+
+      function applyFullscreenFrame(state) {
+        const viewport = getWindowViewport();
+        applyWindowFrame(state, {
+          left: 12,
+          top: 42,
+          width: Math.max(280, viewport.width - 24),
+          height: Math.max(240, viewport.height - 124),
+        });
+      }
+
+      function layoutWindowsForViewport() {
+        openWindows.forEach((state) => {
+          if (state.fullscreen) {
+            applyFullscreenFrame(state);
+            return;
+          }
+
+          applyWindowFrame(state, clampWindowFrame(
+            {
+              left: state.left,
+              top: state.top,
+              width: state.width,
+              height: state.height,
+            },
+            state.entry.window.minWidth,
+            state.entry.window.minHeight,
+          ));
+        });
+      }
+
+      function getDefaultWindowFrame(entry) {
+        const viewport = getWindowViewport();
+        const cascade = windowCascadeIndex % 7;
+        const storedSize = readStoredWindowSize(entry.id);
+        windowCascadeIndex += 1;
+        return clampWindowFrame(
+          {
+            left: 78 + cascade * 32,
+            top: 68 + cascade * 24,
+            width: Math.min(storedSize?.width || entry.window.width, viewport.width - 32),
+            height: Math.min(storedSize?.height || entry.window.height, viewport.height - 132),
+          },
+          entry.window.minWidth,
+          entry.window.minHeight,
+        );
+      }
+
+      function makeFileIcon(entry, className = "macos-folder-icon-art") {
+        const art = document.createElement("span");
+        art.className = `${className} ${className}--${entry.icon}`;
+        art.setAttribute("aria-hidden", "true");
+
+        if (entry.icon === "html" || entry.icon === "markdown") {
+          const badge = document.createElement("span");
+          badge.className = "macos-file-badge";
+          badge.textContent = entry.icon === "html" ? ".html" : ".md";
+          art.append(badge);
+        }
+
+        return art;
+      }
+
+      function createWindow(entry) {
+        const frame = getDefaultWindowFrame(entry);
+        const windowEl = document.createElement("section");
+        windowEl.className = "macos-window";
+        windowEl.setAttribute("data-macos-window", entry.id);
+        windowEl.setAttribute("aria-label", entry.window.title);
+
+        const titlebar = document.createElement("div");
+        titlebar.className = "macos-window-titlebar";
+
+        const controls = document.createElement("div");
+        controls.className = "macos-window-controls";
+
+        [
+          ["close", "关闭"],
+          ["minimize", "最小化"],
+          ["fullscreen", "全屏"],
+        ].forEach(([action, label]) => {
+          const control = document.createElement("button");
+          control.type = "button";
+          control.className = `macos-window-control macos-window-control--${action}`;
+          control.dataset.windowAction = action;
+          control.setAttribute("aria-label", `${label} ${entry.window.title}`);
+          controls.append(control);
+        });
+
+        const title = document.createElement("h2");
+        title.textContent = entry.window.title;
+
+        const kind = document.createElement("span");
+        kind.className = "macos-window-kind";
+        kind.textContent = getWindowKindLabel(entry);
+
+        titlebar.append(controls, title, kind);
+
+        const body = document.createElement("div");
+        body.className = "macos-window-body";
+
+        const resizeHandle = document.createElement("span");
+        resizeHandle.className = "macos-window-resize-handle";
+        resizeHandle.setAttribute("aria-hidden", "true");
+
+        windowEl.append(titlebar, body, resizeHandle);
+
+        const state = {
+          id: entry.id,
+          entry,
+          el: windowEl,
+          body,
+          z: ++topWindowZ,
+          minimized: false,
+          fullscreen: false,
+          restoreFrame: null,
+          left: frame.left,
+          top: frame.top,
+          width: frame.width,
+          height: frame.height,
+        };
+
+        windowEl.style.zIndex = String(state.z);
+        applyWindowFrame(state, frame);
+
+        windowEl.addEventListener("pointerdown", () => focusWindow(entry.id));
+        titlebar.addEventListener("pointerdown", (event) => startWindowDrag(event, state));
+        resizeHandle.addEventListener("pointerdown", (event) => startWindowResize(event, state));
+        controls.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          const action = target.dataset.windowAction;
+          if (!action) return;
+          event.stopPropagation();
+          handleWindowAction(entry.id, action);
+        });
+
+        return state;
+      }
+
+      function openWindow(id) {
+        const existing = openWindows.get(id);
+        if (existing) {
+          focusWindow(id);
+          return;
+        }
+
+        const entry = entryById.get(id);
+        if (!entry) return;
+        const state = createWindow(entry);
+        openWindows.set(entry.id, state);
+        windowLayer.append(state.el);
+        focusWindow(entry.id);
+        void renderWindowContent(state);
+      }
+
+      function getWindowKindLabel(entry) {
+        if (entry.kind === "folder") return "Finder";
+        if (entry.kind === "system") return "System";
+        return entry.kind.toUpperCase();
+      }
+
+      function openDisplayControlsWindow() {
+        openWindow(SYSTEM_DISPLAY_CONTROLS_ID);
+      }
+
+      function closeWindow(id) {
+        const state = openWindows.get(id);
+        if (!state) return;
+        state.el.remove();
+        openWindows.delete(id);
+        syncIconWindowState();
+      }
+
+      function minimizeWindow(id) {
+        const state = openWindows.get(id);
+        if (!state) return;
+        state.minimized = true;
+        state.el.hidden = true;
+        syncIconWindowState();
+      }
+
+      function toggleWindowFullscreen(id) {
+        const state = openWindows.get(id);
+        if (!state) return;
+        focusWindow(id);
+
+        if (state.fullscreen) {
+          state.fullscreen = false;
+          state.el.classList.remove("is-fullscreen");
+          applyWindowFrame(state, clampWindowFrame(
+            state.restoreFrame || {
+              left: 78,
+              top: 68,
+              width: state.entry.window.width,
+              height: state.entry.window.height,
+            },
+            state.entry.window.minWidth,
+            state.entry.window.minHeight,
+          ));
+          state.restoreFrame = null;
+          return;
+        }
+
+        state.restoreFrame = {
+          left: state.left,
+          top: state.top,
+          width: state.width,
+          height: state.height,
+        };
+        state.fullscreen = true;
+        state.el.classList.add("is-fullscreen");
+        applyFullscreenFrame(state);
+      }
+
+      function handleWindowAction(id, action) {
+        if (action === "close") closeWindow(id);
+        if (action === "minimize") minimizeWindow(id);
+        if (action === "fullscreen") toggleWindowFullscreen(id);
+      }
+
+      function clearWindowState() {
+        openWindows.forEach((state) => state.el.remove());
+        openWindows.clear();
+        windowCascadeIndex = 0;
+        activeWindowGesture = null;
+        syncIconWindowState();
+      }
+
+      async function renderWindowContent(state) {
+        const entry = state.entry;
+        state.body.className = "macos-window-body";
+        state.body.replaceChildren();
+
+        if (entry.window.renderer === "folder") {
+          renderFolderWindow(state);
+          return;
+        }
+
+        if (entry.window.renderer === "display-controls") {
+          renderDisplayControlsWindow(state);
+          return;
+        }
+
+        if (entry.window.renderer === "html" && entry.window.contentUrl) {
+          state.body.classList.add("macos-window-body--iframe");
+          const iframe = document.createElement("iframe");
+          iframe.title = entry.window.title;
+          iframe.src = entry.window.contentUrl;
+          iframe.loading = "eager";
+          state.body.append(iframe);
+          return;
+        }
+
+        if (entry.window.renderer === "markdown" && entry.window.contentUrl) {
+          state.body.classList.add("macos-window-body--markdown");
+          const loading = document.createElement("p");
+          loading.className = "macos-window-loading";
+          loading.textContent = "Loading...";
+          state.body.append(loading);
+
+          try {
+            const response = await fetch(entry.window.contentUrl);
+            if (!response.ok) throw new Error(`Failed to load ${entry.window.contentUrl}`);
+            const markdown = await response.text();
+            if (!state.el.isConnected) return;
+            state.body.replaceChildren(renderTrustedMarkdown(markdown));
+          } catch {
+            const failed = document.createElement("p");
+            failed.className = "macos-window-loading";
+            failed.textContent = "Unable to load file.";
+            state.body.replaceChildren(failed);
+          }
+        }
+      }
+
+      function renderFolderWindow(state) {
+        state.body.classList.add("macos-window-body--folder");
+        const grid = document.createElement("div");
+        grid.className = "macos-folder-grid";
+
+        (state.entry.children || []).forEach((child) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = `macos-folder-item macos-folder-item--${child.icon}`;
+          item.dataset.folderEntry = child.id;
+          const label = document.createElement("span");
+          label.textContent = child.title;
+          item.append(makeFileIcon(child), label);
+          item.addEventListener("click", () => {
+            grid.querySelectorAll(".is-selected").forEach((selected) => selected.classList.remove("is-selected"));
+            item.classList.add("is-selected");
+          });
+          item.addEventListener("dblclick", () => openWindow(child.id));
+          item.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            openWindow(child.id);
+          });
+          grid.append(item);
+        });
+
+        state.body.append(grid);
+      }
+
+      function renderDisplayControlsWindow(state) {
+        state.body.classList.add("macos-window-body--display-controls");
+
+        const panel = document.createElement("div");
+        panel.className = "macos-display-controls";
+
+        const title = document.createElement("h3");
+        title.textContent = "桌面显示";
+
+        const hint = document.createElement("p");
+        hint.textContent = "调整桌面图标和文字大小。";
+
+        const iconValue = document.createElement("output");
+        const labelValue = document.createElement("output");
+        const iconRange = makeDisplaySlider({
+          label: "图标大小",
+          value: viewSettings.iconSize,
+          range: ICON_SIZE_RANGE,
+          step: 1,
+          output: iconValue,
+          format: (value) => `${Math.round(value)}px`,
+          onInput: (value) => {
+            applyViewSettings({ ...viewSettings, iconSize: value }, { persist: true, relayout: true });
+            updateDisplayControlOutputs();
+          },
+        });
+        const labelRange = makeDisplaySlider({
+          label: "文字大小",
+          value: viewSettings.labelSize,
+          range: LABEL_SIZE_RANGE,
+          step: 0.5,
+          output: labelValue,
+          format: (value) => `${value.toFixed(1)}px`,
+          onInput: (value) => {
+            applyViewSettings({ ...viewSettings, labelSize: value }, { persist: true, relayout: true });
+            updateDisplayControlOutputs();
+          },
+        });
+
+        function updateDisplayControlOutputs() {
+          iconRange.input.value = String(viewSettings.iconSize);
+          labelRange.input.value = String(viewSettings.labelSize);
+          iconValue.textContent = `${Math.round(viewSettings.iconSize)}px`;
+          labelValue.textContent = `${viewSettings.labelSize.toFixed(1)}px`;
+        }
+
+        const resetButton = document.createElement("button");
+        resetButton.type = "button";
+        resetButton.className = "macos-display-reset";
+        resetButton.textContent = "恢复默认";
+        resetButton.addEventListener("click", () => {
+          applyViewSettings(DEFAULT_VIEW_SETTINGS, { persist: true, relayout: true, animate: true });
+          updateDisplayControlOutputs();
+        });
+
+        panel.append(title, hint, iconRange.row, labelRange.row, resetButton);
+        state.body.append(panel);
+        updateDisplayControlOutputs();
+      }
+
+      function makeDisplaySlider(options) {
+        const row = document.createElement("label");
+        row.className = "macos-display-control-row";
+
+        const header = document.createElement("span");
+        header.className = "macos-display-control-header";
+
+        const name = document.createElement("span");
+        name.textContent = options.label;
+        options.output.textContent = options.format(options.value);
+        header.append(name, options.output);
+
+        const input = document.createElement("input");
+        input.type = "range";
+        input.min = String(options.range.min);
+        input.max = String(options.range.max);
+        input.step = String(options.step);
+        input.value = String(options.value);
+        input.addEventListener("input", () => {
+          const value = clampNumber(input.value, options.range, options.value);
+          options.output.textContent = options.format(value);
+          options.onInput(value);
+        });
+
+        row.append(header, input);
+        return { row, input };
+      }
+
+      function renderTrustedMarkdown(markdown) {
+        const article = document.createElement("article");
+        article.className = "macos-markdown";
+        const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+        let list = null;
+        let code = null;
+
+        function flushList() {
+          if (!list) return;
+          article.append(list);
+          list = null;
+        }
+
+        function flushCode() {
+          if (!code) return;
+          article.append(code);
+          code = null;
+        }
+
+        lines.forEach((line) => {
+          if (line.trim().startsWith("```")) {
+            if (code) {
+              flushCode();
+            } else {
+              flushList();
+              const pre = document.createElement("pre");
+              const codeEl = document.createElement("code");
+              pre.append(codeEl);
+              code = pre;
+            }
+            return;
+          }
+
+          if (code) {
+            code.querySelector("code").textContent += `${line}\n`;
+            return;
+          }
+
+          if (!line.trim()) {
+            flushList();
+            return;
+          }
+
+          const heading = line.match(/^(#{1,3})\s+(.+)$/);
+          if (heading) {
+            flushList();
+            const level = String(Math.min(heading[1].length, 3));
+            const element = document.createElement(`h${level}`);
+            element.textContent = heading[2];
+            article.append(element);
+            return;
+          }
+
+          const bullet = line.match(/^-\s+(.+)$/);
+          if (bullet) {
+            if (!list) list = document.createElement("ul");
+            const item = document.createElement("li");
+            item.textContent = bullet[1];
+            list.append(item);
+            return;
+          }
+
+          const numbered = line.match(/^\d+\.\s+(.+)$/);
+          if (numbered) {
+            if (!list || list.tagName !== "OL") {
+              flushList();
+              list = document.createElement("ol");
+            }
+            const item = document.createElement("li");
+            item.textContent = numbered[1];
+            list.append(item);
+            return;
+          }
+
+          flushList();
+          const paragraph = document.createElement("p");
+          paragraph.textContent = line;
+          article.append(paragraph);
+        });
+
+        flushList();
+        flushCode();
+        return article;
+      }
+
+      function startWindowDrag(event, state) {
+        const target = event.target;
+        if (event.button !== 0 || state.fullscreen || (target instanceof Element && target.closest("[data-window-action]"))) return;
+        event.preventDefault();
+        focusWindow(state.id);
+        activeWindowGesture = {
+          type: "drag",
+          id: state.id,
+          startX: event.clientX,
+          startY: event.clientY,
+          startLeft: state.left,
+          startTop: state.top,
+          startWidth: state.width,
+          startHeight: state.height,
+        };
+        document.body.classList.add("is-macos-window-gesturing");
+        window.addEventListener("pointermove", handleWindowGestureMove);
+        window.addEventListener("pointerup", endWindowGesture, { once: true });
+      }
+
+      function startWindowResize(event, state) {
+        if (event.button !== 0 || state.fullscreen) return;
+        event.preventDefault();
+        event.stopPropagation();
+        focusWindow(state.id);
+        activeWindowGesture = {
+          type: "resize",
+          id: state.id,
+          startX: event.clientX,
+          startY: event.clientY,
+          startLeft: state.left,
+          startTop: state.top,
+          startWidth: state.width,
+          startHeight: state.height,
+        };
+        document.body.classList.add("is-macos-window-gesturing", "is-macos-window-resizing");
+        window.addEventListener("pointermove", handleWindowGestureMove);
+        window.addEventListener("pointerup", endWindowGesture, { once: true });
+      }
+
+      function handleWindowGestureMove(event) {
+        if (!activeWindowGesture) return;
+        const state = openWindows.get(activeWindowGesture.id);
+        if (!state) return;
+        const dx = event.clientX - activeWindowGesture.startX;
+        const dy = event.clientY - activeWindowGesture.startY;
+        const nextFrame = activeWindowGesture.type === "drag"
+          ? {
+              left: activeWindowGesture.startLeft + dx,
+              top: activeWindowGesture.startTop + dy,
+              width: state.width,
+              height: state.height,
+            }
+          : {
+              left: state.left,
+              top: state.top,
+              width: activeWindowGesture.startWidth + dx,
+              height: activeWindowGesture.startHeight + dy,
+            };
+        applyWindowFrame(state, clampWindowFrame(nextFrame, state.entry.window.minWidth, state.entry.window.minHeight));
+      }
+
+      function endWindowGesture() {
+        if (activeWindowGesture?.type === "resize") {
+          saveWindowSize(openWindows.get(activeWindowGesture.id));
+        }
+        activeWindowGesture = null;
+        document.body.classList.remove("is-macos-window-gesturing", "is-macos-window-resizing");
+        window.removeEventListener("pointermove", handleWindowGestureMove);
+      }
+    }
+  })();
+</script>

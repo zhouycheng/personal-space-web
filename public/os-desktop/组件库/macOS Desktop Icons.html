@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>macOS Desktop Icons</title>
+    <style>
+      :root {
+        --blue: #002fa7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: var(--blue);
+        color: white;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+      }
+
+      main {
+        min-height: 100vh;
+        padding: clamp(1.5rem, 5vw, 3.5rem);
+        display: grid;
+        align-content: center;
+        gap: 30px;
+      }
+
+      h1 {
+        margin: 0;
+        color: #ffe056;
+        font: 900 clamp(2rem, 7vw, 5rem) / 0.95 "Snell Roundhand", "Marker Felt", cursive;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 22px;
+        max-width: 760px;
+      }
+
+      .tile {
+        min-height: 132px;
+        display: grid;
+        justify-items: center;
+        align-content: center;
+        gap: 8px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+
+      .icon {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        display: block;
+        overflow: hidden;
+      }
+
+      .folder {
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffe978, #ffdc53);
+        box-shadow: 0 9px 16px rgba(0, 19, 80, 0.24);
+      }
+
+      .folder::before {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 0;
+        width: 23px;
+        height: 9px;
+        border-radius: 0 0 3px 3px;
+        background: rgba(255, 248, 181, 0.95);
+      }
+
+      .file {
+        border: 3px solid #b8d9ff;
+        border-radius: 15px;
+        background: #fbfbfb;
+        box-shadow: 0 9px 16px rgba(0, 19, 80, 0.2);
+      }
+
+      .badge {
+        position: absolute;
+        right: 6px;
+        bottom: 6px;
+        border-radius: 5px;
+        padding: 4px 5px 3px;
+        background: #1b63be;
+        color: white;
+        font: 900 8px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .label {
+        max-width: 94px;
+        text-align: center;
+        text-shadow: 0 1px 3px rgba(0, 29, 91, 0.38);
+        font: 700 10px / 1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      p {
+        max-width: 720px;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.72);
+        font: 700 0.95rem / 1.65 ui-sans-serif, system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Desktop Icons</h1>
+      <div class="grid">
+        <div class="tile"><span class="icon folder"></span><span class="label">文件夹</span></div>
+        <div class="tile"><span class="icon file"><span class="badge">.html</span></span><span class="label">HTML 文件</span></div>
+        <div class="tile"><span class="icon file"><span class="badge">.md</span></span><span class="label">Markdown</span></div>
+      </div>
+      <p>Justin OS 桌面图标使用 48px 默认主体、透明 hover 热区、右侧排列和自由拖拽。显示控制窗口可以调整图标与文字尺寸。</p>
+    </main>
+  </body>
+</html>

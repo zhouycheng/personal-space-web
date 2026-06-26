@@ -31,6 +31,9 @@ Homepage launch states should use the shared names defined in
   standalone Astro component with local CSS and pointer script.
 - `local-activity-status`: the macOS foreground app monitor, Astro API runtime,
   SSE badge, app catalog, TTL store, and listener script.
+- `macos-desktop`: the Justin OS desktop icon layer, recursive desktop-file
+  scanner, macOS-style windows, icon dragging, collision avoidance, and display
+  controls.
 
 ## Planned Catalog Entries
 

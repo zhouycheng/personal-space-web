@@ -1,6 +1,10 @@
 ---
 import BaseLayout from "/src/layouts/BaseLayout.astro";
 import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
+import MacOsDesktop from "/src/justin-kit/components/macos-desktop/MacOsDesktop.astro";
+import { getMacOsDesktopEntries } from "/src/justin-kit/components/macos-desktop/runtime/desktop-scanner";
+
+const macOsDesktopEntries = await getMacOsDesktopEntries();
 ---
 
 <BaseLayout title="Justin OS">
@@ -54,13 +58,31 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
       </section>
     </div>
 
+    <div class="home-route-reveal" data-home-route-reveal aria-hidden="true"></div>
+
     <div class="os-fullscreen-projection" data-os-fullscreen aria-hidden="true">
+      <MacOsDesktop entries={macOsDesktopEntries} />
+
       <header class="os-menu-bar" aria-label="JustinOS fullscreen menu bar">
         <div class="os-menu-group os-menu-left">
           <strong>Justin OS</strong>
-          <span>About</span>
-          <span>Works</span>
-          <span>Now</span>
+          <button class="os-menu-item" type="button">About</button>
+          <div class="os-view-menu-root" data-os-view-menu-root>
+            <button
+              class="os-menu-item"
+              type="button"
+              data-os-view-trigger
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              View
+            </button>
+            <div class="os-view-menu" data-os-view-menu role="menu" aria-hidden="true">
+              <button type="button" role="menuitem" data-os-view-action="display-controls">显示控制</button>
+              <button type="button" role="menuitem" data-os-view-action="arrange-icons">整理桌面</button>
+            </div>
+          </div>
+          <button class="os-menu-item" type="button">Now</button>
         </div>
         <div class="os-menu-group os-menu-right">
           <time data-os-time>--:--</time>
@@ -87,9 +109,13 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
       const appShell = document.querySelector(".app-shell");
       const appContent = document.querySelector(".app-content");
       const appDock = document.querySelector(".app-dock");
+      const homeRouteReveal = document.querySelector("[data-home-route-reveal]");
       const osDesktop = document.querySelector("[data-os-desktop]");
       const osFullscreen = document.querySelector("[data-os-fullscreen]");
       const osTimes = document.querySelectorAll("[data-os-time]");
+      const viewMenuRoot = document.querySelector("[data-os-view-menu-root]");
+      const viewMenuTrigger = document.querySelector("[data-os-view-trigger]");
+      const viewMenu = document.querySelector("[data-os-view-menu]");
       const navLinks = document.querySelectorAll(".app-dock a");
       const pages = {
         home: document.getElementById("page-home"),
@@ -99,6 +125,7 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const CAMERA_SCROLL_DISTANCE = 860;
       const PROJECTION_SETTLE_MS = 1200;
+      const HOME_ROUTE_REVEAL_MS = 280;
 
       let awaitingLaunch = false;
       let launchInProgress = false;
@@ -109,6 +136,10 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
       let cameraState = null;
       let bootRunId = 0;
       let projectionSettleTimer = 0;
+      let homeRouteRevealFrame = 0;
+      let homeRouteRevealTimer = 0;
+      let routeTransitionToken = 0;
+      let expandedBoundsFrame = 0;
       let activePage = "home";
 
       if (!terminalCopy || !terminalScreen || !launchStage || !laptop || !appShell || !appContent || !appDock || !osFullscreen) {
@@ -155,6 +186,10 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
         return activePage === "home";
       }
 
+      function isJustinOsOpen() {
+        return launchStage.classList.contains("is-os-open") && terminalScreen.classList.contains("is-desktop");
+      }
+
       function syncHomeLayerVisibility() {
         const homeActive = isHomeVisible();
         const osProjectionIsPartOfHome =
@@ -164,7 +199,66 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
 
         appShell.classList.toggle("is-home-active", homeActive);
         appShell.classList.toggle("is-home-suspended", !homeActive);
+        appShell.classList.toggle("is-os-route-suspended", !homeActive && osProjectionIsPartOfHome);
         osFullscreen.setAttribute("aria-hidden", homeActive && osProjectionIsPartOfHome ? "false" : "true");
+      }
+
+      function clearHomeRouteReveal() {
+        if (homeRouteRevealFrame) {
+          window.cancelAnimationFrame(homeRouteRevealFrame);
+          homeRouteRevealFrame = 0;
+        }
+        if (homeRouteRevealTimer) {
+          window.clearTimeout(homeRouteRevealTimer);
+          homeRouteRevealTimer = 0;
+        }
+        appShell.classList.remove("is-home-route-revealing", "is-home-route-reveal-active");
+        Object.values(pages).forEach((page) => {
+          page?.classList.remove("is-home-route-settling", "is-home-route-settle-active");
+        });
+      }
+
+      function shouldUseHomeRevealTransition(nextPage) {
+        return activePage === "home" && nextPage !== "home";
+      }
+
+      function setProjectionFullscreenGeometry() {
+        osFullscreen.style.setProperty("--projection-left", "0px");
+        osFullscreen.style.setProperty("--projection-top", "0px");
+        osFullscreen.style.setProperty("--projection-width", "100vw");
+        osFullscreen.style.setProperty("--projection-height", "100vh");
+        osFullscreen.style.setProperty("--projection-radius", "0px");
+        osFullscreen.style.setProperty("--projection-opacity", "1");
+        osFullscreen.style.setProperty("--projection-blur", "0px");
+        osFullscreen.style.setProperty("--projection-moire-opacity", "0");
+      }
+
+      function restoreFullscreenProjection() {
+        if (!isJustinOsOpen()) return false;
+        cameraProgress = 0;
+        launchStage.classList.add("is-os-open", "is-camera-open");
+        launchStage.classList.remove("is-camera-approaching", "is-camera-collapsing");
+        terminalScreen.classList.add("is-desktop");
+        terminalScreen.classList.remove("is-terminal-fading", "is-terminal-restoring");
+        osDesktop?.setAttribute("aria-hidden", "false");
+        setProjectionMode("is-settled");
+        setProjectionFullscreenGeometry();
+        return true;
+      }
+
+      function closeViewMenu() {
+        if (!viewMenu || !viewMenuTrigger) return;
+        viewMenuRoot?.classList.remove("is-open");
+        viewMenu.setAttribute("aria-hidden", "true");
+        viewMenuTrigger.setAttribute("aria-expanded", "false");
+      }
+
+      function toggleViewMenu() {
+        if (!viewMenu || !viewMenuTrigger) return;
+        const willOpen = !viewMenuRoot?.classList.contains("is-open");
+        viewMenuRoot?.classList.toggle("is-open", willOpen);
+        viewMenu.setAttribute("aria-hidden", String(!willOpen));
+        viewMenuTrigger.setAttribute("aria-expanded", String(willOpen));
       }
 
       function createCursor(extraClass = "") {
@@ -485,6 +579,14 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
         applyCameraProgress(0);
       }
 
+      function scheduleExpandedBoundsUpdate() {
+        if (expandedBoundsFrame) return;
+        expandedBoundsFrame = window.requestAnimationFrame(() => {
+          expandedBoundsFrame = 0;
+          updateExpandedBounds();
+        });
+      }
+
       function measureLaptopCameraState() {
         const targetRect = getLaunchTargetRect();
         const laptopRect = laptop.getBoundingClientRect();
@@ -761,6 +863,7 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
         terminalScreen.classList.add("is-terminal-restoring");
         const restoredPrompt = renderFreshTerminalPrompt();
         osDesktop?.setAttribute("aria-hidden", "true");
+        window.dispatchEvent(new CustomEvent("justin-os-desktop:clear-windows"));
         setProjectionMode(null);
         launchStage.classList.remove("is-os-open", "is-camera-open", "is-camera-collapsing", "is-camera-approaching");
         terminalScreen.classList.remove(
@@ -781,6 +884,7 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
 
       function handleDesktopWheel(event) {
         if (!isDesktopReadyForCollapse()) return;
+        if (event.target instanceof Element && event.target.closest("[data-macos-window]")) return;
         if (event.deltaY <= 0 && cameraProgress <= 0) return;
 
         event.preventDefault();
@@ -812,8 +916,7 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
         });
       }
 
-      function switchPage(name) {
-        if (!pages[name] || activePage === name) return;
+      function commitPageSwitch(name) {
         activePage = name;
         navLinks.forEach((link) => {
           link.classList.toggle("is-active", link.dataset.page === name);
@@ -822,8 +925,81 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
           if (el) el.classList.toggle("is-active", key === name);
         });
         syncHomeLayerVisibility();
-        if (name === "home") updateExpandedBounds();
+        if (name === "home") {
+          if (!restoreFullscreenProjection()) updateExpandedBounds();
+        }
       }
+
+      function startHomeRevealSwitch(name, token) {
+        const targetPage = pages[name];
+        if (!targetPage) return;
+
+        clearHomeRouteReveal();
+        appShell.classList.add("is-home-route-revealing");
+        targetPage.classList.add("is-home-route-settling");
+        commitPageSwitch(name);
+
+        if (reduceMotion || !homeRouteReveal) {
+          clearHomeRouteReveal();
+          return;
+        }
+
+        homeRouteRevealFrame = window.requestAnimationFrame(() => {
+          homeRouteRevealFrame = 0;
+          if (token !== routeTransitionToken) return;
+          appShell.classList.add("is-home-route-reveal-active");
+          targetPage.classList.add("is-home-route-settle-active");
+        });
+
+        homeRouteRevealTimer = window.setTimeout(() => {
+          if (token !== routeTransitionToken) return;
+          clearHomeRouteReveal();
+        }, HOME_ROUTE_REVEAL_MS + 80);
+      }
+
+      function switchPage(name) {
+        if (!pages[name] || activePage === name) return;
+        const useHomeReveal = shouldUseHomeRevealTransition(name);
+        closeViewMenu();
+
+        routeTransitionToken += 1;
+        const token = routeTransitionToken;
+
+        if (useHomeReveal) {
+          startHomeRevealSwitch(name, token);
+          return;
+        }
+
+        clearHomeRouteReveal();
+        commitPageSwitch(name);
+      }
+
+      viewMenuTrigger?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleViewMenu();
+      });
+
+      viewMenu?.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const action = target.dataset.osViewAction;
+        if (!action) return;
+        event.preventDefault();
+        if (action === "display-controls") {
+          window.dispatchEvent(new CustomEvent("justin-os-desktop:open-display-controls"));
+        }
+        if (action === "arrange-icons") {
+          window.dispatchEvent(new CustomEvent("justin-os-desktop:arrange-icons"));
+        }
+        closeViewMenu();
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        if (!viewMenuRoot || !viewMenuRoot.classList.contains("is-open")) return;
+        if (event.target instanceof Node && viewMenuRoot.contains(event.target)) return;
+        closeViewMenu();
+      });
 
       navLinks.forEach((link) => {
         link.addEventListener("click", (event) => {
@@ -833,6 +1009,10 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
       });
 
       document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeViewMenu();
+          return;
+        }
         if (event.key !== "Enter") return;
         if (!awaitingLaunch || bootIsPlaying || !isHomeVisible()) return;
         event.preventDefault();
@@ -849,7 +1029,7 @@ import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
       });
 
       window.addEventListener("wheel", handleDesktopWheel, { passive: false });
-      window.addEventListener("resize", updateExpandedBounds);
+      window.addEventListener("resize", scheduleExpandedBoundsUpdate);
 
       updateClock();
       window.setInterval(updateClock, 30_000);
