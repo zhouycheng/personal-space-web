@@ -9,6 +9,15 @@ in `src/data/kit.ts`, while complete extracted component source lives under
 The catalog is ready for a future homepage section or `/kit` route, but the
 current homepage does not render it yet.
 
+## Homepage State Vocabulary
+
+Homepage launch states should use the shared names defined in
+`../../CONTEXT.md`:
+
+- `全显状态`: complete laptop/terminal shell visible on the light background.
+- `推拉状态`: the laptop leaving transition and computer approach transition.
+- `Justin OS 状态`: fullscreen blue OS projection after launch.
+
 ## Categories
 
 - `HTML`: HTML/CSS visual effects and page sections.

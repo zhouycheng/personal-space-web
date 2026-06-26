@@ -14,6 +14,12 @@ homepage currently implements the Justin OS launch screen only; Justin Kit data
 and components exist as reusable source but are not rendered on the homepage or
 on a dedicated `/kit` route yet.
 
+**Homepage State Vocabulary:** Future implementation, QA, and planning notes
+should use the shared names in `../../CONTEXT.md`: `全显状态` for the fully
+visible laptop/terminal composition, `推拉状态` for the scroll-driven departure
+and approach transition, and `Justin OS 状态` for the fullscreen blue OS
+projection.
+
 ---
 
 ### Task 1: Project Runtime

@@ -61,18 +61,44 @@ a {
 
 /* ========== 内容区域（可切换） ========== */
 .app-content {
+  position: relative;
+  isolation: isolate;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 /* 每个页面占满内容区 */
 .app-page {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(0.85rem) scale(0.992);
+  filter: blur(0.42rem);
+  transition:
+    opacity 0.34s ease,
+    visibility 0s linear 0.34s,
+    transform 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.48s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-page.is-active {
+  z-index: 1;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition-delay: 0s;
 }
 
 .launch-stage {
@@ -328,6 +354,36 @@ a {
     transform 0.24s ease;
 }
 
+.terminal-screen.is-terminal-restoring {
+  animation: terminal-restore-shell 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.terminal-screen.is-terminal-restoring::before {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.34), transparent 0.18rem),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 245, 172, 0.24), transparent 28%),
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.26) 48%, transparent 100%);
+  animation: terminal-restore-glow 0.78s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.terminal-screen.is-terminal-restoring .terminal-scanlines {
+  animation: terminal-restore-scanlines 0.78s ease-out both;
+}
+
+.terminal-screen.is-terminal-restoring .terminal-chrome,
+.terminal-screen.is-terminal-restoring .terminal-rule,
+.terminal-screen.is-terminal-restoring .terminal-copy {
+  animation: terminal-restore-ui 0.58s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.terminal-screen.is-terminal-restoring .terminal-copy {
+  animation-delay: 0.08s;
+}
+
+.terminal-screen.is-terminal-restoring .terminal-copy .terminal-line {
+  animation: terminal-restore-line 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both;
+}
+
 .terminal-screen.is-desktop .terminal-chrome,
 .terminal-screen.is-desktop .terminal-rule,
 .terminal-screen.is-desktop .terminal-copy {
@@ -409,11 +465,31 @@ a {
   border-radius: var(--projection-radius, 0);
   pointer-events: none;
   opacity: var(--projection-opacity, 0);
+  visibility: hidden;
   background: var(--blue);
   filter: blur(var(--projection-blur, 0px)) saturate(1);
   transform: translateZ(0);
-  transition: opacity 0.18s linear;
+  transition:
+    opacity 0.18s linear,
+    visibility 0s linear 0.18s;
   will-change: left, top, width, height, border-radius, opacity, filter;
+}
+
+.os-fullscreen-projection.is-transitioning,
+.os-fullscreen-projection.is-moire-settling,
+.os-fullscreen-projection.is-settled {
+  visibility: visible;
+  transition:
+    opacity 0.18s linear,
+    visibility 0s linear 0s;
+}
+
+.app-shell:not(.is-home-active) .os-fullscreen-projection {
+  opacity: 0 !important;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.2s;
 }
 
 .os-fullscreen-projection::after {
@@ -527,6 +603,74 @@ a {
   }
   100% {
     transform: translate3d(2%, -1%, 0) rotate(0.001deg);
+  }
+}
+
+@keyframes terminal-restore-shell {
+  0% {
+    filter: brightness(1.12) saturate(1.2);
+    transform: translateY(0.16rem) scale(0.996);
+  }
+  42% {
+    filter: brightness(1.24) saturate(1.28);
+    transform: translateY(-0.04rem) scale(1.004);
+  }
+  100% {
+    filter: brightness(1) saturate(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes terminal-restore-glow {
+  0% {
+    opacity: 0;
+    transform: translate3d(-18%, 0, 0) scale(0.86);
+  }
+  36% {
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(18%, 0, 0) scale(1.12);
+  }
+}
+
+@keyframes terminal-restore-scanlines {
+  0% {
+    opacity: 0.08;
+    transform: translateY(-0.2rem);
+  }
+  38% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 0.36;
+    transform: translateY(0);
+  }
+}
+
+@keyframes terminal-restore-ui {
+  0% {
+    opacity: 0;
+    filter: blur(0.24rem);
+    transform: translateY(0.5rem);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes terminal-restore-line {
+  0% {
+    opacity: 0;
+    transform: translateY(0.32rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

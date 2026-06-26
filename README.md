@@ -23,6 +23,11 @@ Implemented now:
 - Pure Klein blue theme: all brand-blue surfaces and controls use `#002FA7`
   / `rgb(0, 47, 167)`, including the terminal screen, OS desktop projection,
   and active dock item. Screen backgrounds must stay solid color, not gradients.
+- Homepage state vocabulary:
+  - `全显状态`: complete laptop/terminal shell visible on the light background.
+  - `推拉状态`: shared name for the laptop leaving transition and the computer
+    approach transition.
+  - `Justin OS 状态`: fullscreen blue OS projection after the launch interaction.
 - Justin Kit source folder and typed catalog.
 - Extracted `Cursor Reveal Hero` Astro component.
 - Extracted `Local Activity Status` Astro component.
@@ -124,6 +129,7 @@ Notes:
 
 ## Documentation
 
+- `CONTEXT.md`: shared project vocabulary, including homepage state names.
 - `src/justin-kit/README.md`: Justin Kit catalog and extraction boundaries.
 - `src/justin-kit/components/cursor-reveal-hero/README.md`: cursor reveal
   component usage.

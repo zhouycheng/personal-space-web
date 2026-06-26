@@ -3,7 +3,7 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="Justin OS">
-  <main class="app-shell" aria-label="Justin OS">
+  <main class="app-shell is-home-active" aria-label="Justin OS">
     <!-- 内容区域：导航切换时只刷新这里 -->
     <div class="app-content">
       <!-- 首页 -->
@@ -41,14 +41,14 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
       </section>
 
       <!-- 作品集 -->
-      <section id="page-works" class="app-page" aria-label="作品集" style="display: none;">
+      <section id="page-works" class="app-page" aria-label="作品集">
         <div class="launch-stage">
           <p style="color: var(--muted); font-size: 1.1rem;">作品集页面开发中…</p>
         </div>
       </section>
 
       <!-- 我的OS -->
-      <section id="page-os" class="app-page" aria-label="我的OS" style="display: none;">
+      <section id="page-os" class="app-page" aria-label="我的OS">
         <div class="launch-stage">
           <p style="color: var(--muted); font-size: 1.1rem;">我的 OS 页面开发中…</p>
         </div>
@@ -85,6 +85,7 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
       const terminalScreen = document.querySelector("[data-terminal-screen]");
       const launchStage = document.querySelector("[data-launch-stage]");
       const laptop = document.querySelector("[data-laptop]");
+      const appShell = document.querySelector(".app-shell");
       const appContent = document.querySelector(".app-content");
       const appDock = document.querySelector(".app-dock");
       const osDesktop = document.querySelector("[data-os-desktop]");
@@ -109,8 +110,9 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
       let cameraState = null;
       let bootRunId = 0;
       let projectionSettleTimer = 0;
+      let activePage = "home";
 
-      if (!terminalCopy || !terminalScreen || !launchStage || !laptop || !appContent || !appDock || !osFullscreen) {
+      if (!terminalCopy || !terminalScreen || !launchStage || !laptop || !appShell || !appContent || !appDock || !osFullscreen) {
         return;
       }
 
@@ -151,7 +153,19 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
       }
 
       function isHomeVisible() {
-        return pages.home ? pages.home.style.display !== "none" : true;
+        return activePage === "home";
+      }
+
+      function syncHomeLayerVisibility() {
+        const homeActive = isHomeVisible();
+        const osProjectionIsPartOfHome =
+          launchStage.classList.contains("is-os-open") ||
+          launchStage.classList.contains("is-camera-approaching") ||
+          launchStage.classList.contains("is-camera-collapsing");
+
+        appShell.classList.toggle("is-home-active", homeActive);
+        appShell.classList.toggle("is-home-suspended", !homeActive);
+        osFullscreen.setAttribute("aria-hidden", homeActive && osProjectionIsPartOfHome ? "false" : "true");
       }
 
       function createCursor(extraClass = "") {
@@ -167,8 +181,9 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
 
       function renderFreshTerminalPrompt() {
         clearTerminal();
-        appendCommandLine("", { cursor: true });
+        const prompt = appendCommandLine("", { cursor: true });
         awaitingLaunch = false;
+        return prompt;
       }
 
       function appendCommandLine(command = "", options = {}) {
@@ -407,12 +422,14 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
         writeSessionFlag(BOOT_PLAYED_KEY);
       }
 
-      async function playTerminalBoot() {
+      async function playTerminalBoot(options = {}) {
         const runId = ++bootRunId;
         bootIsPlaying = true;
-        clearTerminal();
-        const firstLine = appendCommandLine("", { cursor: true });
-        await sleep(800);
+        const firstLine = options.firstLine ?? (() => {
+          clearTerminal();
+          return appendCommandLine("", { cursor: true });
+        })();
+        await sleep(options.initialDelay ?? 800);
         if (isBootStale(runId)) return;
 
         if (!(await playCommand({
@@ -679,13 +696,14 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
         setProjectionMode("is-transitioning");
         terminalScreen.classList.add("is-terminal-fading", "is-desktop", "is-opening-glow");
         osDesktop?.setAttribute("aria-hidden", "false");
-        osFullscreen.setAttribute("aria-hidden", "false");
+        syncHomeLayerVisibility();
         applyCameraProgress(1);
 
         await animateCameraTo(0, 1320);
 
         launchStage.classList.remove("is-camera-approaching");
         terminalScreen.classList.remove("is-terminal-fading");
+        syncHomeLayerVisibility();
         void beginProjectionSettling();
         writeSessionFlag(OS_OPENED_KEY);
         resetCollapseState();
@@ -701,7 +719,7 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
         terminalScreen.classList.add("is-desktop");
         if (instant) terminalScreen.classList.add("is-instant");
         osDesktop?.setAttribute("aria-hidden", "false");
-        osFullscreen.setAttribute("aria-hidden", "false");
+        syncHomeLayerVisibility();
         awaitingLaunch = false;
         writeSessionFlag(BOOT_PLAYED_KEY);
         writeSessionFlag(OS_OPENED_KEY);
@@ -741,9 +759,9 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
 
         await sleep(260);
 
-        renderFreshTerminalPrompt();
+        terminalScreen.classList.add("is-terminal-restoring");
+        const restoredPrompt = renderFreshTerminalPrompt();
         osDesktop?.setAttribute("aria-hidden", "true");
-        osFullscreen.setAttribute("aria-hidden", "true");
         setProjectionMode(null);
         launchStage.classList.remove("is-os-open", "is-camera-open", "is-camera-collapsing", "is-camera-approaching");
         terminalScreen.classList.remove(
@@ -754,10 +772,12 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
         );
         clearScreenInlineGeometry();
         resetCollapseState();
+        syncHomeLayerVisibility();
 
-        await sleep(140);
+        await sleep(reduceMotion ? 20 : 560);
+        terminalScreen.classList.remove("is-terminal-restoring");
         launchInProgress = false;
-        void playTerminalBoot();
+        void playTerminalBoot({ firstLine: restoredPrompt, initialDelay: reduceMotion ? 0 : 160 });
       }
 
       function handleDesktopWheel(event) {
@@ -794,12 +814,15 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
       }
 
       function switchPage(name) {
+        if (!pages[name] || activePage === name) return;
+        activePage = name;
         navLinks.forEach((link) => {
           link.classList.toggle("is-active", link.dataset.page === name);
         });
         Object.entries(pages).forEach(([key, el]) => {
-          if (el) el.style.display = key === name ? "" : "none";
+          if (el) el.classList.toggle("is-active", key === name);
         });
+        syncHomeLayerVisibility();
         if (name === "home") updateExpandedBounds();
       }
 
@@ -831,6 +854,7 @@ import BaseLayout from "/src/layouts/BaseLayout.astro";
 
       updateClock();
       window.setInterval(updateClock, 30_000);
+      syncHomeLayerVisibility();
 
       if (readSessionFlag(OS_OPENED_KEY)) {
         renderFinalTerminal();

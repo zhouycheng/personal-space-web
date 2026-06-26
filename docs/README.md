@@ -12,6 +12,8 @@ As of 2026-06-26:
 - Node must be `>=22.12.0`; `.node-version` currently records `22.22.3`.
 - The homepage currently renders the Justin OS launch screen with terminal boot,
   text progress, fullscreen projection, and scroll-driven laptop camera motion.
+- Homepage launch discussion should use the shared state names from
+  `../CONTEXT.md`: `全显状态`, `推拉状态`, and `Justin OS 状态`.
 - The project theme color is pure Klein blue `#002FA7`
   (`rgb(0, 47, 167)`). Brand-blue UI, the terminal screen, OS desktop
   projection, and active dock controls should use this solid color instead of
@@ -25,6 +27,7 @@ As of 2026-06-26:
 
 ## Document Index
 
+- `../CONTEXT.md`: shared vocabulary and homepage state definitions.
 - `../README.md`: repository entrypoint and migration summary.
 - `../src/justin-kit/README.md`: Justin Kit catalog and component boundaries.
 - `../src/justin-kit/components/cursor-reveal-hero/README.md`:
