@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Validation
+  short_description: Validate JustinWeb diffs, builds, docs, and browser behavior.
+  default_prompt: Use $justinweb-validation to plan, run, or review validation for this JustinWeb change.

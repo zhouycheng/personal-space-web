@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Feature Analysis
+  short_description: Analyze JustinWeb behavior, source, dependencies, and boundaries.
+  default_prompt: Use $justinweb-feature-analysis to analyze this JustinWeb feature or behavior before planning or implementation.

@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Requirement Pool
+  short_description: Discuss and maintain confirmed JustinWeb requirement candidates.
+  default_prompt: Use $justinweb-requirement-pool to discuss this JustinWeb requirement candidate and update the backlog only after confirmation.

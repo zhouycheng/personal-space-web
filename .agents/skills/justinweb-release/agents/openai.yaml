@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Release
+  short_description: Write formal JustinWeb release notes for a specified version.
+  default_prompt: Use $justinweb-release to summarize and prepare a formal JustinWeb release document for the specified version.

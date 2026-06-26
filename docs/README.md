@@ -29,6 +29,13 @@ As of 2026-06-26:
 
 - `../CONTEXT.md`: shared vocabulary and homepage state definitions.
 - `../README.md`: repository entrypoint and migration summary.
+- `../CHANGELOG.md`: version-level changes and verified milestones.
+- `work/active.md`: current active surfaces, validation baseline, and risks.
+- `work/backlog.md`: confirmed local requirement pool.
+- `work/decisions.md`: index of active decisions.
+- `develop/workflow.md`: workflow, scope gates, validation, Git, and release rules.
+- `lessons.md`: reusable diagnosis and project-operation lessons.
+- `../.agents/skills/README.md`: project-local workflow skill router and pre-read protocol.
 - `../src/justin-kit/README.md`: Justin Kit catalog and component boundaries.
 - `../src/justin-kit/components/cursor-reveal-hero/README.md`:
   cursor reveal component usage and behavior.
@@ -43,6 +50,7 @@ As of 2026-06-26:
 - If Astro commands fail with Node `v20.x`, switch to the version in
   `.node-version` before debugging app code.
 - Keep root docs focused on orientation and runtime details.
+- Keep workflow and skill-routing rules synchronized with `.agents/skills/README.md`.
 - Keep component-level behavior in each component README.
 - Record completed implementation plans as status records instead of leaving
   them as future-tense plans.

@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Workflow
+  short_description: Route JustinWeb project-local workflow skills.
+  default_prompt: Use $justinweb-workflow to route this JustinWeb request to the smallest matching project skill.

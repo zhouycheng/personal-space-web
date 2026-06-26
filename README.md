@@ -20,6 +20,22 @@ Implemented now:
   away from the camera; scrolling back up returns to fullscreen and replays the
   menu-bar entrance.
 - Launch dock with visual navigation anchors for `首页`, `作品集`, and `我的OS`.
+- JSON-driven `作品集` page inside the dock navigation:
+  - project order, tab labels, titles, descriptions, tags, update text, start
+    text, preview image paths, and external links come from
+    `src/data/projects.json`;
+  - preview assets live under `src/assets/projects/`;
+  - the page scrolls one product at a time and settles to the next product only
+    after crossing the 0.5 scroll threshold.
+- macOS-like Justin OS desktop inside the fullscreen projection:
+  - desktop files are scanned recursively from `public/os-desktop/`;
+  - `.html` files open in iframe-backed windows;
+  - `.md` files open in markdown windows;
+  - folders open as Finder-style windows;
+  - the `组件库` folder contains self-contained Justin Kit HTML previews;
+  - desktop icons are draggable, persist their positions locally, and avoid
+    overlapping after drag;
+  - manually resized window dimensions are restored on the next open.
 - Pure Klein blue theme: all brand-blue surfaces and controls use `#002FA7`
   / `rgb(0, 47, 167)`, including the terminal screen, OS desktop projection,
   and active dock item. Screen backgrounds must stay solid color, not gradients.
@@ -37,8 +53,8 @@ Not implemented yet:
 
 - A dedicated `/kit` route.
 - Rendering Justin Kit catalog cards on the homepage.
-- Full OS sections beyond the launch screen, such as works, agent chat, or a
-  footer terminal.
+- Full OS sections beyond the launch screen, such as agent chat or a footer
+  terminal.
 - Fullscreen component preview pages.
 
 ## Commands
@@ -79,7 +95,29 @@ JustinWeb/
   src/layouts/BaseLayout.astro                  HTML shell
   src/styles/global.css                         launch page styling
   src/data/kit.ts                               Justin Kit catalog
+  src/data/projects.json                        works portfolio data
+  src/components/works/WorksPortfolio.astro     works portfolio UI
+  src/assets/projects/                          works preview assets
+  public/os-desktop/                            Justin OS desktop files
   src/justin-kit/                               component library source
+```
+
+## Works Portfolio Data
+
+The works page is managed through `src/data/projects.json`. Keep the array order
+as the display order for both the top project tabs and wheel-scroll pages.
+
+Each record provides display-ready text, so update dates are intentionally stored
+as strings instead of being formatted at runtime. Preview image paths should
+point to files in `src/assets/projects/`, for example:
+
+```json
+{
+  "preview": {
+    "src": "/src/assets/projects/framelean-preview.svg",
+    "alt": "FrameLean 软件预览图"
+  }
+}
 ```
 
 The API route files intentionally re-export the local-activity runtime from the
@@ -130,6 +168,12 @@ Notes:
 ## Documentation
 
 - `CONTEXT.md`: shared project vocabulary, including homepage state names.
+- `CHANGELOG.md`: version-level changes and verified milestones.
+- `.agents/skills/README.md`: project-local workflow skill router and pre-read
+  protocol.
+- `docs/work/`: active work, requirement backlog, and decision index.
+- `docs/develop/workflow.md`: workflow, validation, Git, and release rules.
+- `docs/lessons.md`: reusable operational lessons.
 - `src/justin-kit/README.md`: Justin Kit catalog and extraction boundaries.
 - `src/justin-kit/components/cursor-reveal-hero/README.md`: cursor reveal
   component usage.

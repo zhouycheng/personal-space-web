@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Delivery
+  short_description: Calibrate docs and prepare JustinWeb commit or PR handoff.
+  default_prompt: Use $justinweb-delivery to prepare delivery notes for this validated JustinWeb work.

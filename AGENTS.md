@@ -31,4 +31,7 @@ rtk npm run monitor:activity
 - Keep active runtime details in `README.md`.
 - Keep Justin Kit rules in `src/justin-kit/README.md`.
 - Keep component usage inside each component folder.
+- Use `.agents/skills/README.md` as the project-local workflow skill index.
+- Use `docs/develop/workflow.md` as the durable workflow source of truth.
+- Keep current work and backlog in `docs/work/`.
 - If docs and source disagree, update the docs to match the source.

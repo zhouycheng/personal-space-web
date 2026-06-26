@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Feature Plan
+  short_description: Plan accepted JustinWeb work with tasks and validation boundaries.
+  default_prompt: Use $justinweb-feature-plan to compare options and plan this accepted JustinWeb work.

@@ -1,0 +1,4 @@
+interface:
+  display_name: JustinWeb Implementation
+  short_description: Implement confirmed JustinWeb code, docs, scripts, or skill changes.
+  default_prompt: Use $justinweb-implementation to implement this confirmed JustinWeb scope while preserving repository boundaries.
