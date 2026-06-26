@@ -25,8 +25,8 @@ Implemented now:
     text, preview image paths, and external links come from
     `src/data/projects.json`;
   - preview assets live under `src/assets/projects/`;
-  - the page scrolls one product at a time and settles to the next product only
-    after crossing the 0.5 scroll threshold.
+  - wheel, touchpad, keyboard, and top-tab navigation switch one product at a
+    time through a locked fullscreen carousel.
 - macOS-like Justin OS desktop inside the fullscreen projection:
   - desktop files are scanned recursively from `public/os-desktop/`;
   - `.html` files open in iframe-backed windows;
@@ -105,11 +105,13 @@ JustinWeb/
 ## Works Portfolio Data
 
 The works page is managed through `src/data/projects.json`. Keep the array order
-as the display order for both the top project tabs and wheel-scroll pages.
+as the display order for both the top project tabs and fullscreen project pages.
 
 Each record provides display-ready text, so update dates are intentionally stored
-as strings instead of being formatted at runtime. Preview image paths should
-point to files in `src/assets/projects/`, for example:
+as strings instead of being formatted at runtime. Use `summary` and
+`highlights` for the one-screen works view, and keep longer project copy in
+`description` for future detail views. Preview image paths should point to files
+in `src/assets/projects/`, for example:
 
 ```json
 {

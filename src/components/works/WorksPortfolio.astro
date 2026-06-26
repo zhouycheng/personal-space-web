@@ -16,6 +16,8 @@ type ProjectRecord = {
   navLabel: string;
   title: string;
   tags: string[];
+  summary: string;
+  highlights?: string[];
   description: string;
   lastUpdatedText: string;
   startedText: string;
@@ -80,71 +82,81 @@ const portfolioProjects = projectRecords.map((project, index) => ({
   </nav>
 
   <div class="works-portfolio__viewport" data-project-viewport tabindex="0">
-    {portfolioProjects.map((project) => (
-      <article
-        class="works-project"
-        id={`works-project-${project.id}`}
-        data-project-panel
-        data-project-index={project.index}
-        aria-labelledby={`works-title-${project.id}`}
-        aria-hidden={project.index === 0 ? "false" : "true"}
-      >
-        <div class="works-project__preview">
-          <div class="works-project__preview-frame">
-            {project.previewAsset.isSvg ? (
-              <img
-                class="works-project__image"
-                src={project.previewAsset.url}
-                alt={project.preview.alt}
-                loading={project.index === 0 ? "eager" : "lazy"}
-                decoding="async"
-              />
-            ) : (
-              <Image
-                class="works-project__image"
-                src={project.previewAsset.asset as ImageMetadata}
-                alt={project.preview.alt}
-                loading={project.index === 0 ? "eager" : "lazy"}
-                decoding="async"
-              />
+    <div class="works-portfolio__track" data-project-track>
+      {portfolioProjects.map((project) => (
+        <article
+          class="works-project"
+          id={`works-project-${project.id}`}
+          data-project-panel
+          data-project-index={project.index}
+          aria-labelledby={`works-title-${project.id}`}
+          aria-hidden={project.index === 0 ? "false" : "true"}
+        >
+          <div class="works-project__preview">
+            <div class="works-project__preview-frame">
+              {project.previewAsset.isSvg ? (
+                <img
+                  class="works-project__image"
+                  src={project.previewAsset.url}
+                  alt={project.preview.alt}
+                  loading={project.index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              ) : (
+                <Image
+                  class="works-project__image"
+                  src={project.previewAsset.asset as ImageMetadata}
+                  alt={project.preview.alt}
+                  loading={project.index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              )}
+            </div>
+          </div>
+
+          <div class="works-project__content">
+            <h2 id={`works-title-${project.id}`}>{project.title}</h2>
+
+            <ul class="works-project__tags" aria-label={`${project.title} 技术标签`}>
+              {project.tags.map((tag) => (
+                <li>{tag}</li>
+              ))}
+            </ul>
+
+            <p class="works-project__summary">{project.summary}</p>
+
+            {project.highlights && project.highlights.length > 0 && (
+              <ul class="works-project__highlights" aria-label={`${project.title} 首屏要点`}>
+                {project.highlights.map((highlight) => (
+                  <li>{highlight}</li>
+                ))}
+              </ul>
             )}
+
+            <div class="works-project__meta">
+              <p>{project.lastUpdatedText}</p>
+              <p>{project.startedText}</p>
+            </div>
+
+            <div class="works-project__links" aria-label={`${project.title} 项目链接`}>
+              {project.links.map((link) => (
+                <a
+                  class:list={["works-project-link", `works-project-link--${link.kind}`]}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${project.title} ${link.label}`}
+                  title={link.label}
+                >
+                  <span aria-hidden="true">{linkGlyph(link.kind)}</span>
+                  <span class="works-project-link__label">{link.label}</span>
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-
-        <div class="works-project__content">
-          <h2 id={`works-title-${project.id}`}>{project.title}</h2>
-
-          <ul class="works-project__tags" aria-label={`${project.title} 技术标签`}>
-            {project.tags.map((tag) => (
-              <li>{tag}</li>
-            ))}
-          </ul>
-
-          <p class="works-project__description">{project.description}</p>
-
-          <div class="works-project__meta">
-            <p>{project.lastUpdatedText}</p>
-            <p>{project.startedText}</p>
-          </div>
-
-          <div class="works-project__links" aria-label={`${project.title} 项目链接`}>
-            {project.links.map((link) => (
-              <a
-                class:list={["works-project-link", `works-project-link--${link.kind}`]}
-                href={link.href}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`${project.title} ${link.label}`}
-                title={link.label}
-              >
-                <span aria-hidden="true">{linkGlyph(link.kind)}</span>
-                <span class="works-project-link__label">{link.label}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </article>
-    ))}
+        </article>
+      ))}
+    </div>
   </div>
 </section>
 
@@ -154,29 +166,34 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
     roots.forEach((root) => {
       const viewport = root.querySelector("[data-project-viewport]");
+      const track = root.querySelector("[data-project-track]");
       const tabs = Array.from(root.querySelectorAll("[data-project-tab]"));
       const panels = Array.from(root.querySelectorAll("[data-project-panel]"));
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const WHEEL_THRESHOLD = 72;
+      const TOUCH_THRESHOLD = 42;
+      const ANIMATION_LOCK_MS = reduceMotion ? 80 : 620;
 
-      if (!(viewport instanceof HTMLElement) || tabs.length === 0 || panels.length === 0) {
+      if (!(viewport instanceof HTMLElement) || !(track instanceof HTMLElement) || tabs.length === 0 || panels.length === 0) {
         return;
       }
 
       let activeIndex = 0;
-      let settleTimer = 0;
       let resizeFrame = 0;
+      let wheelIntent = 0;
+      let wheelDirection = 0;
+      let unlockTimer = 0;
+      let isAnimating = false;
+      let touchStartY = 0;
 
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
       }
 
-      function panelHeight() {
-        return Math.max(1, viewport.clientHeight);
-      }
-
       function setActiveProject(index) {
         const nextIndex = clamp(index, 0, panels.length - 1);
         activeIndex = nextIndex;
+        viewport.style.setProperty("--active-project-index", String(nextIndex));
 
         tabs.forEach((tab, tabIndex) => {
           const isActive = tabIndex === nextIndex;
@@ -189,76 +206,99 @@ const portfolioProjects = projectRecords.map((project, index) => ({
         });
       }
 
-      function nearestIndexFromScroll() {
-        const rawIndex = viewport.scrollTop / panelHeight();
-        const baseIndex = Math.floor(rawIndex);
-        const fraction = rawIndex - baseIndex;
-        const targetIndex = baseIndex + (fraction > 0.5 ? 1 : 0);
-        return clamp(targetIndex, 0, panels.length - 1);
+      function lockAnimation() {
+        isAnimating = true;
+        if (unlockTimer) window.clearTimeout(unlockTimer);
+        unlockTimer = window.setTimeout(() => {
+          isAnimating = false;
+          wheelIntent = 0;
+          wheelDirection = 0;
+        }, ANIMATION_LOCK_MS);
       }
 
-      function scrollToProject(index, behavior = "smooth") {
+      function goToProject(index) {
         const nextIndex = clamp(index, 0, panels.length - 1);
-        const top = nextIndex * panelHeight();
-        viewport.scrollTo({
-          top,
-          behavior: reduceMotion ? "auto" : behavior,
-        });
+        if (nextIndex === activeIndex) return false;
         setActiveProject(nextIndex);
+        lockAnimation();
+        return true;
       }
 
-      function settleScroll() {
-        settleTimer = 0;
-        scrollToProject(nearestIndexFromScroll());
+      function moveByDirection(direction) {
+        if (!direction || isAnimating) return;
+        goToProject(activeIndex + direction);
       }
 
-      function scheduleSettle() {
-        if (settleTimer) {
-          window.clearTimeout(settleTimer);
+      function handleWheel(event) {
+        event.preventDefault();
+        if (isAnimating) return;
+
+        const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+        const direction = dominantDelta > 0 ? 1 : -1;
+
+        if (direction !== wheelDirection) {
+          wheelDirection = direction;
+          wheelIntent = 0;
         }
-        settleTimer = window.setTimeout(settleScroll, reduceMotion ? 20 : 140);
-      }
 
-      viewport.addEventListener("scroll", () => {
-        const liveIndex = clamp(Math.round(viewport.scrollTop / panelHeight()), 0, panels.length - 1);
-        setActiveProject(liveIndex);
-        scheduleSettle();
-      }, { passive: true });
+        wheelIntent += Math.abs(dominantDelta);
+
+        if (wheelIntent >= WHEEL_THRESHOLD) {
+          wheelIntent = 0;
+          moveByDirection(direction);
+        }
+      }
 
       tabs.forEach((tab) => {
         tab.addEventListener("click", () => {
           const index = Number(tab.getAttribute("data-project-index") ?? "0");
-          scrollToProject(index);
+          goToProject(index);
         });
       });
 
       viewport.addEventListener("keydown", (event) => {
         if (event.key === "ArrowDown" || event.key === "PageDown") {
           event.preventDefault();
-          scrollToProject(activeIndex + 1);
+          goToProject(activeIndex + 1);
         }
 
         if (event.key === "ArrowUp" || event.key === "PageUp") {
           event.preventDefault();
-          scrollToProject(activeIndex - 1);
+          goToProject(activeIndex - 1);
         }
 
         if (event.key === "Home") {
           event.preventDefault();
-          scrollToProject(0);
+          goToProject(0);
         }
 
         if (event.key === "End") {
           event.preventDefault();
-          scrollToProject(panels.length - 1);
+          goToProject(panels.length - 1);
         }
       });
+
+      viewport.addEventListener("wheel", handleWheel, { passive: false });
+
+      viewport.addEventListener("touchstart", (event) => {
+        touchStartY = event.touches[0]?.clientY ?? 0;
+      }, { passive: true });
+
+      viewport.addEventListener("touchmove", (event) => {
+        if (!touchStartY || isAnimating) return;
+        const currentY = event.touches[0]?.clientY ?? touchStartY;
+        const delta = touchStartY - currentY;
+        if (Math.abs(delta) < TOUCH_THRESHOLD) return;
+        event.preventDefault();
+        moveByDirection(delta > 0 ? 1 : -1);
+        touchStartY = 0;
+      }, { passive: false });
 
       window.addEventListener("resize", () => {
         if (resizeFrame) return;
         resizeFrame = window.requestAnimationFrame(() => {
           resizeFrame = 0;
-          scrollToProject(activeIndex, "auto");
+          setActiveProject(activeIndex);
         });
       });
 
@@ -270,7 +310,7 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 <style>
   :global(#page-works) {
     overflow: hidden;
-    background: #fffdf8;
+    background: var(--paper);
   }
 
   .works-portfolio {
@@ -279,21 +319,21 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     height: 100%;
     min-height: 100%;
     overflow: hidden;
-    background: #fffdf8;
-    color: #070707;
+    background: var(--paper);
+    color: var(--ink);
     font-family: var(--sans);
   }
 
   .works-portfolio__tabs {
     position: absolute;
-    z-index: 4;
-    top: clamp(2.4rem, 5.2svh, 3.75rem);
+    z-index: 5;
+    top: clamp(2rem, 4.7svh, 3.5rem);
     left: 50%;
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    gap: clamp(2.35rem, 4.2vw, 4.6rem);
-    width: min(48rem, calc(100% - 2rem));
+    gap: clamp(2rem, 4.2vw, 4.25rem);
+    width: min(46rem, calc(100% - 2rem));
     transform: translateX(-50%);
   }
 
@@ -301,11 +341,11 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     position: relative;
     min-width: 0;
     border: 0;
-    padding: 0 0 1.55rem;
+    padding: 0 0 1.28rem;
     background: transparent;
     color: #b4b4b4;
     cursor: pointer;
-    font: 500 clamp(1.18rem, 1.74vw, 1.62rem) / 1.08 var(--sans);
+    font: 650 clamp(1rem, 1.22vw, 1.28rem) / 1.08 var(--sans);
     letter-spacing: 0;
     text-align: center;
     white-space: nowrap;
@@ -316,9 +356,9 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     content: "";
     position: absolute;
     left: 50%;
-    bottom: 0.58rem;
-    width: 0.68rem;
-    height: 0.68rem;
+    bottom: 0.43rem;
+    width: 0.48rem;
+    height: 0.48rem;
     border-radius: 999px;
     background: #b7b7b7;
     opacity: 0;
@@ -345,47 +385,54 @@ const portfolioProjects = projectRecords.map((project, index) => ({
   }
 
   .works-portfolio__viewport {
-    position: relative;
+    position: absolute;
     z-index: 1;
-    height: 100%;
+    top: clamp(6.5rem, 13svh, 8.6rem);
+    right: 0;
+    bottom: clamp(4.9rem, 8.5svh, 6.7rem);
+    left: 0;
+    height: auto;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: hidden;
     overscroll-behavior: contain;
-    scroll-behavior: smooth;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    touch-action: none;
   }
 
   .works-portfolio__viewport:focus {
     outline: 0;
   }
 
-  .works-portfolio__viewport::-webkit-scrollbar {
-    display: none;
+  .works-portfolio__track {
+    width: 100%;
+    height: 100%;
+    transform: translate3d(0, calc(var(--active-project-index, 0) * -100%), 0);
+    transition: transform 0.58s cubic-bezier(0.2, 0.82, 0.18, 1);
+    will-change: transform;
   }
 
   .works-project {
     height: 100%;
     min-height: 100%;
     display: grid;
-    grid-template-columns: minmax(19rem, 45.2rem) minmax(23rem, 37.5rem);
-    align-items: start;
-    gap: clamp(2.4rem, 3.5vw, 3.6rem);
-    padding:
-      clamp(9.8rem, 16.8svh, 10.65rem)
-      clamp(4rem, 4.5vw, 4.5rem)
-      clamp(7.2rem, 11svh, 8.7rem);
+    grid-template-columns: minmax(0, 0.54fr) minmax(0, 0.46fr);
+    align-items: center;
+    gap: clamp(2.15rem, 4vw, 5rem);
+    width: min(84rem, calc(100vw - clamp(3rem, 7.4vw, 8rem)));
+    margin: 0 auto;
+    padding: clamp(0.35rem, 1.2svh, 1rem) 0;
   }
 
   .works-project__preview {
     min-width: 0;
     display: flex;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
   }
 
   .works-project__preview-frame {
-    width: min(45.2rem, 100%);
-    aspect-ratio: 0.972;
+    width: min(100%, 42rem);
+    height: min(100%, 58svh, 31.5rem);
     overflow: hidden;
     border-radius: 8px;
     background: #d8d8d8;
@@ -400,54 +447,81 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
   .works-project__content {
     min-width: 0;
-    width: min(100%, 42rem);
-    padding-top: 0.4rem;
+    width: 100%;
+    max-width: 100%;
   }
 
   .works-project__content h2 {
     margin: 0;
-    color: #050505;
-    font: 760 clamp(1.9rem, 2.38vw, 2.18rem) / 1.1 var(--sans);
+    color: #11131a;
+    font: 760 clamp(1.35rem, 1.85vw, 1.85rem) / 1.08 var(--sans);
     letter-spacing: 0;
   }
 
   .works-project__tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.86rem 1.32rem;
-    margin: clamp(2.05rem, 3.4svh, 2.45rem) 0 0;
+    gap: clamp(0.45rem, 0.8vw, 0.8rem);
+    margin: clamp(1rem, 2.35svh, 1.45rem) 0 0;
     padding: 0;
     list-style: none;
   }
 
   .works-project__tags li {
-    min-width: clamp(6.8rem, 8.2vw, 7.35rem);
-    min-height: 2.12rem;
+    min-width: clamp(5rem, 6.6vw, 6.3rem);
+    min-height: clamp(1.55rem, 2.85svh, 1.9rem);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.62rem;
-    padding: 0.36rem 1rem;
+    border-radius: 0.52rem;
+    padding: 0.28rem 0.78rem;
     background: #d6d6d6;
     color: #111111;
-    font: 500 1rem / 1.1 var(--sans);
+    font: 620 clamp(0.74rem, 0.9vw, 0.88rem) / 1 var(--sans);
     white-space: nowrap;
   }
 
-  .works-project__description {
-    margin: clamp(2.65rem, 4.8svh, 3.15rem) 0 0;
-    color: #070707;
-    font: 500 clamp(1.05rem, 1.45vw, 1.33rem) / 1.28 var(--sans);
+  .works-project__summary {
+    max-width: min(100%, 48rem);
+    margin: clamp(1.45rem, 3.2svh, 2.1rem) 0 0;
+    color: #171922;
+    font: 620 clamp(0.88rem, 1vw, 1rem) / 1.45 var(--sans);
     letter-spacing: 0;
-    white-space: pre-line;
+  }
+
+  .works-project__highlights {
+    max-width: min(100%, 48rem);
+    display: grid;
+    gap: clamp(0.36rem, 0.9svh, 0.58rem);
+    margin: clamp(0.8rem, 1.7svh, 1.15rem) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .works-project__highlights li {
+    position: relative;
+    padding-left: 0.95rem;
+    color: rgba(36, 38, 46, 0.78);
+    font: 560 clamp(0.78rem, 0.9vw, 0.92rem) / 1.42 var(--sans);
+  }
+
+  .works-project__highlights li::before {
+    content: "";
+    position: absolute;
+    top: 0.64em;
+    left: 0;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 999px;
+    background: rgba(0, 47, 167, 0.72);
   }
 
   .works-project__meta {
     display: grid;
-    gap: 0.58rem;
-    margin-top: clamp(2.25rem, 4.1svh, 3rem);
-    color: #858585;
-    font: 500 clamp(1rem, 1.28vw, 1.27rem) / 1.2 var(--sans);
+    gap: 0.34rem;
+    margin-top: clamp(1.2rem, 2.7svh, 1.85rem);
+    color: rgba(36, 38, 46, 0.54);
+    font: 620 clamp(0.78rem, 0.92vw, 0.94rem) / 1.25 var(--sans);
   }
 
   .works-project__meta p {
@@ -457,20 +531,20 @@ const portfolioProjects = projectRecords.map((project, index) => ({
   .works-project__links {
     display: flex;
     align-items: center;
-    gap: clamp(1.25rem, 2.2vw, 2rem);
-    margin-top: clamp(2rem, 3.4svh, 2.42rem);
+    gap: clamp(0.78rem, 1.35vw, 1.2rem);
+    margin-top: clamp(1rem, 2.35svh, 1.45rem);
   }
 
   .works-project-link {
-    width: 2.62rem;
-    height: 2.62rem;
+    width: clamp(2rem, 3.8svh, 2.38rem);
+    height: clamp(2rem, 3.8svh, 2.38rem);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
     background: #151515;
     color: #ffffff;
-    font: 850 0.78rem / 1 var(--sans);
+    font: 850 clamp(0.62rem, 0.78vw, 0.72rem) / 1 var(--sans);
     letter-spacing: 0;
     transition:
       transform 0.18s cubic-bezier(0.2, 0.82, 0.18, 1),
@@ -491,7 +565,7 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
   .works-project-link--gitee {
     background: #cf1f29;
-    font-size: 1.26rem;
+    font-size: clamp(1rem, 1.2vw, 1.14rem);
   }
 
   .works-project-link--website,
@@ -510,21 +584,26 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
   @media (max-width: 1180px) {
     .works-project {
-      grid-template-columns: minmax(17rem, 0.9fr) minmax(21rem, 0.78fr);
-      gap: clamp(2rem, 4vw, 3.4rem);
-      padding-inline: clamp(2rem, 4.8vw, 4rem);
+      width: min(72rem, calc(100vw - clamp(2rem, 5vw, 4rem)));
+      grid-template-columns: minmax(0, 0.5fr) minmax(0, 0.5fr);
+      gap: clamp(1.6rem, 3.5vw, 3rem);
     }
 
     .works-project__preview-frame {
-      width: min(39rem, 100%);
+      height: min(100%, 52svh, 28rem);
     }
   }
 
   @media (max-width: 860px) {
+    .works-portfolio__viewport {
+      top: clamp(4.6rem, 9svh, 5.6rem);
+      bottom: clamp(5.2rem, 9svh, 6.3rem);
+    }
+
     .works-portfolio__tabs {
-      top: clamp(1.3rem, 3.6svh, 2rem);
+      top: clamp(1.05rem, 2.8svh, 1.55rem);
       justify-content: flex-start;
-      gap: 1.65rem;
+      gap: 1.5rem;
       width: 100%;
       padding: 0 1.05rem 0.35rem;
       overflow-x: auto;
@@ -537,27 +616,27 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
     .works-project-tab {
       flex: 0 0 auto;
-      padding-bottom: 1.25rem;
-      font-size: clamp(1rem, 5vw, 1.28rem);
+      padding-bottom: 1.08rem;
+      font-size: clamp(0.92rem, 4.5vw, 1.12rem);
     }
 
     .works-project {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: clamp(1rem, 2.8svh, 1.45rem);
-      padding:
-        clamp(5.35rem, 10svh, 6.2rem)
-        clamp(1rem, 5vw, 1.45rem)
-        clamp(5.45rem, 10svh, 6.25rem);
+      grid-template-rows: auto auto;
+      align-content: center;
+      width: min(30rem, calc(100vw - 1.6rem));
+      gap: clamp(0.9rem, 2.2svh, 1.25rem);
+      padding: 0;
     }
 
     .works-project__preview {
       justify-content: center;
+      height: auto;
     }
 
     .works-project__preview-frame {
-      width: min(100%, 31rem);
-      max-height: min(34svh, 18rem);
+      width: 100%;
+      height: min(26svh, 13.5rem);
       aspect-ratio: 1.18;
     }
 
@@ -567,72 +646,74 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     }
 
     .works-project__content h2 {
-      font-size: clamp(1.65rem, 8vw, 2rem);
+      font-size: clamp(1.28rem, 6vw, 1.55rem);
     }
 
     .works-project__tags {
-      gap: 0.55rem;
-      margin-top: 1.05rem;
+      gap: 0.42rem;
+      margin-top: 0.72rem;
     }
 
     .works-project__tags li {
       min-width: 0;
-      min-height: 1.88rem;
+      min-height: 1.55rem;
       border-radius: 0.5rem;
-      padding: 0.32rem 0.78rem;
-      font-size: 0.88rem;
-    }
-
-    .works-project__description {
-      display: -webkit-box;
-      overflow: hidden;
-      margin-top: 1.25rem;
-      font-size: clamp(0.92rem, 4.1vw, 1.02rem);
-      line-height: 1.32;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 6;
-    }
-
-    .works-project__meta {
-      gap: 0.32rem;
-      margin-top: 1.05rem;
-      font-size: 0.9rem;
-    }
-
-    .works-project__links {
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-
-    .works-project-link {
-      width: 2.32rem;
-      height: 2.32rem;
+      padding: 0.25rem 0.62rem;
       font-size: 0.72rem;
     }
 
+    .works-project__summary {
+      margin-top: 0.88rem;
+      font-size: clamp(0.82rem, 3.7vw, 0.92rem);
+      line-height: 1.38;
+    }
+
+    .works-project__highlights {
+      gap: 0.28rem;
+      margin-top: 0.58rem;
+    }
+
+    .works-project__highlights li {
+      padding-left: 0.78rem;
+      font-size: clamp(0.72rem, 3.25vw, 0.82rem);
+      line-height: 1.34;
+    }
+
+    .works-project__meta {
+      gap: 0.22rem;
+      margin-top: 0.72rem;
+      font-size: 0.76rem;
+    }
+
+    .works-project__links {
+      gap: 0.78rem;
+      margin-top: 0.72rem;
+    }
+
+    .works-project-link {
+      width: 2rem;
+      height: 2rem;
+      font-size: 0.62rem;
+    }
+
     .works-project-link--gitee {
-      font-size: 1.12rem;
+      font-size: 0.98rem;
     }
   }
 
   @media (max-width: 430px) {
     .works-project {
-      padding-inline: 0.84rem;
-      padding-bottom: 5.95rem;
+      width: min(100vw - 1.4rem, 27rem);
     }
 
     .works-project__preview-frame {
-      max-height: 30svh;
-    }
-
-    .works-project__description {
-      -webkit-line-clamp: 5;
+      height: min(24svh, 12.6rem);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .works-portfolio__viewport {
-      scroll-behavior: auto;
+    .works-portfolio__track {
+      transition-duration: 1ms;
     }
 
     .works-project-tab,

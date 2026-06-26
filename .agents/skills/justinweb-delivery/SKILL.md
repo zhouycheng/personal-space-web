@@ -15,6 +15,8 @@ Scan affected current-fact files only: `CONTEXT.md`, `README.md`, `AGENTS.md`, `
 
 ## Output
 
+- Default delivery output should be written in Chinese unless the user explicitly requests another language.
+- Commit recommendations must use Chinese for the commit subject and body. Conventional Commits prefixes before the colon, such as `feat(works):`, may remain in English.
 - Markdown commit recommendation using Conventional Commits when no stronger project rule exists.
 - Markdown PR description with overview, implementation, validation, risks, rollback, docs, and review focus.
 - Documentation and changelog updates made or intentionally not needed.

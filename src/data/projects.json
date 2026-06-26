@@ -4,6 +4,12 @@
     "navLabel": "FrameLean",
     "title": "FrameLean",
     "tags": ["Flutter", "FFmpeg", "Windows", "MacOS"],
+    "summary": "本地桌面媒体压缩与格式处理工具，让用户不用手写 FFmpeg 命令也能处理视频、图片和音频任务。",
+    "highlights": [
+      "视频压缩链路已覆盖导入、分析、参数配置与任务执行",
+      "图片和音频进入同一任务模型，支持基础输出处理",
+      "面向桌面端反复使用场景，优先保证本地文件处理效率"
+    ],
     "description": "是一个本地桌面媒体压缩与格式处理工具，基于 Flutter、FFmpeg / FFprobe、Riverpod 等技术构建。\n可以处理常用的视频、图片、音频等媒体任务，对齐进行压缩、格式转换，让用户不用手写 FFmpeg 命令也能处理本地媒体文件。\nFrameLean 当前仍以视频压缩链路最完整：导入视频，分析源文件信息，选择推荐方案或自定义目标体积，配置编码、分辨率和输出格式，然后执行 FFmpeg 任务。图片和音频已进入同一任务模型，支持导入、分析、分类型配置、基础输出处理和完成结果展示。",
     "lastUpdatedText": "最近一次更新：26 年 6 月 25 日",
     "startedText": "开发周期：从 26 年 5 月开始",
@@ -29,6 +35,12 @@
     "navLabel": "FacileIM",
     "title": "FacileIM",
     "tags": ["Flutter", "Rust", "全平台"],
+    "summary": "一款开发中的即时通信应用，使用 Flutter 与 Rust 后端构建，目标是提供多端统一的轻量聊天体验。",
+    "highlights": [
+      "Flutter 负责跨平台客户端体验",
+      "Rust + Axum + Tokio 提供服务端能力",
+      "当前重点是打通基础通讯和多端可用性"
+    ],
     "description": "是一款 IM 即时通信应用，目前处于开发阶段。\n使用 Flutter、Rust + Axum + Tokio 构建，目标是在多端提供轻量、顺手、可持续扩展的聊天体验。",
     "lastUpdatedText": "最近一次更新：26 年 6 月 20 日",
     "startedText": "开发周期：从 26 年 6 月开始",
@@ -54,6 +66,12 @@
     "navLabel": "ExercisesEagles",
     "title": "ExercisesEagles",
     "tags": ["微信小程序", "Web"],
+    "summary": "面向大学生日常复习的刷题工具，让语文、英语、Python 等科目可以在电脑、手机和 Pad 上轻量练习。",
+    "highlights": [
+      "围绕期中期末高频刷题场景设计",
+      "支持多设备使用，降低临考复习成本",
+      "题库内容按科目组织，方便持续扩展"
+    ],
     "description": "解决大学生期中期末考试需要重复刷题的痛点。\n让大学生可以在电脑、手机、Pad 中轻松刷题，包含大学语文、大学英语、Python 等科目。",
     "lastUpdatedText": "最近一次更新：26 年 6 月 24 日",
     "startedText": "开发周期：从 26 年 6 月开始",
