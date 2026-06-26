@@ -17,7 +17,8 @@
 
 ## Architecture Boundaries
 
-- `src/pages/index.astro` owns homepage routing, launch interactions, and OS projection mount points.
+- `src/pages/index.astro`, `src/pages/home.astro`, `src/pages/works.astro`, and `src/pages/os.astro` own only route entrypoints.
+- `src/components/app/JustinAppShell.astro` owns the shared dock route shell, launch interactions, History API navigation, and OS projection mount points.
 - `src/styles/global.css` owns shared layout and motion styling.
 - `src/justin-kit/components/` owns reusable components and their runtime files.
 - `public/os-desktop/` owns file-backed desktop content only.
@@ -40,7 +41,10 @@ Node must satisfy `.node-version` and `package.json` engines: `>=22.12.0`.
 ## Validation
 
 - Baseline: `rtk npm run build`.
+- App shell helper logic: `rtk node --test tests/*.test.mjs`.
 - UI and motion changes need browser preview on desktop and narrow screens.
+- Route-shell changes need direct-load, refresh, and browser back/forward checks
+  for `/`, `/home`, `/works`, and `/os`.
 - Desktop scanner changes need `public/os-desktop/` file listing verification.
 - Local activity changes need route and environment checks.
 

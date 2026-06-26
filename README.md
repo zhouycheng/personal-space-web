@@ -10,23 +10,32 @@ personal component library for reusable web, motion, design, and Flutter pieces.
 Implemented now:
 
 - Astro 6 server project with `@astrojs/node` in standalone mode.
-- `Justin OS` launch page at `/`.
+- `Justin OS` launch page at `/` and `/home`; `/` remains a homepage alias,
+  while the dock uses `/home` as the canonical homepage link.
+- Shared Justin app shell for the dock routes `/home`, `/works`, and `/os`,
+  with History API navigation so refresh, back, and forward preserve the active
+  route instead of falling back to the homepage.
 - Full-screen terminal/laptop visual shell with camera-style open and scroll
   return motion.
 - Terminal boot sequence with skippable typing, randomized typo/backspace
   correction for `echo "I need some tokens and coffee"`, and a text-only
-  `launchd [....] 00-100%` progress line before OS launch.
+  `launchd [....] 00-100%` progress line before OS launch. Terminal typing,
+  pauses, backspace, output waits, and launch progress run with a shared 20%
+  speed-up.
 - Scroll wheel interaction inside the OS: scrolling down pulls the whole laptop
   away from the camera; scrolling back up returns to fullscreen and replays the
-  menu-bar entrance.
-- Launch dock with visual navigation anchors for `首页`, `作品集`, and `我的OS`.
-- JSON-driven `作品集` page inside the dock navigation:
+  menu-bar entrance. Mid-collapse `推拉状态` progress is preserved in same-tab
+  `sessionStorage`, so route switches and refreshes return to the same
+  transition point instead of replaying fullscreen.
+- Launch dock with visual navigation links for `首页`, `作品集`, and `我的`.
+- JSON-driven `作品集` route at `/works`:
   - project order, tab labels, titles, descriptions, tags, update text, start
     text, preview image paths, and external links come from
     `src/data/projects.json`;
   - preview assets live under `src/assets/projects/`;
   - wheel, touchpad, keyboard, and top-tab navigation switch one product at a
     time through a locked fullscreen carousel.
+- `/os` route with a pannable infinite canvas surface for the personal page.
 - macOS-like Justin OS desktop inside the fullscreen projection:
   - desktop files are scanned recursively from `public/os-desktop/`;
   - `.html` files open in iframe-backed windows;
@@ -89,11 +98,16 @@ On this machine, direct Astro build verification has also used:
 
 ```text
 JustinWeb/
-  src/pages/index.astro                         Justin OS launch page
+  src/pages/index.astro                         `/` homepage alias
+  src/pages/home.astro                          `/home` homepage route
+  src/pages/works.astro                         `/works` portfolio route
+  src/pages/os.astro                            `/os` personal route
+  src/components/app/JustinAppShell.astro       shared dock route shell
+  src/components/app/homeRuntimeState.mjs       home transition and terminal timing helpers
   src/pages/api/activity/update.ts              POST activity updates
   src/pages/api/activity/stream.ts              SSE activity stream
   src/layouts/BaseLayout.astro                  HTML shell
-  src/styles/global.css                         launch page styling
+  src/styles/global.css                         route shell, launch, dock, and OS styling
   src/data/kit.ts                               Justin Kit catalog
   src/data/projects.json                        works portfolio data
   src/components/works/WorksPortfolio.astro     works portfolio UI

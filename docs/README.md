@@ -10,8 +10,18 @@ As of 2026-06-26:
 - The active runtime is Astro 6 with the Node standalone adapter.
 - The active app root is this repository root.
 - Node must be `>=22.12.0`; `.node-version` currently records `22.22.3`.
+- The dock routes are `/home`, `/works`, and `/os`; `/` remains a homepage
+  alias. The shared app shell uses History API navigation so route refreshes do
+  not fall back to the homepage.
 - The homepage currently renders the Justin OS launch screen with terminal boot,
   text progress, fullscreen projection, and scroll-driven laptop camera motion.
+- Terminal boot timing is intentionally 20% faster than the original rebuild
+  timing, while keeping the same typing, typo, backspace, and progress-line
+  behavior.
+- The homepage persists mid-collapse `推拉状态` progress in same-tab
+  `sessionStorage`, so returning to `/home` from another route or refreshing
+  `/home` resumes the same transition point when Justin OS is being pushed back
+  toward the terminal.
 - Homepage launch discussion should use the shared state names from
   `../CONTEXT.md`: `全显状态`, `推拉状态`, and `Justin OS 状态`.
 - The project theme color is pure Klein blue `#002FA7`

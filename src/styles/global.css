@@ -168,6 +168,39 @@ a {
   filter: blur(0);
 }
 
+.mine-page {
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.infinite-canvas {
+  --canvas-x: 0px;
+  --canvas-y: 0px;
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: var(--paper);
+  background-image: radial-gradient(circle, rgba(36, 38, 46, 0.18) 1.35px, transparent 1.55px);
+  background-position: var(--canvas-x) var(--canvas-y);
+  background-repeat: repeat;
+  background-size: 2rem 2rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.infinite-canvas.is-panning {
+  cursor: grabbing;
+}
+
+.infinite-canvas:focus-visible {
+  outline: 2px solid rgba(0, 47, 167, 0.16);
+  outline-offset: -2px;
+}
+
 .launch-stage {
   position: relative;
   flex: 1;
