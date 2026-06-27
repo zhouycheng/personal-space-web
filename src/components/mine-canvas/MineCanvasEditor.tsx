@@ -120,6 +120,16 @@ function htmlParagraph(text: string) {
 }
 
 function syncNodeSize(node: MineCanvasNode): MineCanvasNode {
+  if (
+    node.measured?.width === node.data.width &&
+    node.measured?.height === node.data.height &&
+    node.width === node.data.width &&
+    node.height === node.data.height &&
+    node.style?.width === node.data.width &&
+    node.style?.height === node.data.height
+  ) {
+    return node;
+  }
   return {
     ...node,
     width: node.data.width,
@@ -137,13 +147,14 @@ function syncNodeSize(node: MineCanvasNode): MineCanvasNode {
 }
 
 function markInteractiveNodes(nodes: MineCanvasNode[], selectedNodeId: string, editingNodeId: string) {
-  return nodes.map((node) =>
-    syncNodeSize({
-      ...node,
-      selected: node.id === selectedNodeId,
-      draggable: node.id === selectedNodeId && node.id !== editingNodeId,
-    }),
-  );
+  return nodes.map((node) => {
+    const selected = node.id === selectedNodeId;
+    const draggable = node.id === selectedNodeId && node.id !== editingNodeId;
+    if (node.selected === selected && node.draggable === draggable) {
+      return syncNodeSize(node);
+    }
+    return syncNodeSize({ ...node, selected, draggable });
+  });
 }
 
 function migrateNodeData(data: MineCanvasNodeData): MineCanvasNodeData {
@@ -482,11 +493,14 @@ export default function MineCanvasEditor({ seedDocument }: MineCanvasEditorProps
     } : edge));
   }, []);
 
+  const editingNodeIdRef = useRef(editingNodeId);
+  editingNodeIdRef.current = editingNodeId;
+
   const handleSelectionChange: OnSelectionChangeFunc<MineCanvasNode, MineCanvasEdge> = useCallback(({ nodes: selectedNodes }) => {
     const nodeId = selectedNodes[0]?.id || "";
     setSelectedNodeId(nodeId);
-    if (!nodeId && editingNodeId) finishEditing();
-  }, [editingNodeId, finishEditing]);
+    if (!nodeId && editingNodeIdRef.current) finishEditing();
+  }, [finishEditing]);
 
   const handleMove: OnMove = useCallback((_, nextViewport) => setViewport(nextViewport), []);
 
