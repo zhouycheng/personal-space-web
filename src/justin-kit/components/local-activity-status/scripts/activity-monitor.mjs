@@ -37,12 +37,22 @@ function loadLocalEnv() {
 
 loadLocalEnv();
 
-const MONITOR_URL = (process.env.ACTIVITY_MONITOR_URL ?? "http://localhost:4321").replace(
-  /\/$/,
-  ""
-);
-const UPDATE_URL = `${MONITOR_URL}/api/activity/update`;
+const MONITOR_BASE = (process.env.ACTIVITY_MONITOR_URL ?? "http://localhost:4321").replace(/\/$/, "");
 const MONITOR_TOKEN = process.env.ACTIVITY_MONITOR_TOKEN;
+
+function resolveUpdateUrls() {
+  const urls = [`${MONITOR_BASE}/api/activity/update`];
+  const extra = process.env.ACTIVITY_MONITOR_EXTRA_URLS;
+  if (extra) {
+    for (const url of extra.split(",")) {
+      const trimmed = url.trim().replace(/\/$/, "");
+      if (trimmed) urls.push(`${trimmed}/api/activity/update`);
+    }
+  }
+  return urls;
+}
+
+const UPDATE_URLS = resolveUpdateUrls();
 
 const POLL_INTERVAL_MS = Number(process.env.ACTIVITY_MONITOR_POLL_INTERVAL_MS ?? 2_000);
 const HEARTBEAT_INTERVAL_MS = Number(
@@ -131,12 +141,12 @@ async function readResponseBody(response) {
   }
 }
 
-async function pushActivity(payload) {
+async function pushToUrl(url, payload) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(UPDATE_URL, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -158,6 +168,20 @@ async function pushActivity(payload) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function pushActivity(payload) {
+  let primaryResult = null;
+  for (const url of UPDATE_URLS) {
+    try {
+      const result = await pushToUrl(url, payload);
+      if (url === UPDATE_URLS[0]) primaryResult = result;
+    } catch (error) {
+      const label = url === UPDATE_URLS[0] ? "[primary]" : "[extra]";
+      console.error(`[activity-monitor] ${label} push failed (${url}):`, error.message);
+    }
+  }
+  return primaryResult;
 }
 
 async function sendInactiveAndExit(signal) {
@@ -208,7 +232,10 @@ async function tick() {
 
 async function run() {
   console.log(`[activity-monitor] session ${SESSION_ID}`);
-  console.log(`[activity-monitor] posting to ${UPDATE_URL}`);
+  for (const url of UPDATE_URLS) {
+    const label = url === UPDATE_URLS[0] ? "primary" : "extra";
+    console.log(`[activity-monitor] [${label}] posting to ${url}`);
+  }
 
   while (!shuttingDown) {
     const startedAt = Date.now();

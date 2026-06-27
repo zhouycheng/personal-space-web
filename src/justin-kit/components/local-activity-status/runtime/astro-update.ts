@@ -59,7 +59,7 @@ function parseActivityPayload(body: unknown): ActivityUpdatePayload | null {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  const expectedToken = process.env.ACTIVITY_MONITOR_TOKEN;
+  const expectedToken = import.meta.env.ACTIVITY_MONITOR_TOKEN;
   if (!expectedToken) {
     return Response.json(
       { message: "ACTIVITY_MONITOR_TOKEN is not configured." },
