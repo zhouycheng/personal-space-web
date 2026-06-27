@@ -462,6 +462,10 @@ textarea.mine-inline-input {
   resize: none;
 }
 
+.mine-inline-placeholder {
+  opacity: 0.38;
+}
+
 .mine-card--text,
 .mine-card--link {
   display: grid;
@@ -815,12 +819,12 @@ textarea.mine-inline-input {
 
 .mine-monitor-app {
   font: 690 0.78rem / 1.28 var(--sans);
-  color: #059669;
+  color: var(--mine-node-accent);
 }
 
 .mine-monitor-text {
   font: 500 0.82rem / 1.32 var(--sans);
-  color: #20242e;
+  color: var(--mine-monitor-text);
 }
 
 .mine-monitor-idle {

@@ -87,7 +87,7 @@ function TimelineCard({ contentRef, data, nodeId, update }: {
     <div className="mine-card mine-card--timeline">
       <div className="mine-card-measure" ref={contentRef}>
         <header className="mine-timeline-title">
-          <CardInlineField as="h3" fieldKey="title" nodeId={nodeId} value={data.title} onChange={(title) => update((current) => ({ ...current, title } as MineCanvasNodeData))} />
+          <CardInlineField as="h3" fieldKey="title" nodeId={nodeId} placeholder="卡片标题" value={data.title} onChange={(title) => update((current) => ({ ...current, title } as MineCanvasNodeData))} />
         </header>
         <ol className={`mine-timeline-list${runtime?.isAuthor ? " is-draggable" : ""}`} ref={listRef}>
           {data.items.map((item, index) => (
@@ -102,9 +102,9 @@ function TimelineCard({ contentRef, data, nodeId, update }: {
                 onPointerDown={handlePointerDown(index)}
               />
               <div>
-                <CardInlineField as="time" fieldKey={`timeline-${item.id}-time`} timelineItemId={item.id} nodeId={nodeId} value={item.time} onChange={(time) => updateItem(item.id, { time })} />
-                <CardInlineField as="strong" fieldKey={`timeline-${item.id}-title`} timelineItemId={item.id} nodeId={nodeId} value={item.title} onChange={(title) => updateItem(item.id, { title })} />
-                <CardInlineField as="p" multiline fieldKey={`timeline-${item.id}-subtitle`} timelineItemId={item.id} nodeId={nodeId} value={item.subtitle} onChange={(subtitle) => updateItem(item.id, { subtitle })} />
+                <CardInlineField as="time" fieldKey={`timeline-${item.id}-time`} placeholder="时间" timelineItemId={item.id} nodeId={nodeId} value={item.time} onChange={(time) => updateItem(item.id, { time })} />
+                <CardInlineField as="strong" fieldKey={`timeline-${item.id}-title`} placeholder="标题" timelineItemId={item.id} nodeId={nodeId} value={item.title} onChange={(title) => updateItem(item.id, { title })} />
+                <CardInlineField as="p" multiline fieldKey={`timeline-${item.id}-subtitle`} placeholder="副标题" timelineItemId={item.id} nodeId={nodeId} value={item.subtitle} onChange={(subtitle) => updateItem(item.id, { subtitle })} />
               </div>
             </li>
           ))}

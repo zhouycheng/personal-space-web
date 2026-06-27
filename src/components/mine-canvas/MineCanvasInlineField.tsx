@@ -8,6 +8,7 @@ type MineCanvasInlineFieldProps = {
   onBeginEdit: () => void;
   onChange: (value: string) => void;
   onExitEdit: () => void;
+  placeholder?: string;
   value: string;
 };
 
@@ -19,6 +20,7 @@ export function MineCanvasInlineField({
   onBeginEdit,
   onChange,
   onExitEdit,
+  placeholder,
   value,
 }: MineCanvasInlineFieldProps) {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -31,15 +33,16 @@ export function MineCanvasInlineField({
   }, [active]);
 
   if (!active) {
+    const displayClass = `${className}${!value ? " mine-inline-placeholder" : ""}`.trim();
     return (
       <Display
-        className={className}
+        className={displayClass}
         onDoubleClick={(event: MouseEvent) => {
           event.stopPropagation();
           onBeginEdit();
         }}
       >
-        {value}
+        {value || placeholder}
       </Display>
     );
   }
@@ -47,6 +50,7 @@ export function MineCanvasInlineField({
   const sharedProps = {
     className: `mine-inline-input nodrag nopan nowheel ${className}`.trim(),
     defaultValue: value,
+    placeholder,
     onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (!composingRef.current) onChange(event.currentTarget.value.trim());
     },

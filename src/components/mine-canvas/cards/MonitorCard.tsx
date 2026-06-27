@@ -38,10 +38,17 @@ function MonitorCard({ data, nodeId, update }: {
     return () => clearInterval(timer);
   }, [poll]);
 
-  const accent = monitor.status === "offline" ? "#9ca3af" : data.accent;
+  const accent =
+    monitor.status === "offline" ? "#9ca3af"
+    : monitor.status === "unknown" ? "#d97706"
+    : data.accent;
+  const textColor =
+    monitor.status === "offline" ? "#b0b7c3"
+    : monitor.status === "unknown" ? "#c7a06b"
+    : "#64748b";
 
   return (
-    <div className="mine-card mine-card--monitor" style={{ "--mine-node-accent": accent } as React.CSSProperties}>
+    <div className="mine-card mine-card--monitor" style={{ "--mine-node-accent": accent, "--mine-monitor-text": textColor } as React.CSSProperties}>
       <NodeHeader
         label="笔记本窗口监听器"
         nodeId={nodeId}

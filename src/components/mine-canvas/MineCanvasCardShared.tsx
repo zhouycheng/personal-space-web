@@ -38,6 +38,7 @@ export function CardInlineField({
   multiline,
   nodeId,
   onChange,
+  placeholder,
   timelineItemId,
   value,
 }: {
@@ -47,6 +48,7 @@ export function CardInlineField({
   multiline?: boolean;
   nodeId: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   timelineItemId?: string;
   value: string;
 }) {
@@ -59,6 +61,7 @@ export function CardInlineField({
       as={as}
       className={className}
       multiline={multiline}
+      placeholder={placeholder}
       value={value}
       onBeginEdit={() => runtime?.beginEditing(nodeId, { fieldKey, timelineItemId })}
       onChange={onChange}

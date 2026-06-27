@@ -364,11 +364,13 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     setViewport(doc.viewport);
   }, [remoteDocument]);
 
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Auto-save when author makes changes (2s debounce)
   useEffect(() => {
     if (!isAuthor || !authToken) return;
     setSaveError(false);
-    const timer = setTimeout(() => {
+    saveTimerRef.current = setTimeout(() => {
       fetch("/api/canvas", {
         method: "POST",
         headers: {
@@ -382,7 +384,12 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
         setSaveError(true);
       });
     }, 2000);
-    return () => clearTimeout(timer);
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
   }, [nodes, edges, viewport, isAuthor, authToken]);
 
   const releaseObjectUrl = useCallback((src?: string) => {
@@ -396,17 +403,6 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     objectUrls.current.clear();
   }, []);
 
-  // Block browser save dialog on Cmd+S / Ctrl+S, handle undo/redo
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   // --- undo / redo state ---
   const MAX_HISTORY = 50;
   const undoStack = useRef<Array<{ nodes: MineCanvasNode[]; edges: MineCanvasEdge[]; viewport: typeof viewport }>>([]);
@@ -417,6 +413,39 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+
+  const saveNow = useCallback(() => {
+    if (!isAuthor || !authToken) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    setSaveError(false);
+    fetch("/api/canvas", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ version: 3, nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current }),
+    }).then((res) => {
+      if (!res.ok) setSaveError(true);
+    }).catch(() => {
+      setSaveError(true);
+    });
+  }, [isAuthor, authToken]);
+
+  // Block browser save dialog on Cmd+S / Ctrl+S, trigger manual save for author
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        saveNow();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [saveNow]);
 
   const pushHistory = useCallback(() => {
     undoStack.current.push({
