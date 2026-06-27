@@ -388,7 +388,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
       setIsAuthor(true);
       return () => { cancelled = true; };
     }
-    const passphrase = localStorage.getItem("author_passphrase");
+    const passphrase = localStorage.getItem("author_password");
     if (!passphrase) return () => { cancelled = true; };
     tryDeriveAuthToken(passphrase, authSalt, authEncryptedToken).then((token) => {
       if (cancelled) return;
