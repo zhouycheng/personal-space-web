@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Pull the server SQLite database to local.
-# Requires SERVER_HOST and SERVER_DATA_DIR env vars.
+# Requires SERVER_HOST and SERVER_DATA_DIR env vars (set in .env or .env.local).
 set -euo pipefail
+
+# Load env files
+for f in .env .env.local; do
+  [ -f "$f" ] && set -a && source "$f" && set +a
+done
 
 LOCAL_DIR="data"
 DB_NAME="justinweb.db"
