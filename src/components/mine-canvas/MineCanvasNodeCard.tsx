@@ -1,4 +1,5 @@
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
+import { GripVertical } from "lucide-react";
 import {
   useCallback,
   useContext,
@@ -39,6 +40,7 @@ export function MineCanvasNodeCard({ data, id, isConnectable, selected }: NodePr
 
   return (
     <article ref={setReference} className={`mine-node mine-node--${data.kind}${selected ? " is-selected" : ""}${editing ? " is-editing nodrag" : ""}`} style={style}>
+      {selected && !editing ? <GripVertical className="mine-node-grip" size={14} aria-hidden="true" /> : null}
       <CardToolbar contentRef={contentRef} data={data} nodeId={id} reference={reference} update={update} />
       {data.kind === "image" ? (
         <NodeResizer
