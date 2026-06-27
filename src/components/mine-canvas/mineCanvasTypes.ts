@@ -102,4 +102,5 @@ export type MineCanvasDocument = {
   nodes: MineCanvasNode[];
   edges: MineCanvasEdge[];
   viewport: Viewport;
+  centerNodeId?: string;
 };

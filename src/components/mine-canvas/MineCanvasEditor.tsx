@@ -223,6 +223,7 @@ function prepareDocument(document: MineCanvasDocument): MineCanvasDocument {
     },
     nodes: markInteractiveNodes(nodes, "", ""),
     edges,
+    centerNodeId: next.centerNodeId || undefined,
   };
 }
 
@@ -301,6 +302,8 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   const [activeEditor, setActiveEditor] = useState<import("@tiptap/react").Editor | null>(null);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [activeLinkNodeId, setActiveLinkNodeId] = useState("");
+  const [centerNodeId, setCenterNodeIdState] = useState(initialDocument.centerNodeId || "");
+  const [isFlowReady, setIsFlowReady] = useState(false);
   const flowInstance = useRef<ReactFlowInstance<MineCanvasNode, MineCanvasEdge> | null>(null);
   const flowWrapRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -363,6 +366,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     setNodes(doc.nodes);
     setEdges(doc.edges);
     setViewport(doc.viewport);
+    if (remoteDocument.centerNodeId) setCenterNodeIdState(remoteDocument.centerNodeId);
   }, [remoteDocument]);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -378,7 +382,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
           "Content-Type": "application/json",
           "Authorization": `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ version: 3, nodes, edges, viewport }),
+        body: JSON.stringify({ version: 3, nodes, edges, viewport, centerNodeId: centerNodeId || undefined }),
       }).then((res) => {
         if (!res.ok) setSaveError(true);
       }).catch(() => {
@@ -391,7 +395,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
         saveTimerRef.current = null;
       }
     };
-  }, [nodes, edges, viewport, isAuthor, authToken]);
+  }, [nodes, edges, viewport, centerNodeId, isAuthor, authToken]);
 
   const releaseObjectUrl = useCallback((src?: string) => {
     if (!isBlobUrl(src) || !objectUrls.current.has(src)) return;
@@ -411,9 +415,11 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   const viewportRef = useRef(viewport);
+  const centerNodeIdRef = useRef(centerNodeId);
   useEffect(() => { nodesRef.current = nodes; }, [nodes]);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+  useEffect(() => { centerNodeIdRef.current = centerNodeId; }, [centerNodeId]);
 
   const saveNow = useCallback(() => {
     if (!isAuthor || !authToken) return;
@@ -428,13 +434,31 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
         "Content-Type": "application/json",
         "Authorization": `Bearer ${authToken}`,
       },
-      body: JSON.stringify({ version: 3, nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current }),
+      body: JSON.stringify({ version: 3, nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current, centerNodeId: centerNodeIdRef.current || undefined }),
     }).then((res) => {
       if (!res.ok) setSaveError(true);
     }).catch(() => {
       setSaveError(true);
     });
   }, [isAuthor, authToken]);
+
+  // Immediate save when centerNodeId changes via user action (bypass 2s debounce)
+  const prevCenterNodeId = useRef(centerNodeId);
+  useEffect(() => {
+    if (prevCenterNodeId.current === centerNodeId) return;
+    const wasEmpty = !prevCenterNodeId.current;
+    prevCenterNodeId.current = centerNodeId;
+    if (!isAuthor || !authToken) return;
+    if (wasEmpty && !centerNodeId) return;
+    fetch("/api/canvas", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ version: 3, nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current, centerNodeId: centerNodeIdRef.current || undefined }),
+    }).catch(() => {});
+  }, [centerNodeId, isAuthor, authToken]);
 
   // Block browser save dialog on Cmd+S / Ctrl+S, trigger manual save for author
   useEffect(() => {
@@ -576,6 +600,10 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     });
   }, [editingNodeId, selectedNodeId]);
 
+  const setCenterNodeId = useCallback((nodeId: string) => {
+    setCenterNodeIdState((current) => current === nodeId ? "" : nodeId);
+  }, []);
+
   const deleteNode = useCallback((nodeId: string) => {
     pushHistory();
     setNodes((current) => {
@@ -587,7 +615,23 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     if (selectedNodeId === nodeId) setSelectedNodeId("");
     if (editingNodeId === nodeId) finishEditing();
     if (activeLinkNodeId === nodeId) setActiveLinkNodeId("");
+    setCenterNodeIdState((current) => current === nodeId ? "" : current);
   }, [activeLinkNodeId, editingNodeId, finishEditing, pushHistory, releaseObjectUrl, selectedNodeId]);
+
+  useEffect(() => {
+    if (!isAuthor) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (!selectedNodeId) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("input, textarea, [contenteditable=true]")) return;
+      if (editingNodeId) return;
+      event.preventDefault();
+      deleteNode(selectedNodeId);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isAuthor, selectedNodeId, editingNodeId, deleteNode]);
 
   const focusNode = useCallback((node: MineCanvasNode) => {
     const instance = flowInstance.current;
@@ -721,6 +765,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     activeEditor,
     activeLinkNodeId,
     activeTimelineItemId,
+    centerNodeId,
     editingFieldKey,
     editingNodeId,
     fonts: mineCanvasFonts,
@@ -733,10 +778,25 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     requestImageFile,
     setActiveLinkNodeId,
     setActiveTimelineItemId,
+    setCenterNodeId,
     updateNodeData,
     updateNodeSize,
     updateEdgeControl,
-  }), [activeEditor, activeLinkNodeId, activeTimelineItemId, beginEditing, deleteNode, editingFieldKey, editingNodeId, finishEditing, isAuthor, registerActiveEditor, reportNodeHeight, requestImageFile, updateEdgeControl, updateNodeData, updateNodeSize]);
+  }), [activeEditor, activeLinkNodeId, activeTimelineItemId, centerNodeId, beginEditing, deleteNode, editingFieldKey, editingNodeId, finishEditing, isAuthor, registerActiveEditor, reportNodeHeight, requestImageFile, setCenterNodeId, updateEdgeControl, updateNodeData, updateNodeSize]);
+
+  // Auto-center on the center node when loaded or toggled
+  useEffect(() => {
+    if (!centerNodeId || !isFlowReady) return;
+    const instance = flowInstance.current;
+    if (!instance) return;
+    const target = nodes.find((node) => node.id === centerNodeId);
+    if (!target) return;
+    void instance.setCenter(
+      target.position.x + target.data.width / 2,
+      target.position.y + target.data.height / 2,
+      { zoom: Math.max(viewport.zoom, 0.72), duration: 0 },
+    );
+  }, [centerNodeId, isFlowReady]);
 
   return (
     <MineCanvasRuntimeContext.Provider value={runtime}>
@@ -776,7 +836,11 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
             edges={edges}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
-            onInit={(instance) => { flowInstance.current = instance; void instance.setViewport(viewport, { duration: 0 }); }}
+            onInit={(instance) => {
+              flowInstance.current = instance;
+              setIsFlowReady(true);
+              void instance.setViewport(viewport, { duration: 0 });
+            }}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
@@ -805,6 +869,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
             zoomOnDoubleClick={false}
             deleteKeyCode={null}
             fitView={false}
+            onlyRenderVisibleElements
             proOptions={PRO_OPTIONS}
             defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
           >

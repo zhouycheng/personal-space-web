@@ -16,6 +16,7 @@
     "@astrojs/node": "^10.1.4",
     "@astrojs/react": "^6.0.0",
     "@floating-ui/react": "^0.27.19",
+    "@libsql/client": "^0.17.4",
     "@tiptap/extension-color": "^3.27.1",
     "@tiptap/extension-text-align": "^3.27.1",
     "@tiptap/extension-text-style": "^3.27.1",

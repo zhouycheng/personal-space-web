@@ -14,6 +14,7 @@ export type MineCanvasRuntime = {
   isAuthor: boolean;
   activeLinkNodeId: string;
   activeTimelineItemId: string;
+  centerNodeId: string;
   editingFieldKey: string;
   editingNodeId: string;
   fonts: MineCanvasFont[];
@@ -25,6 +26,7 @@ export type MineCanvasRuntime = {
   requestImageFile: (nodeId: string) => void;
   setActiveLinkNodeId: (nodeId: string) => void;
   setActiveTimelineItemId: (itemId: string) => void;
+  setCenterNodeId: (nodeId: string) => void;
   updateNodeData: (nodeId: string, updater: (data: MineCanvasNodeData) => MineCanvasNodeData) => void;
   updateNodeSize: (nodeId: string, width: number, height: number) => void;
   updateEdgeControl: (edgeId: string, field: "sourceControl" | "targetControl", offset: CanvasControlOffset) => void;

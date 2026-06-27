@@ -1,37 +1,20 @@
-import { readFile, writeFile, rename } from "node:fs/promises";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import { timingSafeEqual } from "node:crypto";
+import { readCanvasDocument, writeCanvasDocument } from "../../lib/canvas-store";
 import { mineCanvasSeed } from "../../components/mine-canvas/mineCanvasData";
-
-const DATA_PATH = "data/canvas.json";
 
 function bufferEqual(a: Buffer, b: Buffer): boolean {
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
 }
 
-async function readCanvasData() {
-  try {
-    const raw = await readFile(DATA_PATH, "utf-8");
-    const data = JSON.parse(raw);
-    if (data && typeof data.version === "number" && Array.isArray(data.nodes) && Array.isArray(data.edges) && data.viewport) {
-      return data;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function writeCanvasData(document: unknown): Promise<void> {
-  const tmpPath = join("data", `canvas-${randomUUID()}.json`);
-  await writeFile(tmpPath, JSON.stringify(document, null, 2), "utf-8");
-  await rename(tmpPath, DATA_PATH);
+function validateDocument(body: unknown): body is object {
+  if (!body || typeof body !== "object") return false;
+  const doc = body as Record<string, unknown>;
+  return typeof doc.version === "number" && Array.isArray(doc.nodes) && Array.isArray(doc.edges) && doc.viewport != null;
 }
 
 export async function GET() {
-  const data = await readCanvasData();
+  const data = await readCanvasDocument();
   if (data) {
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -71,10 +54,10 @@ export async function POST({ request }: { request: Request }) {
 
   try {
     const body = await request.json();
-    if (!body || typeof body.version !== "number" || !Array.isArray(body.nodes) || !Array.isArray(body.edges) || !body.viewport) {
+    if (!validateDocument(body)) {
       return new Response(JSON.stringify({ error: "Invalid document" }), { status: 400 });
     }
-    await writeCanvasData(body);
+    await writeCanvasDocument(body);
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

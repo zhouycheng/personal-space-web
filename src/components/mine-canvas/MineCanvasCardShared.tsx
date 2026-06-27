@@ -8,6 +8,7 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  Crosshair,
   ExternalLink,
   Image as ImageIcon,
   Italic,
@@ -267,6 +268,17 @@ export function CardToolbar({
       {data.kind === "text" ? <button type="button" aria-label="适应内容" onClick={fitText}><Maximize2 size={15} /></button> : null}
       {data.kind === "image" ? <button type="button" aria-label="更换图片" onClick={() => runtime?.requestImageFile(nodeId)}><ImageIcon size={15} /></button> : null}
       {data.kind === "timeline" ? <TimelineTools data={data} nodeId={nodeId} update={update} /> : null}
+      {runtime?.isAuthor && (
+        <button
+          type="button"
+          className={runtime.centerNodeId === nodeId ? "is-active" : ""}
+          aria-label={runtime.centerNodeId === nodeId ? "取消中心点" : "设为画布中心点"}
+          title={runtime.centerNodeId === nodeId ? "取消中心点" : "设为画布中心点"}
+          onClick={() => runtime.setCenterNodeId(nodeId)}
+        >
+          <Crosshair size={15} />
+        </button>
+      )}
       <button type="button" className="is-danger" aria-label={`删除 ${data.title}`} onClick={() => runtime?.deleteNode(nodeId)}><Trash2 size={15} /></button>
     </MineCanvasFloatingToolbar>
   );
