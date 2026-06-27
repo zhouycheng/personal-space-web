@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { readCanvasDocument, writeCanvasDocument } from "../../lib/canvas-store";
+import { readCanvasDocument, seedIfEmpty, writeCanvasDocument } from "../../lib/canvas-store";
 import { mineCanvasSeed } from "../../components/mine-canvas/mineCanvasData";
 
 function bufferEqual(a: Buffer, b: Buffer): boolean {
@@ -14,6 +14,7 @@ function validateDocument(body: unknown): body is object {
 }
 
 export async function GET() {
+  await seedIfEmpty();
   const data = await readCanvasDocument();
   if (data) {
     return new Response(JSON.stringify(data), {
