@@ -1,6 +1,6 @@
 import type { Edge, Node, Viewport } from "@xyflow/react";
 
-export type MineCanvasNodeKind = "text" | "image" | "quote" | "link" | "timeline" | "monitor";
+export type MineCanvasNodeKind = "text" | "image" | "quote" | "link" | "timeline" | "monitor" | "businesscard";
 
 export type MineCanvasTextStyle = {
   fontSize: number;
@@ -61,13 +61,23 @@ export type MineCanvasMonitorNodeData = MineCanvasNodeCommon & {
   kind: "monitor";
 } & Record<string, unknown>;
 
+export type MineCanvasBusinessCardNodeData = MineCanvasNodeCommon & {
+  kind: "businesscard";
+  avatarSrc?: string;
+  avatarFileName?: string;
+  name: string;
+  intro: string;
+  tags: string[];
+} & Record<string, unknown>;
+
 export type MineCanvasNodeData =
   | MineCanvasTextNodeData
   | MineCanvasImageNodeData
   | MineCanvasQuoteNodeData
   | MineCanvasLinkNodeData
   | MineCanvasTimelineNodeData
-  | MineCanvasMonitorNodeData;
+  | MineCanvasMonitorNodeData
+  | MineCanvasBusinessCardNodeData;
 
 export type MineCanvasEdgeData = {
   sourceControl?: {

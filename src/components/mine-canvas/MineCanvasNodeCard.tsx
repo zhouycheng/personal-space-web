@@ -19,6 +19,7 @@ import "./cards/QuoteCard";
 import "./cards/LinkCard";
 import "./cards/TimelineCard";
 import "./cards/MonitorCard";
+import "./cards/BusinessCard";
 
 export function MineCanvasNodeCard({ data, id, isConnectable, selected }: NodeProps<MineCanvasNode>) {
   const runtime = useContext(MineCanvasRuntimeContext);
@@ -29,8 +30,8 @@ export function MineCanvasNodeCard({ data, id, isConnectable, selected }: NodePr
 
   const update = useCallback((updater: (current: MineCanvasNodeData) => MineCanvasNodeData) => runtime?.updateNodeData(id, updater), [id, runtime]);
 
-  useMeasuredNodeHeight(contentRef, data.kind === "text" || data.kind === "timeline", (height) => {
-    runtime?.reportNodeHeight(id, height + (data.kind === "timeline" ? 36 : 28), data.kind === "text" ? TEXT_MIN_HEIGHT : TIMELINE_MIN_HEIGHT);
+  useMeasuredNodeHeight(contentRef, data.kind === "text" || data.kind === "timeline" || data.kind === "businesscard", (height) => {
+    runtime?.reportNodeHeight(id, height + (data.kind === "timeline" ? 36 : 28), data.kind === "text" ? TEXT_MIN_HEIGHT : data.kind === "timeline" ? TIMELINE_MIN_HEIGHT : 164);
   });
 
   const cardDef = getCard(data.kind);

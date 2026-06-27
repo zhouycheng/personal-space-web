@@ -833,6 +833,117 @@ textarea.mine-inline-input {
   font: 500 0.78rem / 1.32 var(--sans);
 }
 
+.mine-card--businesscard {
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.mine-card--businesscard .mine-card-measure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.44rem;
+}
+
+.mine-bc-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 2px solid rgba(0, 47, 167, 0.18);
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mine-bc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mine-bc-avatar--empty {
+  display: inline-grid;
+  place-items: center;
+  border-style: dashed;
+  color: #9ca3af;
+}
+
+.mine-bc-avatar--empty:hover {
+  border-color: rgba(0, 47, 167, 0.4);
+  color: var(--mine-blue);
+}
+
+.mine-bc-name {
+  color: var(--mine-ink);
+  font: 900 1rem / 1.14 var(--sans);
+}
+
+.mine-bc-intro {
+  margin: 0;
+  color: #5b6370;
+  font: 650 0.76rem / 1.5 var(--sans);
+}
+
+.mine-bc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+.mine-bc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  border-radius: 999px;
+  padding: 0.18rem 0.56rem;
+  background: rgba(0, 47, 167, 0.08);
+  color: var(--mine-blue);
+  font: 720 0.68rem / 1 var(--sans);
+}
+
+.mine-bc-tag button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.mine-bc-tag button:hover {
+  opacity: 1;
+}
+
+.mine-bc-tag--add {
+  border: 1px dashed rgba(0, 47, 167, 0.28);
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.mine-bc-tag--add:hover {
+  border-color: rgba(0, 47, 167, 0.5);
+  color: var(--mine-blue);
+  background: rgba(0, 47, 167, 0.06);
+}
+
+.mine-bc-tag-input {
+  min-width: 7rem;
+  border: 1px solid rgba(0, 47, 167, 0.24);
+  border-radius: 999px;
+  padding: 0.18rem 0.56rem;
+  outline: 0;
+  background: rgba(0, 47, 167, 0.04);
+  color: var(--mine-ink);
+  font: 720 0.68rem / 1 var(--sans);
+}
+
 
 .mine-floating-toolbar {
   z-index: 1000;

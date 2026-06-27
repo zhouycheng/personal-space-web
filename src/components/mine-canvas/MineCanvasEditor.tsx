@@ -47,6 +47,7 @@ import "./cards/QuoteCard";
 import "./cards/LinkCard";
 import "./cards/TimelineCard";
 import "./cards/MonitorCard";
+import "./cards/BusinessCard";
 import { MineCanvasRuntimeContext, type BeginMineCanvasEditOptions } from "./mineCanvasRuntime";
 import { resolveMeasuredHeight } from "./mineCanvasSizing";
 import type {
@@ -564,7 +565,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     setNodes((current) => {
       let changed = false;
       const next = current.map((node) => {
-        if (node.id !== nodeId || (node.data.kind !== "text" && node.data.kind !== "timeline")) return node;
+        if (node.id !== nodeId || (node.data.kind !== "text" && node.data.kind !== "timeline" && node.data.kind !== "businesscard")) return node;
         const mode = node.data.kind === "text" ? node.data.heightMode : "auto";
         const height = resolveMeasuredHeight(mode, node.data.height, measuredHeight, minimumHeight);
         if (height === node.data.height) return node;
