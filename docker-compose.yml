@@ -11,6 +11,7 @@ services:
       - PORT=4321
     env_file:
       - .env
+      - .env.local
     restart: unless-stopped
     logging:
       driver: "json-file"
