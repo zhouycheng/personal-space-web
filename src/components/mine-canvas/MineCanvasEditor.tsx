@@ -43,6 +43,7 @@ import { MineCanvasEdgeComponent } from "./MineCanvasEdge";
 import { MineCanvasNodeCard } from "./MineCanvasNodeCard";
 import { inferHandlePair, toControlOffset, type MineCanvasHandleSide } from "./mineCanvasGeometry";
 import { mineCanvasFonts } from "./mineCanvasFonts";
+import { tryDeriveAuthToken } from "../../lib/canvas-auth";
 import { MineCanvasRuntimeContext, type BeginMineCanvasEditOptions } from "./mineCanvasRuntime";
 import { resolveMeasuredHeight } from "./mineCanvasSizing";
 import type {
@@ -105,6 +106,8 @@ const PRO_OPTIONS = { hideAttribution: true };
 
 type MineCanvasEditorProps = {
   seedDocument: MineCanvasDocument;
+  authSalt?: string;
+  authEncryptedToken?: string;
 };
 
 function cloneDocument(document: MineCanvasDocument): MineCanvasDocument {
@@ -322,8 +325,18 @@ function MineCanvasMiniMap({ onMapClick }: { onMapClick: (event: unknown, positi
   return portalRoot ? createPortal(minimap, portalRoot) : minimap;
 }
 
-export default function MineCanvasEditor({ seedDocument }: MineCanvasEditorProps) {
-  const initialDocument = useMemo(() => prepareDocument(seedDocument), [seedDocument]);
+export default function MineCanvasEditor({ seedDocument, authSalt, authEncryptedToken }: MineCanvasEditorProps) {
+  const preparedSeed = useMemo(() => prepareDocument(seedDocument), [seedDocument]);
+  const [remoteDocument, setRemoteDocument] = useState<MineCanvasDocument | null>(null);
+  const [isAuthor, setIsAuthor] = useState(false);
+  const [authToken, setAuthToken] = useState("");
+  const [saveError, setSaveError] = useState(false);
+
+  const initialDocument = useMemo(() => {
+    if (remoteDocument) return prepareDocument(remoteDocument);
+    return preparedSeed;
+  }, [remoteDocument, preparedSeed]);
+
   const [nodes, setNodes] = useState<MineCanvasNode[]>(initialDocument.nodes);
   const [edges, setEdges] = useState<MineCanvasEdge[]>(initialDocument.edges);
   const [viewport, setViewport] = useState(initialDocument.viewport);
@@ -350,6 +363,71 @@ export default function MineCanvasEditor({ seedDocument }: MineCanvasEditorProps
     window.document.head.append(style);
     return () => style.remove();
   }, []);
+
+  // Load canvas data from API on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/canvas")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data && Array.isArray(data.nodes)) {
+          setRemoteDocument(data);
+        }
+      })
+      .catch(() => { /* use seed fallback */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Detect author via passphrase decryption
+  useEffect(() => {
+    if (!authSalt || !authEncryptedToken) return;
+    const existing = sessionStorage.getItem("author_token");
+    if (existing) {
+      setAuthToken(existing);
+      setIsAuthor(true);
+      return;
+    }
+    const passphrase = localStorage.getItem("author_passphrase");
+    if (!passphrase) return;
+    tryDeriveAuthToken(passphrase, authSalt, authEncryptedToken).then((token) => {
+      if (token) {
+        sessionStorage.setItem("author_token", token);
+        sessionStorage.setItem("author_active", "1");
+        setAuthToken(token);
+        setIsAuthor(true);
+      }
+    });
+  }, [authSalt, authEncryptedToken]);
+
+  // Apply remote data to state once loaded
+  useEffect(() => {
+    if (!remoteDocument) return;
+    const doc = prepareDocument(remoteDocument);
+    setNodes(doc.nodes);
+    setEdges(doc.edges);
+    setViewport(doc.viewport);
+  }, [remoteDocument]);
+
+  // Auto-save when author makes changes (2s debounce)
+  useEffect(() => {
+    if (!isAuthor || !authToken) return;
+    setSaveError(false);
+    const timer = setTimeout(() => {
+      fetch("/api/canvas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ version: 3, nodes, edges, viewport }),
+      }).then((res) => {
+        if (!res.ok) setSaveError(true);
+      }).catch(() => {
+        setSaveError(true);
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, viewport, isAuthor, authToken]);
 
   const releaseObjectUrl = useCallback((src?: string) => {
     if (!isBlobUrl(src) || !objectUrls.current.has(src)) return;
@@ -613,18 +691,18 @@ export default function MineCanvasEditor({ seedDocument }: MineCanvasEditorProps
                     <span style={{ "--layer-accent": node.data.accent } as CSSProperties} aria-hidden="true" />
                     <strong>{node.data.title}</strong><small>{KIND_LABELS[node.data.kind]}</small>
                   </button>
-                  <button className="mine-canvas-layer-delete" type="button" onClick={() => deleteNode(node.id)} aria-label={`删除 ${node.data.title}`}><Trash2 size={14} /></button>
+                  {isAuthor && <button className="mine-canvas-layer-delete" type="button" onClick={() => deleteNode(node.id)} aria-label={`删除 ${node.data.title}`}><Trash2 size={14} /></button>}
                 </div>
               ))}
             </div>
           </section>
           <div className="mine-canvas-sidebar-bottom">
-            <div className="mine-create-control">
+            {isAuthor && <div className="mine-create-control">
               <button type="button" className="mine-create-toggle" onClick={() => { setCreatePanelOpen((current) => !current); clearSelection(); }} aria-label="新建节点">
                 {createPanelOpen ? <X size={16} /> : <Plus size={17} />}<span>新建</span>
               </button>
               {createPanelOpen ? <CreatePanel addNode={addNode} /> : null}
-            </div>
+            </div>}
             <div className="mine-canvas-minimap-label"><span aria-hidden="true">Minimap</span><small>点击/拖拽定位</small></div>
             <div className="mine-canvas-minimap-slot" data-mine-canvas-minimap-slot />
           </div>
@@ -646,12 +724,12 @@ export default function MineCanvasEditor({ seedDocument }: MineCanvasEditorProps
             onNodeClick={(_, node) => selectNode(node.id)}
             onPaneClick={() => { clearSelection(); setActiveLinkNodeId(""); }}
             onSelectionChange={handleSelectionChange}
-            onEdgeDoubleClick={(_, edge) => setEdges((current) => current.filter((item) => item.id !== edge.id))}
+            onEdgeDoubleClick={isAuthor ? (_, edge) => setEdges((current) => current.filter((item) => item.id !== edge.id)) : undefined}
             defaultViewport={initialDocument.viewport}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
-            nodesDraggable
-            nodesConnectable
+            nodesDraggable={isAuthor}
+            nodesConnectable={isAuthor}
             elementsSelectable
             edgesReconnectable
             reconnectRadius={18}
