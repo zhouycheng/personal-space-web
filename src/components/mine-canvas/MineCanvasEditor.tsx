@@ -287,6 +287,12 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   const [authToken, setAuthToken] = useState("");
   const [saveError, setSaveError] = useState(false);
 
+  // Refs for state setters — used by global window functions to always have the latest reference
+  const setIsAuthorRef = useRef(setIsAuthor);
+  setIsAuthorRef.current = setIsAuthor;
+  const setAuthTokenRef = useRef(setAuthToken);
+  setAuthTokenRef.current = setAuthToken;
+
   const initialDocument = useMemo(() => {
     if (remoteDocument) return prepareDocument(remoteDocument);
     return preparedSeed;
@@ -341,28 +347,49 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     return () => { cancelled = true; };
   }, []);
 
-  // Detect author via passphrase decryption
+  // Restore admin from sessionStorage on mount (persists across refresh, lost on tab close)
   useEffect(() => {
-    if (!authSalt || !authEncryptedToken) return;
-    let cancelled = false;
     const existing = sessionStorage.getItem("author_token");
     if (existing) {
       setAuthToken(existing);
       setIsAuthor(true);
-      return () => { cancelled = true; };
     }
-    const passphrase = localStorage.getItem("author_password");
-    if (!passphrase) return () => { cancelled = true; };
-    tryDeriveAuthToken(passphrase, authSalt, authEncryptedToken).then((token) => {
-      if (cancelled) return;
-      if (token) {
-        sessionStorage.setItem("author_token", token);
-        sessionStorage.setItem("author_active", "1");
-        setAuthToken(token);
-        setIsAuthor(true);
+  }, []);
+
+  // Expose global admin activation function for console use
+  useEffect(() => {
+    if (!authSalt || !authEncryptedToken) return;
+
+    (window as unknown as Record<string, unknown>).enableAdmin = (passphrase: string) => {
+      if (!passphrase) {
+        console.warn("用法：enableAdmin('你的密码')");
+        return Promise.resolve(false);
       }
-    });
-    return () => { cancelled = true; };
+      return tryDeriveAuthToken(passphrase, authSalt, authEncryptedToken).then((token) => {
+        if (token) {
+          localStorage.setItem("author_password", passphrase);
+          sessionStorage.setItem("author_token", token);
+          setAuthTokenRef.current(token);
+          setIsAuthorRef.current(true);
+          console.log("管理员模式已激活");
+          return true;
+        }
+        console.warn("密码错误");
+        return false;
+      });
+    };
+
+    (window as unknown as Record<string, unknown>).__disableAdmin = () => {
+      sessionStorage.removeItem("author_token");
+      setAuthTokenRef.current("");
+      setIsAuthorRef.current(false);
+      console.log("已退出管理员模式");
+    };
+
+    return () => {
+      delete (window as unknown as Record<string, unknown>).enableAdmin;
+      delete (window as unknown as Record<string, unknown>).__disableAdmin;
+    };
   }, [authSalt, authEncryptedToken]);
 
   // Apply remote data to state once loaded
@@ -495,6 +522,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   // --- end undo / redo ---
 
   const beginEditing = useCallback((nodeId: string, options: BeginMineCanvasEditOptions) => {
+    if (!isAuthor) return;
     pushHistory();
     setSelectedNodeId(nodeId);
     setEditingNodeId(nodeId);
@@ -503,7 +531,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     setActiveEditor(null);
     activeEditorNodeId.current = "";
     setCreatePanelOpen(false);
-  }, [pushHistory]);
+  }, [isAuthor, pushHistory]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -821,7 +849,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
 
   return (
     <MineCanvasRuntimeContext.Provider value={runtime}>
-      <div className="mine-canvas-editor">
+      <div className={`mine-canvas-editor${!isAuthor ? " is-visitor" : ""}`}>
         <aside className="mine-canvas-sidebar" aria-label="我的画布节点列表">
           <div className="mine-canvas-brand"><span aria-hidden="true">J</span><div><strong>Justin Canvas</strong><p>{nodes.length} 个节点</p></div></div>
           <section className="mine-canvas-layers" aria-label="全部节点">
@@ -886,7 +914,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
             defaultViewport={initialDocument.viewport}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
-            nodesDraggable={isAuthor}
+            nodesDraggable={true}
             nodesConnectable={isAuthor}
             elementsSelectable
             edgesReconnectable

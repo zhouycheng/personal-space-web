@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ElementType, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, type ElementType, type KeyboardEvent, type CompositionEvent } from "react";
 
 type MineCanvasInlineFieldProps = {
   active: boolean;
@@ -23,64 +23,134 @@ export function MineCanvasInlineField({
   placeholder,
   value,
 }: MineCanvasInlineFieldProps) {
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const fieldRef = useRef<HTMLElement | null>(null);
+  const originalValueRef = useRef(value);
+  const clickPosRef = useRef<{ x: number; y: number } | null>(null);
+  const internalRef = useRef(false);
   const composingRef = useRef(false);
 
-  useEffect(() => {
-    if (!active) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [active]);
+  const prevActiveRef = useRef(false);
 
-  if (!active) {
-    const displayClass = `${className}${!value ? " mine-inline-placeholder" : ""}`.trim();
-    return (
-      <Display
-        className={displayClass}
-        onDoubleClick={(event: MouseEvent) => {
-          event.stopPropagation();
-          onBeginEdit();
-        }}
-      >
-        {value || placeholder}
-      </Display>
-    );
-  }
+  // Enter edit mode: set initial text content, focus, position cursor
+  useLayoutEffect(() => {
+    const wasInactive = !prevActiveRef.current && active;
+    prevActiveRef.current = active;
 
-  const sharedProps = {
-    className: `mine-inline-input nodrag nopan nowheel ${className}`.trim(),
-    defaultValue: value,
-    placeholder,
-    onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (!composingRef.current) onChange(event.currentTarget.value.trim());
-    },
-    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (!composingRef.current) onChange(event.currentTarget.value);
-    },
-    onCompositionStart: () => {
-      composingRef.current = true;
-    },
-    onCompositionEnd: (event: React.CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      composingRef.current = false;
-      onChange(event.currentTarget.value);
-    },
-    onDoubleClick: (event: React.MouseEvent) => event.stopPropagation(),
-    onKeyDown: (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onExitEdit();
-        return;
-      }
-      if (!multiline && event.key === "Enter" && !event.nativeEvent.isComposing && !composingRef.current) {
-        event.preventDefault();
-        event.currentTarget.blur();
-      }
-    },
+    if (!active || !fieldRef.current) return;
+
+    if (wasInactive) {
+      // Fresh entry to edit mode — populate from prop
+      fieldRef.current.textContent = value;
+    }
+    fieldRef.current.focus();
+
+    if (clickPosRef.current) {
+      const { x, y } = clickPosRef.current;
+      clickPosRef.current = null;
+      requestAnimationFrame(() => {
+        if (!fieldRef.current) return;
+        try {
+          const caret = document.caretPositionFromPoint(x, y);
+          if (caret) {
+            const range = document.createRange();
+            range.setStart(caret.offsetNode, caret.offset);
+            range.collapse(true);
+            const sel = window.getSelection();
+            if (sel) {
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+          }
+        } catch {
+          // caretPositionFromPoint not supported — cursor stays at start
+        }
+      });
+    }
+  }, [active, value]);
+
+  // Sync external value changes during editing (e.g. undo)
+  useLayoutEffect(() => {
+    if (!active || !fieldRef.current) return;
+    if (internalRef.current) {
+      internalRef.current = false;
+      return;
+    }
+    fieldRef.current.textContent = value;
+  }, [active, value]);
+
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    clickPosRef.current = { x: event.clientX, y: event.clientY };
+    originalValueRef.current = value;
+    onBeginEdit();
   };
 
-  return multiline ? (
-    <textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} rows={2} {...sharedProps} />
-  ) : (
-    <input ref={inputRef as React.RefObject<HTMLInputElement>} type="text" {...sharedProps} />
+  const handleBlur = () => {
+    if (!fieldRef.current) return;
+    internalRef.current = true;
+    const text = fieldRef.current.innerText;
+    onChange(multiline ? text : text.trim());
+  };
+
+  const handleInput = () => {
+    if (!fieldRef.current || composingRef.current) return;
+    internalRef.current = true;
+    onChange(fieldRef.current.innerText);
+  };
+
+  const handleCompositionStart = () => {
+    composingRef.current = true;
+  };
+
+  const handleCompositionEnd = (event: CompositionEvent<HTMLElement>) => {
+    composingRef.current = false;
+    internalRef.current = true;
+    onChange((event.target as HTMLElement).innerText);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      internalRef.current = true;
+      onChange(originalValueRef.current);
+      onExitEdit();
+      return;
+    }
+  };
+
+  const handlePaste = (event: React.ClipboardEvent) => {
+    event.preventDefault();
+    const text = event.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
+  };
+
+  const Tag = multiline ? "div" : Display;
+  const isPlaceholder = !value && !active;
+  const fieldClass = [
+    "mine-inline-field",
+    active ? "nodrag nopan nowheel" : "",
+    multiline ? "mine-inline-field--multiline" : "",
+    className,
+    isPlaceholder ? "mine-inline-placeholder" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <Tag
+      ref={fieldRef as React.Ref<HTMLDivElement>}
+      className={fieldClass}
+      contentEditable={active}
+      suppressContentEditableWarning
+      onClick={active ? undefined : handleClick}
+      onBlur={active ? handleBlur : undefined}
+      onInput={active ? handleInput : undefined}
+      onCompositionStart={active ? handleCompositionStart : undefined}
+      onCompositionEnd={active ? handleCompositionEnd : undefined}
+      onKeyDown={active ? handleKeyDown : undefined}
+      onPaste={active ? handlePaste : undefined}
+    >
+      {active ? undefined : (isPlaceholder ? placeholder : value)}
+    </Tag>
   );
 }

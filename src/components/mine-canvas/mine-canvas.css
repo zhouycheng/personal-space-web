@@ -436,34 +436,37 @@
   font: 900 0.98rem / 1.14 var(--sans);
 }
 
-.mine-inline-editing {
-  outline: 1px dashed rgba(0, 47, 167, 0.32);
-  outline-offset: 2px;
-  cursor: text;
+.mine-inline-placeholder {
+  opacity: 0.38;
 }
 
-.mine-inline-input {
-  width: 100%;
-  min-width: 0;
+.mine-canvas-editor.is-visitor .mine-inline-field,
+.mine-canvas-editor.is-visitor .mine-rich-text {
+  cursor: default;
+}
+
+.mine-inline-field {
+  outline: 0;
   border: 0;
-  border-radius: 0.28rem;
   padding: 0;
-  outline: 1px solid rgba(0, 47, 167, 0.24);
-  outline-offset: 2px;
-  background: rgba(0, 47, 167, 0.035);
+  background: transparent;
   color: inherit;
   font: inherit;
   letter-spacing: 0;
+  cursor: text;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: clip;
 }
 
-textarea.mine-inline-input {
-  min-height: 2.7em;
-  overflow: hidden;
-  resize: none;
+.mine-node-header .mine-inline-field {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
-.mine-inline-placeholder {
-  opacity: 0.38;
+.mine-inline-field--multiline {
+  white-space: pre-wrap;
 }
 
 .mine-card--text,
@@ -509,8 +512,7 @@ textarea.mine-inline-input {
 }
 
 .mine-rich-text.is-editing {
-  border-radius: 0.44rem;
-  background: rgba(0, 47, 167, 0.035);
+  /* no visual decoration — feels like typing on the card */
 }
 
 

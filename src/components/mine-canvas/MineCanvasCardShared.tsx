@@ -125,7 +125,7 @@ export function MineRichText({
   return (
     <div
       className={`mine-rich-text ${className || ""}${active ? " is-editing nodrag nopan nowheel" : ""}`}
-      onDoubleClick={(event) => {
+      onClick={(event) => {
         event.stopPropagation();
         runtime?.beginEditing(nodeId, { fieldKey });
       }}
