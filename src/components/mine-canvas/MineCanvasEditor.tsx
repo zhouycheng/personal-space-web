@@ -476,10 +476,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     activeEditorNodeId.current = "";
   }, []);
 
-  const undo = useCallback(() => {
-    const snapshot = undoStack.current.pop();
-    if (!snapshot) return;
-    redoStack.current.push({ nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current });
+  const applySnapshot = useCallback((snapshot: { nodes: MineCanvasNode[]; edges: MineCanvasEdge[]; viewport: typeof viewport }) => {
     nodesRef.current = snapshot.nodes;
     edgesRef.current = snapshot.edges;
     viewportRef.current = snapshot.viewport;
@@ -490,19 +487,19 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     flushSave();
   }, [finishEditing, flushSave]);
 
+  const undo = useCallback(() => {
+    const snapshot = undoStack.current.pop();
+    if (!snapshot) return;
+    redoStack.current.push({ nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current });
+    applySnapshot(snapshot);
+  }, [applySnapshot]);
+
   const redo = useCallback(() => {
     const snapshot = redoStack.current.pop();
     if (!snapshot) return;
     undoStack.current.push({ nodes: nodesRef.current, edges: edgesRef.current, viewport: viewportRef.current });
-    nodesRef.current = snapshot.nodes;
-    edgesRef.current = snapshot.edges;
-    viewportRef.current = snapshot.viewport;
-    setNodes(snapshot.nodes);
-    setEdges(snapshot.edges);
-    setViewport(snapshot.viewport);
-    finishEditing();
-    flushSave();
-  }, [finishEditing, flushSave]);
+    applySnapshot(snapshot);
+  }, [applySnapshot]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -577,11 +574,9 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   }, [editingNodeId, selectedNodeId]);
 
   const updateNodeData = useCallback((nodeId: string, updater: (data: MineCanvasNodeData) => MineCanvasNodeData) => {
-    setNodes((current) => {
-      const next = markInteractiveNodes(current.map((node) => node.id === nodeId ? syncNodeSize({ ...node, data: updater(node.data) }) : node), selectedNodeId, editingNodeId);
-      nodesRef.current = next;
-      return next;
-    });
+    const next = markInteractiveNodes(nodesRef.current.map((node) => node.id === nodeId ? syncNodeSize({ ...node, data: updater(node.data) }) : node), selectedNodeId, editingNodeId);
+    nodesRef.current = next;
+    setNodes(next);
     flushSave();
   }, [editingNodeId, selectedNodeId, flushSave]);
 
@@ -611,18 +606,14 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
 
   const deleteNode = useCallback((nodeId: string) => {
     pushHistory();
-    setNodes((current) => {
-      const target = current.find((node) => node.id === nodeId);
-      if (target?.data.kind === "image") releaseObjectUrl(target.data.src);
-      const next = current.filter((node) => node.id !== nodeId);
-      nodesRef.current = next;
-      return next;
-    });
-    setEdges((current) => {
-      const next = current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
-      edgesRef.current = next;
-      return next;
-    });
+    const target = nodesRef.current.find((node) => node.id === nodeId);
+    if (target?.data.kind === "image") releaseObjectUrl(target.data.src);
+    const nextNodes = nodesRef.current.filter((node) => node.id !== nodeId);
+    nodesRef.current = nextNodes;
+    setNodes(nextNodes);
+    const nextEdges = edgesRef.current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+    edgesRef.current = nextEdges;
+    setEdges(nextEdges);
     if (selectedNodeId === nodeId) setSelectedNodeId("");
     if (editingNodeId === nodeId) finishEditing();
     if (activeLinkNodeId === nodeId) setActiveLinkNodeId("");
@@ -658,28 +649,22 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   }, [selectNode, viewport.zoom]);
 
   const handleNodesChange = useCallback((changes: NodeChange<MineCanvasNode>[]) => {
-    setNodes((current) => {
-      const next = markInteractiveNodes(applyNodeChanges(changes, current), selectedNodeId, editingNodeId);
-      nodesRef.current = next;
-      return next;
-    });
+    const next = markInteractiveNodes(applyNodeChanges(changes, nodesRef.current), selectedNodeId, editingNodeId);
+    nodesRef.current = next;
+    setNodes(next);
   }, [editingNodeId, selectedNodeId]);
 
   const handleEdgesChange = useCallback((changes: EdgeChange<MineCanvasEdge>[]) => {
-    setEdges((current) => {
-      const next = applyEdgeChanges(changes, current);
-      edgesRef.current = next;
-      return next;
-    });
+    const next = applyEdgeChanges(changes, edgesRef.current);
+    edgesRef.current = next;
+    setEdges(next);
   }, []);
 
   const handleConnect = useCallback((connection: Connection) => {
     pushHistory();
-    setEdges((current) => {
-      const next = addEdge({ ...connection, id: `edge-${connection.source}-${connection.target}-${Date.now()}`, type: "mineCurve", style: EDGE_STYLE, data: {} }, current);
-      edgesRef.current = next;
-      return next;
-    });
+    const next = addEdge({ ...connection, id: `edge-${connection.source}-${connection.target}-${Date.now()}`, type: "mineCurve", style: EDGE_STYLE, data: {} }, edgesRef.current);
+    edgesRef.current = next;
+    setEdges(next);
     flushSave();
   }, [flushSave, pushHistory]);
 
@@ -687,31 +672,27 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     pushHistory();
     const sourceChanged = oldEdge.source !== connection.source || oldEdge.sourceHandle !== connection.sourceHandle;
     const targetChanged = oldEdge.target !== connection.target || oldEdge.targetHandle !== connection.targetHandle;
-    setEdges((current) => {
-      const next = reconnectEdge(oldEdge, connection, current, { shouldReplaceId: false }).map((edge) => edge.id === oldEdge.id ? {
-        ...edge,
-        data: {
-          ...(edge.data || {}),
-          sourceControl: sourceChanged ? undefined : edge.data?.sourceControl,
-          targetControl: targetChanged ? undefined : edge.data?.targetControl,
-          control: undefined,
-        },
-      } : edge);
-      edgesRef.current = next;
-      return next;
-    });
+    const next = reconnectEdge(oldEdge, connection, edgesRef.current, { shouldReplaceId: false }).map((edge) => edge.id === oldEdge.id ? {
+      ...edge,
+      data: {
+        ...(edge.data || {}),
+        sourceControl: sourceChanged ? undefined : edge.data?.sourceControl,
+        targetControl: targetChanged ? undefined : edge.data?.targetControl,
+        control: undefined,
+      },
+    } : edge);
+    edgesRef.current = next;
+    setEdges(next);
     flushSave();
   }, [flushSave, pushHistory]);
 
   const updateEdgeControl = useCallback((edgeId: string, field: "sourceControl" | "targetControl", offset: { dx: number; dy: number }) => {
-    setEdges((current) => {
-      const next = current.map((edge) => edge.id === edgeId ? {
-        ...edge,
-        data: { ...(edge.data || {}), [field]: offset, control: undefined },
-      } : edge);
-      edgesRef.current = next;
-      return next;
-    });
+    const next = edgesRef.current.map((edge) => edge.id === edgeId ? {
+      ...edge,
+      data: { ...(edge.data || {}), [field]: offset, control: undefined },
+    } : edge);
+    edgesRef.current = next;
+    setEdges(next);
     flushSave();
   }, [flushSave]);
 
@@ -745,11 +726,9 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     const size = { width: data.width, height: data.height };
     const id = `node-${kind}-${Date.now()}`;
     const nextNode = syncNodeSize({ id, type: "mine", position: findOpenPosition(nodesRef.current, getViewportCenter(size), size), selected: true, draggable: true, data });
-    setNodes((current) => {
-      const next = markInteractiveNodes(current.concat(nextNode), id, "");
-      nodesRef.current = next;
-      return next;
-    });
+    const next = markInteractiveNodes(nodesRef.current.concat(nextNode), id, "");
+    nodesRef.current = next;
+    setNodes(next);
     setSelectedNodeId(id);
     setCreatePanelOpen(false);
     flushSave();
@@ -904,11 +883,9 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
             onSelectionChange={handleSelectionChange}
             onEdgeDoubleClick={isAuthor ? (_, edge) => {
               pushHistory();
-              setEdges((current) => {
-                const next = current.filter((item) => item.id !== edge.id);
-                edgesRef.current = next;
-                return next;
-              });
+              const nextEdges2 = edgesRef.current.filter((item) => item.id !== edge.id);
+              edgesRef.current = nextEdges2;
+              setEdges(nextEdges2);
               flushSave();
             } : undefined}
             defaultViewport={initialDocument.viewport}
