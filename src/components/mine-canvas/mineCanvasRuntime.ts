@@ -11,6 +11,7 @@ export type BeginMineCanvasEditOptions = {
 
 export type MineCanvasRuntime = {
   activeEditor: Editor | null;
+  isAuthor: boolean;
   activeLinkNodeId: string;
   activeTimelineItemId: string;
   editingFieldKey: string;
