@@ -14,7 +14,18 @@
   },
   "dependencies": {
     "@astrojs/node": "^10.1.4",
-    "astro": "^6.3.1"
+    "@astrojs/react": "^6.0.0",
+    "@floating-ui/react": "^0.27.19",
+    "@tiptap/extension-color": "^3.27.1",
+    "@tiptap/extension-text-align": "^3.27.1",
+    "@tiptap/extension-text-style": "^3.27.1",
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
+    "@xyflow/react": "^12.11.1",
+    "astro": "^6.3.1",
+    "lucide-react": "^1.21.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@types/node": "^20.19.25",

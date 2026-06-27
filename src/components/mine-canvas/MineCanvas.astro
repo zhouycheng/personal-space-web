@@ -1,0 +1,8 @@
+---
+import MineCanvasEditor from "./MineCanvasEditor";
+import { mineCanvasSeed } from "./mineCanvasData";
+---
+
+<div class="mine-canvas-mount" data-mine-canvas-mount>
+  <MineCanvasEditor seedDocument={mineCanvasSeed} client:only="react" />
+</div>

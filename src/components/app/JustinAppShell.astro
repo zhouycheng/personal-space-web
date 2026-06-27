@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "/src/layouts/BaseLayout.astro";
+import MineCanvas from "/src/components/mine-canvas/MineCanvas.astro";
 import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
 import MacOsDesktop from "/src/justin-kit/components/macos-desktop/MacOsDesktop.astro";
 import { getMacOsDesktopEntries } from "/src/justin-kit/components/macos-desktop/runtime/desktop-scanner";
@@ -75,13 +76,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
 
       <!-- 我的 -->
       <section id="page-os" class:list={["app-page", "mine-page", activePage === "os" && "is-active"]} aria-label="我的">
-        <div
-          class="infinite-canvas"
-          data-infinite-canvas
-          role="application"
-          aria-label="我的无限画布"
-          tabindex="0"
-        ></div>
+        <MineCanvas />
       </section>
     </div>
 
@@ -157,7 +152,6 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
       const viewMenuTrigger = document.querySelector("[data-os-view-trigger]");
       const viewMenu = document.querySelector("[data-os-view-menu]");
       const navLinks = document.querySelectorAll(".app-dock a");
-      const infiniteCanvas = document.querySelector("[data-infinite-canvas]");
       const pages = {
         home: document.getElementById("page-home"),
         works: document.getElementById("page-works"),
@@ -188,16 +182,6 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
       let expandedBoundsFrame = 0;
       let activePage = "home";
       let homeExperienceInitialized = false;
-      const infiniteCanvasPan = {
-        isDragging: false,
-        pointerId: null,
-        startX: 0,
-        startY: 0,
-        originX: 0,
-        originY: 0,
-        x: 0,
-        y: 0,
-      };
 
       if (!terminalCopy || !terminalScreen || !launchStage || !laptop || !appShell || !appContent || !appDock || !osFullscreen) {
         return;
@@ -348,70 +332,6 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
 
       function isJustinOsOpen() {
         return launchStage.classList.contains("is-os-open") && terminalScreen.classList.contains("is-desktop");
-      }
-
-      function setInfiniteCanvasOffset(x, y) {
-        infiniteCanvasPan.x = x;
-        infiniteCanvasPan.y = y;
-        infiniteCanvas?.style.setProperty("--canvas-x", `${x}px`);
-        infiniteCanvas?.style.setProperty("--canvas-y", `${y}px`);
-      }
-
-      function panInfiniteCanvas(dx, dy) {
-        setInfiniteCanvasOffset(infiniteCanvasPan.x + dx, infiniteCanvasPan.y + dy);
-      }
-
-      function startInfiniteCanvasPan(event) {
-        if (!infiniteCanvas || event.button !== 0) return;
-        event.preventDefault();
-        infiniteCanvasPan.isDragging = true;
-        infiniteCanvasPan.pointerId = event.pointerId;
-        infiniteCanvasPan.startX = event.clientX;
-        infiniteCanvasPan.startY = event.clientY;
-        infiniteCanvasPan.originX = infiniteCanvasPan.x;
-        infiniteCanvasPan.originY = infiniteCanvasPan.y;
-        infiniteCanvas.classList.add("is-panning");
-        infiniteCanvas.setPointerCapture(event.pointerId);
-      }
-
-      function moveInfiniteCanvas(event) {
-        if (!infiniteCanvas || !infiniteCanvasPan.isDragging || event.pointerId !== infiniteCanvasPan.pointerId) return;
-        event.preventDefault();
-        setInfiniteCanvasOffset(
-          infiniteCanvasPan.originX + event.clientX - infiniteCanvasPan.startX,
-          infiniteCanvasPan.originY + event.clientY - infiniteCanvasPan.startY,
-        );
-      }
-
-      function stopInfiniteCanvasPan(event) {
-        if (!infiniteCanvas || !infiniteCanvasPan.isDragging || event.pointerId !== infiniteCanvasPan.pointerId) return;
-        infiniteCanvasPan.isDragging = false;
-        infiniteCanvasPan.pointerId = null;
-        infiniteCanvas.classList.remove("is-panning");
-        if (infiniteCanvas.hasPointerCapture(event.pointerId)) {
-          infiniteCanvas.releasePointerCapture(event.pointerId);
-        }
-      }
-
-      function handleInfiniteCanvasWheel(event) {
-        event.preventDefault();
-        event.stopPropagation();
-        const wheelScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-        panInfiniteCanvas(-event.deltaX * wheelScale, -event.deltaY * wheelScale);
-      }
-
-      function handleInfiniteCanvasKeydown(event) {
-        const step = event.shiftKey ? 96 : 32;
-        const moves = {
-          ArrowUp: [0, step],
-          ArrowRight: [-step, 0],
-          ArrowDown: [0, -step],
-          ArrowLeft: [step, 0],
-        };
-        const move = moves[event.key];
-        if (!move) return;
-        event.preventDefault();
-        panInfiniteCanvas(move[0], move[1]);
       }
 
       function syncHomeLayerVisibility() {
@@ -1313,15 +1233,6 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
           switchPage(page);
         });
       });
-
-      if (infiniteCanvas) {
-        infiniteCanvas.addEventListener("pointerdown", startInfiniteCanvasPan);
-        infiniteCanvas.addEventListener("pointermove", moveInfiniteCanvas);
-        infiniteCanvas.addEventListener("pointerup", stopInfiniteCanvasPan);
-        infiniteCanvas.addEventListener("pointercancel", stopInfiniteCanvasPan);
-        infiniteCanvas.addEventListener("wheel", handleInfiniteCanvasWheel, { passive: false });
-        infiniteCanvas.addEventListener("keydown", handleInfiniteCanvasKeydown);
-      }
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
