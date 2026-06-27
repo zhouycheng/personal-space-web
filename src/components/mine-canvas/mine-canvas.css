@@ -541,7 +541,8 @@
 }
 
 .mine-rich-text.is-editing {
-  /* no visual decoration — feels like typing on the card */
+  user-select: text;
+  cursor: text;
 }
 
 

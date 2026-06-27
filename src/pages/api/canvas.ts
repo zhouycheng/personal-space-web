@@ -38,6 +38,7 @@ export async function GET() {
 export async function POST({ request }: { request: Request }) {
   const authToken = import.meta.env.CANVAS_AUTH_TOKEN;
   if (!authToken) {
+    console.error("[canvas-api] CANVAS_AUTH_TOKEN env var is not set — canvas save disabled");
     return new Response(JSON.stringify({ error: "Server not configured" }), { status: 500 });
   }
 

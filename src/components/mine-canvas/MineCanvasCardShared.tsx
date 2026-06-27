@@ -20,6 +20,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   type CSSProperties,
   type ElementType,
   type RefObject,
@@ -97,12 +98,26 @@ export function MineRichText({
     ],
     [],
   );
+
+  // Stable onUpdate callback to prevent TipTap option-change detection on every render
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Keep content stable during active editing — the editor's internal state is
+  // the source of truth while the user is typing.  Changing the content option
+  // on every keystroke causes TipTap to call setOptions → view.updateState on
+  // every render, which with rapid typing can exceed React's update depth limit.
+  const stableContentRef = useRef(value);
+  if (!active) {
+    stableContentRef.current = value;
+  }
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions,
-    content: value,
+    content: stableContentRef.current,
     editable: Boolean(active),
-    onUpdate: ({ editor: activeEditor }) => onChange(activeEditor.getHTML()),
+    onUpdate: ({ editor: activeEditor }) => onChangeRef.current(activeEditor.getHTML()),
   });
 
   useEffect(() => {
