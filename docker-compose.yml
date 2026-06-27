@@ -5,6 +5,7 @@ services:
       args:
         - CANVAS_SALT
         - CANVAS_ENCRYPTED_TOKEN
+        - CANVAS_AUTH_TOKEN
     container_name: justinweb
     ports:
       - "4321:4321"
