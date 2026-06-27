@@ -1,5 +1,4 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { timingSafeEqual } from "node:crypto";
@@ -26,7 +25,7 @@ async function readCanvasData() {
 }
 
 async function writeCanvasData(document: unknown): Promise<void> {
-  const tmpPath = join(tmpdir(), `canvas-${randomUUID()}.json`);
+  const tmpPath = join("data", `canvas-${randomUUID()}.json`);
   await writeFile(tmpPath, JSON.stringify(document, null, 2), "utf-8");
   await rename(tmpPath, DATA_PATH);
 }
