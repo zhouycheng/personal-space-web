@@ -24,11 +24,7 @@ class ActivityStatusStore {
       return null;
     }
 
-    const text = resolveActivityText(payload.appName);
-    if (!text) {
-      this.clear();
-      return null;
-    }
+    const text = resolveActivityText(payload.appName) ?? null;
 
     const receivedAt = Date.now();
     const snapshot: ActivitySnapshot = {

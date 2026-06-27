@@ -9,7 +9,7 @@ export interface ActivityUpdatePayload {
 
 export interface ActivitySnapshot {
   appName: string;
-  text: string;
+  text: string | null;
   observedAt: number;
   receivedAt: number;
   expiresAt: number;
