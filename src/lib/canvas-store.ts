@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { mineCanvasSeed } from "../components/mine-canvas/mineCanvasData";
 
-const DB_PATH = import.meta.env.CANVAS_DB_PATH || "data/justinweb.db";
+const DB_PATH = import.meta.env.CANVAS_DB_PATH || "data/canvas.db";
 
 let db: Database.Database | null = null;
 

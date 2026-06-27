@@ -9,7 +9,7 @@ for f in .env .env.local; do
 done
 
 LOCAL_DIR="data"
-DB_NAME="justinweb.db"
+DB_NAME="canvas.db"
 SERVER_HOST="${SERVER_HOST:?Must set SERVER_HOST env var (e.g. user@your-server.com)}"
 SERVER_DATA_DIR="${SERVER_DATA_DIR:?Must set SERVER_DATA_DIR env var (e.g. /opt/justinweb/data)}"
 
