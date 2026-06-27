@@ -1,6 +1,10 @@
 services:
   justinweb:
-    build: .
+    build:
+      context: .
+      args:
+        - CANVAS_SALT
+        - CANVAS_ENCRYPTED_TOKEN
     container_name: justinweb
     ports:
       - "4321:4321"

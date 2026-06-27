@@ -10,6 +10,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+# Build-time env vars needed by Astro SSR (from compose build args)
+ARG CANVAS_SALT
+ARG CANVAS_ENCRYPTED_TOKEN
+ENV CANVAS_SALT=${CANVAS_SALT}
+ENV CANVAS_ENCRYPTED_TOKEN=${CANVAS_ENCRYPTED_TOKEN}
+
 RUN npm run build
 
 # Stage 2: Production runtime
