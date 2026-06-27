@@ -1,13 +1,14 @@
-# Active Decisions
+# 活跃决策
 
-This index lists decisions that remain active. Add full decision records under `docs/decisions/` when a decision needs more detail.
+此索引列出当前活跃的决策。当决策需要更多细节时，可将完整决策记录添加到 `docs/decisions/` 下。
 
-| Date | Decision | Status | Source |
+| 日期 | 决策 | 状态 | 来源 |
 | --- | --- | --- | --- |
-| 2026-06-25 | Astro 6 at the repository root is the active runtime. | Active | README.md |
-| 2026-06-25 | Homepage state vocabulary is `全显状态`, `推拉状态`, and `Justin OS 状态`. | Active | CONTEXT.md |
-| 2026-06-25 | Justin Kit components stay source-first under `src/justin-kit/components/`. | Active | src/justin-kit/README.md |
-| 2026-06-26 | Desktop files come from `public/os-desktop/` and are rendered by the macOS desktop component. | Active | src/justin-kit/components/macos-desktop/README.md |
-| 2026-06-26 | Project workflow skills use the `justinweb-` prefix under `.agents/skills/`. | Active | .agents/skills/README.md |
-| 2026-06-26 | Dock navigation uses real routes `/home`, `/works`, and `/os`; `/` remains a homepage alias and client navigation preserves the shared app shell. | Active | src/components/app/JustinAppShell.astro |
-| 2026-06-26 | Homepage mid-collapse `推拉状态` progress is restored from same-tab `sessionStorage`, and terminal boot timing uses a shared 20% speed-up helper. | Active | src/components/app/homeRuntimeState.mjs |
+| 2026-06-25 | 仓库根目录的 Astro 7 是当前运行时。 | Active | README.md |
+| 2026-06-25 | 首页状态词汇为 `全显状态`、`推拉状态` 和 `Justin OS 状态`。 | Active | CONTEXT.md |
+| 2026-06-25 | Justin Kit 组件以源文件优先形式存在于 `src/justin-kit/components/` 下。 | Active | src/justin-kit/README.md |
+| 2026-06-26 | 桌面文件来自 `public/os-desktop/`，由 macOS 桌面组件渲染。 | Active | src/justin-kit/components/macos-desktop/README.md |
+| 2026-06-26 | 项目工作流技能使用 `justinweb-` 前缀，位于 `.agents/skills/` 下。 | Active | .agents/skills/README.md |
+| 2026-06-26 | Dock 导航使用真实路由 `/home`、`/works` 和 `/os`；`/` 保留为首页别名，客户端导航保留共享应用外壳。 | Active | src/components/app/JustinAppShell.astro |
+| 2026-06-26 | 首页中途折叠的 `推拉状态` 进度从同标签页 `sessionStorage` 恢复，终端启动时序使用共享 20% 加速辅助。 | Active | src/components/app/homeRuntimeState.mjs |
+| 2026-06-27 | 画布/白板使用 ReactFlow 节点编辑器，通过 better-sqlite3 进行 SQLite 持久化。 | Active | src/components/mine-canvas/MineCanvasEditor.tsx |

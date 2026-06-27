@@ -1,32 +1,31 @@
-# Active Work
+# 当前工作
 
-## Current Focus
+## 当前焦点
 
-JustinWeb is focused on the Astro-based Justin OS route shell, homepage state
-transitions, and Justin Kit extraction.
+JustinWeb 聚焦于基于 Astro 的 Justin OS 路由外壳、首页状态过渡、Justin Kit 组件提取以及基于 ReactFlow 的画布编辑系统。
 
-## Active Surfaces
+## 活跃界面
 
-- `src/pages/index.astro`: `/` homepage alias that renders the shared app shell.
-- `src/pages/home.astro`, `src/pages/works.astro`, `src/pages/os.astro`: dock route entrypoints.
-- `src/components/app/JustinAppShell.astro`: shared route shell, launch state machine, History API navigation, Justin OS projection, personal canvas, and top menu events.
-- `src/components/app/homeRuntimeState.mjs`: terminal timing scale and same-tab homepage transition snapshot helpers.
-- `src/styles/global.css`: global layout, launch screen motion, dock navigation, personal canvas, responsive rules, and OS projection styling.
-- `src/justin-kit/components/macos-desktop/`: reusable macOS-like desktop and window system.
-- `public/os-desktop/`: file-backed Justin OS desktop content.
-- `src/justin-kit/components/local-activity-status/`: local activity runtime and monitor.
+- `src/pages/index.astro`：`/` 首页别名，渲染共享应用外壳。
+- `src/pages/home.astro`、`src/pages/works.astro`、`src/pages/os.astro`：Dock 路由入口。
+- `src/components/app/JustinAppShell.astro`：共享路由外壳、启动状态机、History API 导航、Justin OS 投影、个人画布和顶部菜单事件。
+- `src/components/app/homeRuntimeState.mjs`：终端时序缩放和同标签页首页过渡快照辅助。
+- `src/styles/global.css`：全局布局、启动屏幕动效、Dock 导航、个人画布、响应式规则和 OS 投影样式。
+- `src/justin-kit/components/macos-desktop/`：可复用的 macOS 风格桌面和窗口系统。
+- `public/os-desktop/`：文件驱动的 Justin OS 桌面内容。
+- `src/justin-kit/components/local-activity-status/`：本地活动运行时和监控。
+- `src/components/mine-canvas/`：ReactFlow 画布编辑器、七种卡片类型、内联编辑和 SQLite 持久化。
 
-## Validation Baseline
+## 验证基线
 
-- `rtk npm run build`.
-- `rtk node --test tests/*.test.mjs` for App shell helper logic.
-- Browser preview for interaction-heavy changes, including direct refresh on
-  `/`, `/home`, `/works`, and `/os`.
-- Local activity changes require environment and route checks.
+- `rtk npm run build`。
+- `rtk node --test tests/*.test.mjs`（App 外壳辅助逻辑）。
+- 交互密集的变更需要浏览器预览，包括直接刷新 `/`、`/home`、`/works` 和 `/os`。
+- 本地活动变更需要环境和路由检查。
 
-## Current Risks
+## 当前风险
 
-- Homepage and Justin OS transitions are interaction-heavy and need visual QA on desktop and narrow screens.
-- Route-shell changes need back/forward and refresh checks because homepage
-  state is intentionally preserved within the current browser tab session.
-- `public/os-desktop/` content is scanned at build time, so renamed files require page refresh or rebuild.
+- 首页和 Justin OS 过渡交互密集，需要在桌面和窄屏幕上进行视觉 QA。
+- 路由外壳变更需要后退/前进和刷新检查，因为首页状态有意在当前浏览器标签页会话中保留。
+- `public/os-desktop/` 内容在构建时扫描，重命名文件需要页面刷新或重新构建。
+- 画布实时编辑状态与 SQLite 持久化之间的同步需要仔细验证，确保 `flushSave` 模式下的数据一致性。

@@ -1,31 +1,22 @@
-# JustinWeb Context
+# JustinWeb 上下文
 
-This file records project vocabulary that should stay stable across planning,
-implementation, QA, and design discussion.
+本文档记录项目词汇，应在规划、实现、测试和设计讨论中保持一致。
 
-## Homepage State Vocabulary
+## 首页状态词汇
 
-Use these names when discussing the homepage launch experience:
+讨论首页启动体验时使用以下名称：
 
-- `全显状态`: the default homepage composition where the complete laptop/terminal
-  shell is visible on the light page background, with the bottom navigation dock
-  visible.
-- `推拉状态`: the scroll-driven camera transition shared by the laptop leaving
-  the viewer and the computer moving closer again. Use this name for both the
-  departure transition and the approach transition.
-- `Justin OS 状态`: the fullscreen blue OS projection after the launch
-  interaction, where the page reads as the Justin OS desktop rather than a
-  standalone laptop mockup.
+- `全显状态`：默认首页布局，完整的笔记本/终端外壳在浅色页面背景上可见，底部导航 Dock 可见。
+- `推拉状态`：由滚动驱动的相机过渡，笔记本远离观看者和电脑重新靠近共用此名称。用于表示离开过渡和靠近过渡。
+- `Justin OS 状态`：启动交互后的全屏蓝色 OS 投影，此时页面呈现为 Justin OS 桌面而非独立的笔记本模型。
 
-These terms describe homepage states, not separate routes. Keep future README,
-plans, QA notes, issue titles, and implementation comments aligned to this
-vocabulary when referring to the launch page.
+这些术语描述的是首页状态，而非独立路由。后续 README、计划、测试笔记、issue 标题和实现注释中引用启动页时，请与此词汇保持一致。
 
-## Documentation Entry Points
+## 文档入口
 
-- `README.md`: active runtime, commands, implementation status, and structure.
-- `CHANGELOG.md`: version-level changes and verified milestones.
-- `docs/README.md`: repository documentation index.
-- `docs/work/`: active work, backlog, and decisions.
-- `docs/develop/workflow.md`: durable workflow and validation rules.
-- `.agents/skills/README.md`: project-local skill matrix and routing.
+- `README.md`：当前运行时、命令、实现状态和项目结构。
+- `CHANGELOG.md`：版本级变化和已验证的里程碑。
+- `docs/README.md`：仓库文档索引。
+- `docs/work/`：当前工作、待办和决策。
+- `docs/develop/workflow.md`：持久化的工作流和验证规则。
+- `.agents/skills/README.md`：项目级技能矩阵和路由。

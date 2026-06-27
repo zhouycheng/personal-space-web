@@ -1,32 +1,33 @@
-# JustinWeb Development Workflow
+# JustinWeb 开发工作流
 
-## Source Of Truth
+## 真相来源
 
-- Runtime and setup: `README.md`.
-- Stable vocabulary: `CONTEXT.md`.
-- Documentation index: `docs/README.md`.
-- Active work and backlog: `docs/work/`.
-- Justin Kit rules: `src/justin-kit/README.md`.
-- Project-local skills: `.agents/skills/README.md`.
+- 运行时和设置：`README.md`。
+- 稳定词汇：`CONTEXT.md`。
+- 文档索引：`docs/README.md`。
+- 当前工作和待办：`docs/work/`。
+- Justin Kit 规则：`src/justin-kit/README.md`。
+- 项目级技能：`.agents/skills/README.md`。
 
-## Requirement And Scope Gates
+## 需求与范围门控
 
-- Discuss candidates before adding them to `docs/work/backlog.md`.
-- Implementation requires accepted scope unless the user explicitly requests end-to-end execution.
-- Keep temporary plans in `.workspace/plans/` and durable facts in `docs/`.
+- 在添加到 `docs/work/backlog.md` 之前讨论候选需求。
+- 实现需要已接受的范围，除非用户明确要求端到端执行。
+- 将临时计划保留在 `.workspace/plans/`，将持久化事实保留在 `docs/`。
 
-## Architecture Boundaries
+## 架构边界
 
-- `src/pages/index.astro`, `src/pages/home.astro`, `src/pages/works.astro`, and `src/pages/os.astro` own only route entrypoints.
-- `src/components/app/JustinAppShell.astro` owns the shared dock route shell, launch interactions, History API navigation, and OS projection mount points.
-- `src/styles/global.css` owns shared layout and motion styling.
-- `src/justin-kit/components/` owns reusable components and their runtime files.
-- `public/os-desktop/` owns file-backed desktop content only.
-- `src/pages/api/activity/` should remain thin re-exports of local activity runtime handlers.
+- `src/pages/index.astro`、`src/pages/home.astro`、`src/pages/works.astro` 和 `src/pages/os.astro` 仅拥有路由入口。
+- `src/components/app/JustinAppShell.astro` 拥有共享 Dock 路由外壳、启动交互、History API 导航和 OS 投影挂载点。
+- `src/styles/global.css` 拥有共享布局和动效样式。
+- `src/justin-kit/components/` 拥有可复用组件及其运行时文件。
+- `public/os-desktop/` 仅拥有文件驱动的桌面内容。
+- `src/pages/api/activity/` 应保持为本地活动运行时处理器的薄重导出。
+- `src/components/mine-canvas/` 拥有画布编辑器、卡片组件和持久化逻辑。
 
-## Commands
+## 命令
 
-Run commands from the repository root and prefix command segments with `rtk`:
+从仓库根目录运行命令，并用 `rtk` 作为命令段前缀：
 
 ```bash
 rtk npm install
@@ -36,25 +37,24 @@ rtk npm run preview
 rtk npm run monitor:activity
 ```
 
-Node must satisfy `.node-version` and `package.json` engines: `>=22.12.0`.
+Node 必须满足 `.node-version` 和 `package.json` engines 要求：`>=22.12.0`。
 
-## Validation
+## 验证
 
-- Baseline: `rtk npm run build`.
-- App shell helper logic: `rtk node --test tests/*.test.mjs`.
-- UI and motion changes need browser preview on desktop and narrow screens.
-- Route-shell changes need direct-load, refresh, and browser back/forward checks
-  for `/`, `/home`, `/works`, and `/os`.
-- Desktop scanner changes need `public/os-desktop/` file listing verification.
-- Local activity changes need route and environment checks.
+- 基线：`rtk npm run build`。
+- App 外壳辅助逻辑：`rtk node --test tests/*.test.mjs`。
+- UI 和动效变更需要在桌面和窄屏幕上进行浏览器预览。
+- 路由外壳变更需要对 `/`、`/home`、`/works` 和 `/os` 进行直接加载、刷新和浏览器后退/前进检查。
+- 桌面扫描器变更需要 `public/os-desktop/` 文件列表验证。
+- 本地活动变更需要路由和环境检查。
 
-## Git And Delivery
+## Git 与交付
 
-- Current branch is usually `main`; do not create, stage, commit, push, tag, or publish without explicit instruction.
-- Preserve unrelated user changes.
-- Use Conventional Commit style when preparing commit recommendations.
-- Update `CHANGELOG.md` only for version-level facts worth recalling.
+- 当前分支通常为 `main`；未经明确指示，不要创建、暂存、提交、推送、打标签或发布。
+- 保留不相关的用户变更。
+- 准备提交建议时使用 Conventional Commit 风格。
+- 仅为值得回顾的版本级事实更新 `CHANGELOG.md`。
 
-## Release
+## 发布
 
-Formal release documents belong under `docs/releases/vX.Y.Z/release.md` and require a user-specified version.
+正式发布文档应放在 `docs/releases/vX.Y.Z/release.md`，需要用户指定版本号。

@@ -1,13 +1,13 @@
-# Requirement Backlog
+# 需求待办
 
-Backlog changes require explicit confirmation before editing.
+待办变更需要明确确认后才能编辑。
 
-Priority values: `High`, `Medium`, `Low`.
+优先级取值：`High`（高）、`Medium`（中）、`Low`（低）。
 
-Status values: `Candidate`, `Accepted`, `Blocked`, `Done`, `Dropped`.
+状态取值：`Candidate`（候选）、`Accepted`（已接受）、`Blocked`（阻塞）、`Done`（完成）、`Dropped`（已放弃）。
 
-| ID | Area | Priority | Status | Candidate | Next step | Source |
+| ID | 领域 | 优先级 | 状态 | 候选需求 | 下一步 | 来源 |
 | --- | --- | --- | --- | --- | --- | --- |
-| JW-001 | Justin Kit | Medium | Candidate | Add a dedicated `/kit` route with full-page previews for extracted components. | Analyze route shape and catalog rendering. | README |
-| JW-002 | Homepage | Medium | Candidate | Add real Works and My OS page content beyond placeholder copy. | Define product content and interaction boundaries. | README |
-| JW-003 | Local Activity | Low | Candidate | Mount `LocalActivityStatus` in the public UI when the placement is confirmed. | Decide placement and privacy copy. | docs/README.md |
+| JW-001 | Justin Kit | Medium | Candidate | 添加专用 `/kit` 路由，为已提取组件提供全页预览。 | 分析路由形态和目录渲染。 | README |
+| JW-002 | 首页 | Medium | Candidate | 添加真实的作品集和我的 OS 页面内容，超越占位文案。 | 定义产品内容和交互边界。 | README |
+| JW-003 | 本地活动 | Low | Candidate | 确认位置后，在公共 UI 中挂载 `LocalActivityStatus`。 | 决定位置和隐私文案。 | docs/README.md |

@@ -1,21 +1,18 @@
-# Project Agent Notes
+# 项目 Agent 备注
 
-## Active Runtime
+## 当前运行时
 
-JustinWeb is now an Astro project. The active app lives in
-the repository root.
+JustinWeb 现为 Astro 项目。活跃应用位于仓库根目录。
 
-- Use Node `>=22.12.0`; `.node-version` currently pins `22.22.3`.
-- Run app commands from this repository root.
-- The old Next implementation has been removed. Do not add or restore Next code
-  unless the user explicitly asks for it.
+- 使用 Node `>=22.12.0`；`.node-version` 当前锁定 `22.22.3`。
+- 从此仓库根目录运行应用命令。
+- 旧 Next 实现已移除。除非用户明确要求，否则不要添加或恢复 Next 代码。
 
-## Commands
+## 命令
 
-When running shell commands in this repository, prefix command segments with
-`rtk` unless debugging requires raw output.
+在此仓库中运行 shell 命令时，除非调试需要原始输出，否则用 `rtk` 作为命令前缀。
 
-Common commands:
+常用命令：
 
 ```bash
 rtk npm install
@@ -25,13 +22,13 @@ rtk npm run preview
 rtk npm run monitor:activity
 ```
 
-## Documentation
+## 文档
 
-- Keep root `README.md` as the repository orientation page.
-- Keep active runtime details in `README.md`.
-- Keep Justin Kit rules in `src/justin-kit/README.md`.
-- Keep component usage inside each component folder.
-- Use `.agents/skills/README.md` as the project-local workflow skill index.
-- Use `docs/develop/workflow.md` as the durable workflow source of truth.
-- Keep current work and backlog in `docs/work/`.
-- If docs and source disagree, update the docs to match the source.
+- 保持根目录 `README.md` 作为仓库导航页。
+- 保持当前运行时详情在 `README.md` 中。
+- 保持 Justin Kit 规则在 `src/justin-kit/README.md` 中。
+- 保持组件用法在各组件文件夹内。
+- 使用 `.agents/skills/README.md` 作为项目级工作流技能索引。
+- 使用 `docs/develop/workflow.md` 作为持久化工作流真相来源。
+- 保持当前工作和待办在 `docs/work/` 中。
+- 如果文档与源码不一致，更新文档以匹配源码。

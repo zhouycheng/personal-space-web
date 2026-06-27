@@ -1,68 +1,48 @@
-# JustinWeb Documentation
+# JustinWeb 文档
 
-This folder tracks project-level documentation for the Astro JustinWeb rebuild.
-The active source of truth is the Astro app at the repository root.
+此文件夹跟踪 Astro JustinWeb 重建的项目级文档。当前真相来源是仓库根目录的 Astro 应用。
 
-## Current Status
+## 当前状态
 
-As of 2026-06-26:
+截至 2026-06-28：
 
-- The active runtime is Astro 6 with the Node standalone adapter.
-- The active app root is this repository root.
-- Node must be `>=22.12.0`; `.node-version` currently records `22.22.3`.
-- The dock routes are `/home`, `/works`, and `/os`; `/` remains a homepage
-  alias. The shared app shell uses History API navigation so route refreshes do
-  not fall back to the homepage.
-- The homepage currently renders the Justin OS launch screen with terminal boot,
-  text progress, fullscreen projection, and scroll-driven laptop camera motion.
-- Terminal boot timing is intentionally 20% faster than the original rebuild
-  timing, while keeping the same typing, typo, backspace, and progress-line
-  behavior.
-- The homepage persists mid-collapse `推拉状态` progress in same-tab
-  `sessionStorage`, so returning to `/home` from another route or refreshing
-  `/home` resumes the same transition point when Justin OS is being pushed back
-  toward the terminal.
-- Homepage launch discussion should use the shared state names from
-  `../CONTEXT.md`: `全显状态`, `推拉状态`, and `Justin OS 状态`.
-- The project theme color is pure Klein blue `#002FA7`
-  (`rgb(0, 47, 167)`). Brand-blue UI, the terminal screen, OS desktop
-  projection, and active dock controls should use this solid color instead of
-  blue gradients.
-- Justin Kit exists as a source-first component library under
-  `src/justin-kit/`.
-- `Cursor Reveal Hero` and `Local Activity Status` are extracted components.
-- Local activity API routes are wired, but the badge is not mounted on the
-  current launch page.
-- The old Next implementation has been removed from the working tree.
+- 当前运行时为 Astro 7，使用 Node 独立适配器。
+- 活跃应用根目录即本仓库根目录。
+- Node 必须 `>=22.12.0`；`.node-version` 当前记录 `22.22.3`。
+- Dock 路由为 `/home`、`/works` 和 `/os`；`/` 保留为首页别名。共享应用外壳使用 History API 导航，路由刷新不会回退到首页。
+- 首页当前渲染 Justin OS 启动屏幕，包含终端启动、文字进度、全屏投影和滚动驱动的笔记本相机动效。
+- 终端启动时序有意比原始重建时序快 20%，同时保持相同的逐字打字、错字、退格和进度条行为。
+- 首页将中途折叠的 `推拉状态` 进度保存在同标签页 `sessionStorage` 中，因此从其他路由返回 `/home` 或刷新 `/home` 时，当 Justin OS 正在被推回终端时，会恢复到同一过渡点。
+- 首页启动讨论应使用 `../CONTEXT.md` 中的共享状态名称：`全显状态`、`推拉状态` 和 `Justin OS 状态`。
+- 项目主题色为纯克莱因蓝 `#002FA7`（`rgb(0, 47, 167)`）。品牌蓝色 UI、终端屏幕、OS 桌面投影和激活 Dock 控件应使用此纯色，而非蓝色渐变。
+- Justin Kit 以源文件优先的组件库形式存在于 `src/justin-kit/` 下。
+- `Cursor Reveal Hero` 和 `Local Activity Status` 为已提取组件。
+- 本地活动 API 路由已接入，但徽章尚未挂载到当前启动页。
+- 基于 ReactFlow 的画布/白板节点编辑器已实现，支持七种卡片类型、内联编辑和 SQLite 持久化。
+- 旧 Next 实现已从工作树移除。
 
-## Document Index
+## 文档索引
 
-- `../CONTEXT.md`: shared vocabulary and homepage state definitions.
-- `../README.md`: repository entrypoint and migration summary.
-- `../CHANGELOG.md`: version-level changes and verified milestones.
-- `work/active.md`: current active surfaces, validation baseline, and risks.
-- `work/backlog.md`: confirmed local requirement pool.
-- `work/decisions.md`: index of active decisions.
-- `develop/workflow.md`: workflow, scope gates, validation, Git, and release rules.
-- `lessons.md`: reusable diagnosis and project-operation lessons.
-- `../.agents/skills/README.md`: project-local workflow skill router and pre-read protocol.
-- `../src/justin-kit/README.md`: Justin Kit catalog and component boundaries.
-- `../src/justin-kit/components/cursor-reveal-hero/README.md`:
-  cursor reveal component usage and behavior.
-- `../src/justin-kit/components/local-activity-status/README.md`:
-  local activity component, API, timing, and monitor setup.
-- `plans/2026-06-25-astro-justin-os-kit.md`: implementation record for the Astro
-  rebuild.
+- `../CONTEXT.md`：共享词汇和首页状态定义。
+- `../README.md`：仓库入口和迁移摘要。
+- `../CHANGELOG.md`：版本级变化和已验证的里程碑。
+- `work/active.md`：当前活跃界面、验证基线和风险。
+- `work/backlog.md`：已确认的本地需求池。
+- `work/decisions.md`：活跃决策索引。
+- `develop/workflow.md`：工作流、范围门控、验证、Git 和发布规则。
+- `lessons.md`：可复用的诊断和项目操作经验。
+- `../.agents/skills/README.md`：项目级工作流技能路由和预读协议。
+- `../src/justin-kit/README.md`：Justin Kit 目录和组件边界。
+- `../src/justin-kit/components/cursor-reveal-hero/README.md`：光标揭示组件用法和行为。
+- `../src/justin-kit/components/local-activity-status/README.md`：本地活动组件、API、时序和监控设置。
+- `plans/2026-06-25-astro-justin-os-kit.md`：Astro 重建实现记录。
 
-## Update Rules
+## 更新规则
 
-- If docs and source disagree, trust the source and update the docs.
-- If Astro commands fail with Node `v20.x`, switch to the version in
-  `.node-version` before debugging app code.
-- Keep root docs focused on orientation and runtime details.
-- Keep workflow and skill-routing rules synchronized with `.agents/skills/README.md`.
-- Keep component-level behavior in each component README.
-- Record completed implementation plans as status records instead of leaving
-  them as future-tense plans.
-- Do not document a homepage section, route, or component preview as shipped
-  until it is actually wired into `src/pages`.
+- 如果文档与源码不一致，以源码为准并更新文档。
+- 如果 Astro 命令因 Node `v20.x` 失败，请在调试应用代码前切换到 `.node-version` 中的版本。
+- 保持根文档聚焦导航和运行时详情。
+- 保持工作流和技能路由规则与 `.agents/skills/README.md` 同步。
+- 保持组件级行为在各组件 README 中。
+- 将已完成的实现计划记录为状态记录，而非保留为将来时态的计划。
+- 在实际接入 `src/pages` 之前，不要将首页区域、路由或组件预览标记为已发布。

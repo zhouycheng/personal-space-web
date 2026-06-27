@@ -1,79 +1,60 @@
 # Astro Justin Web
 
-Active Astro rebuild of JustinWeb.
+基于 Astro 重建的 JustinWeb 活跃版本。
 
-This version builds the site as **Justin OS** and introduces **Justin Kit**, a
-personal component library for reusable web, motion, design, and Flutter pieces.
+当前版本将站点构建为 **Justin OS**，并引入 **Justin Kit**——一个个人组件库，用于可复用的 Web、动效、设计和 Flutter 模块。
 
-## Current Implementation
+## 当前实现
 
-Implemented now:
+已实现：
 
-- Astro 6 server project with `@astrojs/node` in standalone mode.
-- `Justin OS` launch page at `/` and `/home`; `/` remains a homepage alias,
-  while the dock uses `/home` as the canonical homepage link.
-- Shared Justin app shell for the dock routes `/home`, `/works`, and `/os`,
-  with History API navigation so refresh, back, and forward preserve the active
-  route instead of falling back to the homepage.
-- Full-screen terminal/laptop visual shell with camera-style open and scroll
-  return motion.
-- Terminal boot sequence with skippable typing, randomized typo/backspace
-  correction for `echo "I need some tokens and coffee"`, and a text-only
-  `launchd [....] 00-100%` progress line before OS launch. Terminal typing,
-  pauses, backspace, output waits, and launch progress run with a shared 20%
-  speed-up.
-- Scroll wheel interaction inside the OS: scrolling down pulls the whole laptop
-  away from the camera; scrolling back up returns to fullscreen and replays the
-  menu-bar entrance. Mid-collapse `推拉状态` progress is preserved in same-tab
-  `sessionStorage`, so route switches and refreshes return to the same
-  transition point instead of replaying fullscreen.
-- Launch dock with visual navigation links for `首页`, `作品集`, and `我的`.
-- JSON-driven `作品集` route at `/works`:
-  - project order, tab labels, titles, descriptions, tags, update text, start
-    text, preview image paths, and external links come from
-    `src/data/projects.json`;
-  - preview assets live under `src/assets/projects/`;
-  - wheel, touchpad, keyboard, and top-tab navigation switch one product at a
-    time through a locked fullscreen carousel.
-- `/os` route with a pannable infinite canvas surface for the personal page.
-- macOS-like Justin OS desktop inside the fullscreen projection:
-  - desktop files are scanned recursively from `public/os-desktop/`;
-  - `.html` files open in iframe-backed windows;
-  - `.md` files open in markdown windows;
-  - folders open as Finder-style windows;
-  - the `组件库` folder contains self-contained Justin Kit HTML previews;
-  - desktop icons are draggable, persist their positions locally, and avoid
-    overlapping after drag;
-  - manually resized window dimensions are restored on the next open.
-- Pure Klein blue theme: all brand-blue surfaces and controls use `#002FA7`
-  / `rgb(0, 47, 167)`, including the terminal screen, OS desktop projection,
-  and active dock item. Screen backgrounds must stay solid color, not gradients.
-- Homepage state vocabulary:
-  - `全显状态`: complete laptop/terminal shell visible on the light background.
-  - `推拉状态`: shared name for the laptop leaving transition and the computer
-    approach transition.
-  - `Justin OS 状态`: fullscreen blue OS projection after the launch interaction.
-- Justin Kit source folder and typed catalog.
-- Extracted `Cursor Reveal Hero` Astro component.
-- Extracted `Local Activity Status` Astro component.
-- Astro API routes for the local activity monitor.
+- Astro 7 服务端项目，使用 `@astrojs/node` 独立模式运行。
+- `Justin OS` 启动页路由 `/` 和 `/home`；`/` 保留为首页别名，底部 Dock 使用 `/home` 作为首页规范链接。
+- 共享 Justin 应用外壳，服务于 Dock 路由 `/home`、`/works` 和 `/os`，通过 History API 导航确保刷新、后退和前进保留当前激活路由，而不是回退到首页。
+- 全屏终端/笔记本视觉外壳，带相机式打开和滚轮回退动效。
+- 终端启动序列：可跳过的逐字打字、`echo "I need some tokens and coffee"` 的随机错字/退格修正，以及 OS 启动前纯文本 `launchd [....] 00-100%` 进度条。终端打字、停顿、退格、输出等待和启动进度统一 20% 加速。
+- OS 内滚轮交互：向下滚动将笔记本推离相机视野，向上滚动恢复全屏并重放菜单栏入场动画。中途折叠的 `推拉状态` 进度保存在同标签页 `sessionStorage` 中，路由切换和刷新恢复到同一过渡点，而不是重播全屏动画。
+- 启动 Dock 带视觉导航链接：`首页`、`作品集`和`我的`。
+- JSON 驱动的 `作品集` 路由（`/works`）：
+  - 项目排序、标签页名称、标题、描述、标签、更新文本、开始文本、预览图路径和外部链接来自 `src/data/projects.json`；
+  - 预览资源位于 `src/assets/projects/`；
+  - 滚轮、触控板、键盘和顶部标签导航逐一切换全屏锁定轮播中的产品。
+- `/os` 路由：可平移的无限画布个人页面。
+- 全屏投影中的 macOS 风格 Justin OS 桌面：
+  - 桌面文件从 `public/os-desktop/` 递归扫描；
+  - `.html` 文件在 iframe 窗口内打开；
+  - `.md` 文件在 Markdown 窗口内打开；
+  - 文件夹以 Finder 风格窗口打开；
+  - `组件库` 文件夹包含自包含的 Justin Kit HTML 预览；
+  - 桌面图标可拖拽、位置持久化到本地、拖拽后自动避免重叠；
+  - 手动调整的窗口尺寸可在下次打开时恢复。
+- 活动监控系统双端点推送和心跳间隔 5 秒。
+- 纯克莱因蓝主题：所有品牌蓝色界面和控件使用 `#002FA7` / `rgb(0, 47, 167)`，包括终端屏幕、OS 桌面投影和激活 Dock 项。屏幕背景必须为纯色，不使用渐变。
+- 基于 ReactFlow 的白板/画布节点编辑系统，支持七种卡片类型、内联文本编辑和完善的工具栏。
+- 首页状态词汇：
+  - `全显状态`：完整的笔记本/终端外壳在浅色背景上可见。
+  - `推拉状态`：笔记本离开过渡和电脑靠近过渡的统称。
+  - `Justin OS 状态`：启动交互后的全屏蓝色 OS 投影。
+- Justin Kit 源文件夹和类型化目录。
+- 已提取 `Cursor Reveal Hero` Astro 组件。
+- 已提取 `Local Activity Status` Astro 组件。
+- 活动监控的 Astro API 路由。
+- SQLite 驱动的画布数据持久化和加密鉴权。
 
-Not implemented yet:
+尚未实现：
 
-- A dedicated `/kit` route.
-- Rendering Justin Kit catalog cards on the homepage.
-- Full OS sections beyond the launch screen, such as agent chat or a footer
-  terminal.
-- Fullscreen component preview pages.
+- 专用的 `/kit` 路由。
+- 首页渲染 Justin Kit 目录卡片。
+- 启动屏幕之外的完整 OS 区域，如 agent 聊天或底部终端。
+- 全屏组件预览页面。
 
-## Commands
+## 命令
 
-Astro 6 requires Node `>=22.12.0`. This repo includes `.node-version` with the
-local tested version:
+Astro 7 需要 Node `>=22.12.0`。本仓库包含 `.node-version` 记录本地测试版本：
 
 ```bash
 node -v
-# expected locally: v22.22.3
+# 本地预期: v22.22.3
 ```
 
 ```bash
@@ -83,49 +64,46 @@ npm run build
 npm run preview
 ```
 
-The dev and preview scripts bind to `0.0.0.0:4321`.
+dev 和 preview 脚本绑定到 `0.0.0.0:4321`。
 
-If `npm run build` reports Node `v20.x`, switch the shell to the version in
-`.node-version` before running npm scripts.
+如果 `npm run build` 报告 Node `v20.x`，请在运行 npm 脚本前将 shell 切换到 `.node-version` 中的版本。
 
-On this machine, direct Astro build verification has also used:
+在本机上，直接验证 Astro 构建也可使用：
 
 ```bash
 /Users/leftzhou/.hermes/node/bin/node node_modules/astro/bin/astro.mjs build
 ```
 
-## Project Structure
+## 项目结构
 
 ```text
 JustinWeb/
-  src/pages/index.astro                         `/` homepage alias
-  src/pages/home.astro                          `/home` homepage route
-  src/pages/works.astro                         `/works` portfolio route
-  src/pages/os.astro                            `/os` personal route
-  src/components/app/JustinAppShell.astro       shared dock route shell
-  src/components/app/homeRuntimeState.mjs       home transition and terminal timing helpers
-  src/pages/api/activity/update.ts              POST activity updates
-  src/pages/api/activity/stream.ts              SSE activity stream
-  src/layouts/BaseLayout.astro                  HTML shell
-  src/styles/global.css                         route shell, launch, dock, and OS styling
-  src/data/kit.ts                               Justin Kit catalog
-  src/data/projects.json                        works portfolio data
-  src/components/works/WorksPortfolio.astro     works portfolio UI
-  src/assets/projects/                          works preview assets
-  public/os-desktop/                            Justin OS desktop files
-  src/justin-kit/                               component library source
+  src/pages/index.astro                         `/` 首页别名
+  src/pages/home.astro                          `/home` 首页路由
+  src/pages/works.astro                         `/works` 作品集路由
+  src/pages/os.astro                            `/os` 个人路由
+  src/components/app/JustinAppShell.astro       共享 Dock 路由外壳
+  src/components/app/homeRuntimeState.mjs       首页过渡和终端时序辅助
+  src/pages/api/activity/update.ts              POST 活动更新
+  src/pages/api/activity/stream.ts              SSE 活动流
+  src/pages/api/canvas.ts                       画布持久化 API
+  src/layouts/BaseLayout.astro                  HTML 外壳
+  src/styles/global.css                         路由外壳、启动、Dock 和 OS 样式
+  src/data/kit.ts                               Justin Kit 目录
+  src/data/projects.json                        作品集数据
+  src/components/works/WorksPortfolio.astro     作品集 UI
+  src/assets/projects/                          作品集预览资源
+  public/os-desktop/                            Justin OS 桌面文件
+  src/justin-kit/                               组件库源文件
+  src/components/mine-canvas/                   画布编辑器组件
+  src/lib/canvas-store.ts                       SQLite 画布存储
 ```
 
-## Works Portfolio Data
+## 作品集数据
 
-The works page is managed through `src/data/projects.json`. Keep the array order
-as the display order for both the top project tabs and fullscreen project pages.
+作品集页面通过 `src/data/projects.json` 管理。数组顺序即为顶部项目标签和全屏项目页的显示顺序。
 
-Each record provides display-ready text, so update dates are intentionally stored
-as strings instead of being formatted at runtime. Use `summary` and
-`highlights` for the one-screen works view, and keep longer project copy in
-`description` for future detail views. Preview image paths should point to files
-in `src/assets/projects/`, for example:
+每条记录提供待显示的完整文案，因此更新日期有意存储为字符串而非运行时格式化。使用 `summary` 和 `highlights` 作为单屏作品视图，较长的项目文案保留在 `description` 中供未来详情视图使用。预览图路径应指向 `src/assets/projects/` 中的文件，例如：
 
 ```json
 {
@@ -136,19 +114,16 @@ in `src/assets/projects/`, for example:
 }
 ```
 
-The API route files intentionally re-export the local-activity runtime from the
-Justin Kit component folder. That keeps the component portable while still
-wiring it into Astro:
+API 路由文件有意从 Justin Kit 组件文件夹重新导出本地活动运行时，以保持组件的可移植性，同时将其接入 Astro：
 
 ```ts
 export { POST, prerender } from "../../../justin-kit/components/local-activity-status/runtime/astro-update";
 export { GET, prerender } from "../../../justin-kit/components/local-activity-status/runtime/astro-stream";
 ```
 
-## Local Activity Monitor
+## 本地活动监控
 
-Create `.env.local` from `.env.example`, or export the same variables in your
-shell:
+从 `.env.example` 创建 `.env.local`，或在 shell 中导出相同的变量：
 
 ```bash
 ACTIVITY_MONITOR_TOKEN=replace-with-a-long-random-token
@@ -158,47 +133,41 @@ ACTIVITY_MONITOR_HEARTBEAT_INTERVAL_MS=12000
 ACTIVITY_MONITOR_REQUEST_TIMEOUT_MS=4000
 ```
 
-Run the site and listener in two terminals from this directory:
+在此目录下用两个终端分别运行站点和监听器：
 
 ```bash
 npm run dev
 npm run monitor:activity
 ```
 
-The flow is:
+数据流为：
 
 ```text
-macOS foreground app -> POST /api/activity/update -> in-memory TTL store -> SSE /api/activity/stream -> LocalActivityStatus badge
+macOS 前台应用 -> POST /api/activity/update -> 内存 TTL 存储 -> SSE /api/activity/stream -> LocalActivityStatus 徽章
 ```
 
-Notes:
+注意事项：
 
-- `ACTIVITY_MONITOR_TOKEN` is required by the Astro `POST` route.
-- The monitor sends the token as a bearer token.
-- The script loads `.env.local` and `.env` from the current working directory.
-- The monitor depends on `/usr/bin/osascript` and macOS System Events.
-- The terminal app running the monitor may need Accessibility permission.
-- Unknown app names are intentionally hidden until added to
-  `src/justin-kit/components/local-activity-status/runtime/catalog.ts`.
+- `ACTIVITY_MONITOR_TOKEN` 是 Astro `POST` 路由的必需参数。
+- 监听器以 Bearer Token 形式发送 token。
+- 脚本从当前工作目录加载 `.env.local` 和 `.env`。
+- 监听器依赖 `/usr/bin/osascript` 和 macOS System Events。
+- 运行监听器的终端应用可能需要辅助功能权限。
+- 未知应用名称在添加到 `src/justin-kit/components/local-activity-status/runtime/catalog.ts` 之前会被隐藏。
 
-## Documentation
+## 文档
 
-- `CONTEXT.md`: shared project vocabulary, including homepage state names.
-- `CHANGELOG.md`: version-level changes and verified milestones.
-- `.agents/skills/README.md`: project-local workflow skill router and pre-read
-  protocol.
-- `docs/work/`: active work, requirement backlog, and decision index.
-- `docs/develop/workflow.md`: workflow, validation, Git, and release rules.
-- `docs/lessons.md`: reusable operational lessons.
-- `src/justin-kit/README.md`: Justin Kit catalog and extraction boundaries.
-- `src/justin-kit/components/cursor-reveal-hero/README.md`: cursor reveal
-  component usage.
-- `src/justin-kit/components/local-activity-status/README.md`: local activity
-  component and runtime usage.
-- `docs/README.md`: repository-level documentation index.
+- `CONTEXT.md`：共享项目词汇，包括首页状态名称。
+- `CHANGELOG.md`：版本级变化和已验证的里程碑。
+- `.agents/skills/README.md`：项目级工作流技能路由和预读协议。
+- `docs/work/`：当前工作、需求待办和决策索引。
+- `docs/develop/workflow.md`：工作流、验证、Git 和发布规则。
+- `docs/lessons.md`：可复用的操作经验教训。
+- `src/justin-kit/README.md`：Justin Kit 目录和提取边界。
+- `src/justin-kit/components/cursor-reveal-hero/README.md`：光标揭示组件用法。
+- `src/justin-kit/components/local-activity-status/README.md`：本地活动组件和运行时用法。
+- `docs/README.md`：仓库级文档索引。
 
-## Legacy Note
+## 历史备注
 
-The old Next implementation was only used as source material and has been
-removed from the working tree. The active clean surface is this Astro root
-project plus the extracted Justin Kit component folders.
+旧的 Next 实现仅作为源素材参考，已从工作树中移除。当前活跃的干净界面是本 Astro 根项目和已提取的 Justin Kit 组件文件夹。

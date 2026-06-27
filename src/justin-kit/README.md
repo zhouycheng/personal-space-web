@@ -1,67 +1,57 @@
 # Justin Kit
 
-Justin Kit is the personal component library behind Justin OS.
+Justin Kit 是 Justin OS 背后的个人组件库。
 
-This first Astro version keeps the library source-first. The typed catalog lives
-in `src/data/kit.ts`, while complete extracted component source lives under
-`src/justin-kit/components`.
+此首个 Astro 版本以源文件优先的方式保留组件库。类型化目录位于 `src/data/kit.ts`，完整的已提取组件源码位于 `src/justin-kit/components`。
 
-The catalog is ready for a future homepage section or `/kit` route, but the
-current homepage does not render it yet.
+目录已为未来的首页区域或 `/kit` 路由做好准备，但当前首页尚未渲染它。
 
-## Homepage State Vocabulary
+## 首页状态词汇
 
-Homepage launch states should use the shared names defined in
-`../../CONTEXT.md`:
+首页启动状态应使用 `../../CONTEXT.md` 中定义的共享名称：
 
-- `全显状态`: complete laptop/terminal shell visible on the light background.
-- `推拉状态`: the laptop leaving transition and computer approach transition.
-- `Justin OS 状态`: fullscreen blue OS projection after launch.
+- `全显状态`：完整的笔记本/终端外壳在浅色背景上可见。
+- `推拉状态`：笔记本离开过渡和电脑靠近过渡。
+- `Justin OS 状态`：启动后的全屏蓝色 OS 投影。
 
-## Categories
+## 分类
 
-- `HTML`: HTML/CSS visual effects and page sections.
-- `JS Motion`: browser APIs, local runtime integrations, SSE, and interaction effects.
-- `Design`: brand rules, layout patterns, color systems, and visual QA checklists.
-- `Flutter`: copyable Dart widgets for Flutter projects.
+- `HTML`：HTML/CSS 视觉效果和页面区域。
+- `JS Motion`：浏览器 API、本地运行时集成、SSE 和交互效果。
+- `Design`：品牌规则、布局模式、色彩系统和视觉 QA 检查清单。
+- `Flutter`：可复制的 Dart widget，用于 Flutter 项目。
 
-## Current Extracted Components
+## 当前已提取组件
 
-- `cursor-reveal-hero`: the old homepage mask/reveal hero effect, now as a
-  standalone Astro component with local CSS and pointer script.
-- `local-activity-status`: the macOS foreground app monitor, Astro API runtime,
-  SSE badge, app catalog, TTL store, and listener script.
-- `macos-desktop`: the Justin OS desktop icon layer, recursive desktop-file
-  scanner, macOS-style windows, icon dragging, collision avoidance, and display
-  controls.
+- `cursor-reveal-hero`：旧首页遮罩/揭示英雄效果，现为独立 Astro 组件，带本地 CSS 和指针脚本。
+- `local-activity-status`：macOS 前台应用监控、Astro API 运行时、SSE 徽章、应用目录、TTL 存储和监听脚本。
+- `macos-desktop`：Justin OS 桌面图标层、递归桌面文件扫描器、macOS 风格窗口、图标拖拽、碰撞避免和显示控件。
 
-## Planned Catalog Entries
+## 计划中的目录条目
 
-- `justin-brand-dna`: design tokens, layout rules, and visual QA rules.
-- `flutter-status-chip`: copyable Dart status badge for Flutter projects.
+- `justin-brand-dna`：设计令牌、布局规则和视觉 QA 规则。
+- `flutter-status-chip`：可复制的 Dart 状态徽章，用于 Flutter 项目。
 
-These planned entries exist in `src/data/kit.ts` so the UI contract can be
-designed before the files are created.
+这些计划中的条目已存在于 `src/data/kit.ts` 中，以便在文件创建之前设计 UI 契约。
 
-## Component Boundary
+## 组件边界
 
-Each extracted component should own:
+每个已提取组件应拥有：
 
-- its Astro component file,
-- local CSS,
-- browser script if needed,
-- runtime/server files if needed,
-- a README with copyable usage,
-- `source-notes.md` explaining what was extracted from the legacy app.
+- 其 Astro 组件文件，
+- 本地 CSS，
+- 如需浏览器脚本，
+- 如需运行时/服务端文件，
+- 含可复制用法的 README，
+- `source-notes.md`，说明从旧应用中提取了什么。
 
-The active Astro page may import a component, but the component should not rely
-on homepage-only CSS or data.
+活跃的 Astro 页面可以导入组件，但组件不应依赖首页专属的 CSS 或数据。
 
-## Next Pass
+## 下一步
 
-The next pass should turn each extracted component into:
+下一步应将每个已提取组件转变为：
 
-- a first-class full-page Astro preview route,
-- a copyable source snippet,
-- a visual screenshot,
-- a small QA checklist.
+- 一个一流的全页 Astro 预览路由，
+- 可复制的源码片段，
+- 一张视觉截图，
+- 一份小型 QA 检查清单。

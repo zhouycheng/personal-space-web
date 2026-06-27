@@ -1,37 +1,34 @@
-# Local Activity Status
+# 本地活动状态
 
-Category: `JS Motion`
+分类：`JS Motion`
 
-Status: complete Astro extraction. The Astro API routes are wired in this
-project; the badge component is available but not mounted on the current launch
-page yet.
+状态：Astro 提取完成。Astro API 路由已在此项目中接入；徽章组件已可用，但尚未挂载到当前启动页。
 
-This component preserves the local foreground-app monitor from the old homepage
-and keeps the whole runtime inside this Justin Kit folder.
+此组件保留了旧首页的本地前台应用监控功能，并将整个运行时保留在此 Justin Kit 文件夹内。
 
-## Files
+## 文件
 
-- `LocalActivityStatus.astro` renders the live badge.
-- `local-activity-status.css` contains the badge states and layout.
-- `local-activity-status.ts` listens to SSE with `EventSource`.
-- `runtime/types.ts` defines the wire payload and snapshot shape.
-- `runtime/catalog.ts` maps macOS app names to display text.
-- `runtime/store.ts` keeps the in-memory status with a TTL.
-- `runtime/astro-update.ts` exports the Astro `POST` route.
-- `runtime/astro-stream.ts` exports the Astro SSE `GET` route.
-- `scripts/activity-monitor.mjs` polls the macOS foreground app with `osascript`.
-- `source-notes.md` records the old Next source files used during extraction.
+- `LocalActivityStatus.astro` 渲染实时徽章。
+- `local-activity-status.css` 包含徽章状态和布局。
+- `local-activity-status.ts` 使用 `EventSource` 监听 SSE。
+- `runtime/types.ts` 定义传输载荷和快照形态。
+- `runtime/catalog.ts` 将 macOS 应用名称映射为显示文字。
+- `runtime/store.ts` 以 TTL 保持内存中的状态。
+- `runtime/astro-update.ts` 导出 Astro `POST` 路由。
+- `runtime/astro-stream.ts` 导出 Astro SSE `GET` 路由。
+- `scripts/activity-monitor.mjs` 使用 `osascript` 轮询 macOS 前台应用。
+- `source-notes.md` 记录提取时参考的旧 Next 源文件。
 
-## Astro Routes
+## Astro 路由
 
-The project route files intentionally re-export the runtime from this component:
+项目路由文件有意从此组件重新导出运行时：
 
 ```ts
 export { POST, prerender } from "../../../justin-kit/components/local-activity-status/runtime/astro-update";
 export { GET, prerender } from "../../../justin-kit/components/local-activity-status/runtime/astro-stream";
 ```
 
-## Usage
+## 用法
 
 ```astro
 ---
@@ -41,10 +38,9 @@ import LocalActivityStatus from "./LocalActivityStatus.astro";
 <LocalActivityStatus />
 ```
 
-## Runtime
+## 运行时
 
-Create `.env.local` from `.env.example`, or export these variables before
-starting the site and monitor:
+从 `.env.example` 创建 `.env.local`，或在启动站点和监控之前导出以下变量：
 
 ```bash
 ACTIVITY_MONITOR_TOKEN=replace-with-a-long-random-token
@@ -54,25 +50,24 @@ ACTIVITY_MONITOR_HEARTBEAT_INTERVAL_MS=12000
 ACTIVITY_MONITOR_REQUEST_TIMEOUT_MS=4000
 ```
 
-Run the site and listener in two terminals:
+在两个终端中分别运行站点和监听器：
 
 ```bash
 npm run dev
 npm run monitor:activity
 ```
 
-The flow is:
+数据流为：
 
 ```text
-macOS foreground app -> POST /api/activity/update -> in-memory TTL store -> SSE /api/activity/stream -> LocalActivityStatus
+macOS 前台应用 -> POST /api/activity/update -> 内存 TTL 存储 -> SSE /api/activity/stream -> LocalActivityStatus
 ```
 
-The monitor is macOS-only because it depends on `osascript` and System Events.
-If an app is not shown, add its name or alias to `runtime/catalog.ts`.
+监控仅限 macOS，因为它依赖 `osascript` 和 System Events。如果某个应用未显示，请将其名称或别名添加到 `runtime/catalog.ts`。
 
-## API Contract
+## API 契约
 
-`POST /api/activity/update` accepts JSON:
+`POST /api/activity/update` 接受 JSON：
 
 ```json
 {
@@ -83,34 +78,27 @@ If an app is not shown, add its name or alias to `runtime/catalog.ts`.
 }
 ```
 
-Authentication is required. The monitor sends:
+需要鉴权。监控发送：
 
 ```text
 Authorization: Bearer <ACTIVITY_MONITOR_TOKEN>
 ```
 
-The route also accepts `x-activity-token` for simple local clients.
+该路由也接受 `x-activity-token` 以兼容简单的本地客户端。
 
-`GET /api/activity/stream` returns server-sent events. Each message is either an
-activity snapshot or `null` when the status is idle, expired, inactive, or
-unknown.
+`GET /api/activity/stream` 返回服务端推送事件。每条消息要么是活动快照，要么在状态为空闲、过期、不活跃或未知时为 `null`。
 
-## Timing
+## 时序
 
-- Monitor poll interval: `ACTIVITY_MONITOR_POLL_INTERVAL_MS`, default `2000`.
-- Monitor heartbeat post interval: `ACTIVITY_MONITOR_HEARTBEAT_INTERVAL_MS`,
-  default `12000`.
-- Monitor request timeout: `ACTIVITY_MONITOR_REQUEST_TIMEOUT_MS`, default
-  `4000`.
-- Server status TTL: `25000` ms.
-- SSE heartbeat interval: `15000` ms.
+- 监控轮询间隔：`ACTIVITY_MONITOR_POLL_INTERVAL_MS`，默认 `2000`。
+- 监控心跳发送间隔：`ACTIVITY_MONITOR_HEARTBEAT_INTERVAL_MS`，默认 `12000`。
+- 监控请求超时：`ACTIVITY_MONITOR_REQUEST_TIMEOUT_MS`，默认 `4000`。
+- 服务端状态 TTL：`25000` ms。
+- SSE 心跳间隔：`15000` ms。
 
-## Integration Checklist
+## 集成检查清单
 
-- Run both `npm run dev` and `npm run monitor:activity` from
-  the repository root.
-- Ensure the same token is visible to the Astro server and the monitor script.
-- Grant macOS Accessibility permission to the terminal app if `osascript` cannot
-  read System Events.
-- Add new foreground-app names to `runtime/catalog.ts` before expecting them to
-  appear in the badge.
+- 从仓库根目录同时运行 `npm run dev` 和 `npm run monitor:activity`。
+- 确保 Astro 服务器和监控脚本能读取到相同的 token。
+- 如果 `osascript` 无法读取 System Events，请授予终端应用 macOS 辅助功能权限。
+- 在期望新应用名称出现在徽章中之前，先将其添加到 `runtime/catalog.ts`。
