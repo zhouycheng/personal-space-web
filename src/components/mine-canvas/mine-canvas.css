@@ -882,6 +882,22 @@ textarea.mine-inline-input {
   text-align: center;
 }
 
+.mine-canvas-save-error {
+  position: absolute;
+  z-index: 21;
+  right: clamp(1rem, 2vw, 1.6rem);
+  bottom: calc(clamp(1rem, 2svh, 1.6rem) + 3.4rem);
+  font-size: 11px;
+  color: #dc2626;
+  padding: 0.28rem 0.56rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  border-radius: 0.4rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 0.9rem 2.7rem rgba(37, 41, 53, 0.12);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mine-link-actions,
   .mine-card,
@@ -905,6 +921,11 @@ textarea.mine-inline-input {
   .mine-canvas-zoom {
     right: 0.7rem;
     bottom: 4.6rem;
+  }
+
+  .mine-canvas-save-error {
+    right: 0.7rem;
+    bottom: 8rem;
   }
 
   .mine-create-panel {

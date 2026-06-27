@@ -381,15 +381,17 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   // Detect author via passphrase decryption
   useEffect(() => {
     if (!authSalt || !authEncryptedToken) return;
+    let cancelled = false;
     const existing = sessionStorage.getItem("author_token");
     if (existing) {
       setAuthToken(existing);
       setIsAuthor(true);
-      return;
+      return () => { cancelled = true; };
     }
     const passphrase = localStorage.getItem("author_passphrase");
-    if (!passphrase) return;
+    if (!passphrase) return () => { cancelled = true; };
     tryDeriveAuthToken(passphrase, authSalt, authEncryptedToken).then((token) => {
+      if (cancelled) return;
       if (token) {
         sessionStorage.setItem("author_token", token);
         sessionStorage.setItem("author_active", "1");
@@ -397,6 +399,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
         setIsAuthor(true);
       }
     });
+    return () => { cancelled = true; };
   }, [authSalt, authEncryptedToken]);
 
   // Apply remote data to state once loaded
@@ -755,6 +758,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
           <output>{zoomPercent}%</output>
           <button type="button" onClick={() => zoomTo(viewport.zoom + 0.12)} aria-label="放大"><Plus size={16} /></button>
         </div>
+        {saveError && <span className="mine-canvas-save-error" title="保存失败，请检查网络连接">保存失败</span>}
       </div>
     </MineCanvasRuntimeContext.Provider>
   );
