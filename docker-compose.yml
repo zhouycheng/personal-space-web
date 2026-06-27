@@ -1,0 +1,13 @@
+services:
+  justinweb:
+    build: .
+    ports:
+      - "4321:4321"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+    env_file:
+      - .env
+    restart: unless-stopped
