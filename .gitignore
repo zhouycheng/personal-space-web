@@ -51,5 +51,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# canvas persistence data
+/data/canvas.json
+
 /design/
 /output/
