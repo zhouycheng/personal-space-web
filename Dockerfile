@@ -3,14 +3,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# use Aliyun mirror for faster apk in China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-
 # needed for better-sqlite3 native compilation
 RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com && npm ci
+RUN npm ci
 
 COPY . .
 
@@ -29,15 +26,11 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-# use Aliyun mirror for faster apk in China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-
 # install build toolchain, compile production deps, then remove toolchain
 RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com && \
-    npm ci --omit=dev && \
+RUN npm ci --omit=dev && \
     apk del python3 make g++ && \
     rm -rf /var/cache/apk/*
 
