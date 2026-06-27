@@ -20,14 +20,9 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import {
-  CalendarDays,
-  Image as ImageIcon,
-  Link as LinkIcon,
   Minus,
   Plus,
-  Quote,
   Trash2,
-  Type,
   X,
 } from "lucide-react";
 import {
@@ -44,6 +39,14 @@ import { MineCanvasNodeCard } from "./MineCanvasNodeCard";
 import { inferHandlePair, toControlOffset, type MineCanvasHandleSide } from "./mineCanvasGeometry";
 import { mineCanvasFonts } from "./mineCanvasFonts";
 import { tryDeriveAuthToken } from "../../lib/canvas-auth";
+import { getCard, getCreateOptions } from "../../lib/canvas/card-registry";
+// Import card modules so they self-register before editor reads from registry
+import "./cards/TextCard";
+import "./cards/ImageCard";
+import "./cards/QuoteCard";
+import "./cards/LinkCard";
+import "./cards/TimelineCard";
+import "./cards/MonitorCard";
 import { MineCanvasRuntimeContext, type BeginMineCanvasEditOptions } from "./mineCanvasRuntime";
 import { resolveMeasuredHeight } from "./mineCanvasSizing";
 import type {
@@ -53,7 +56,6 @@ import type {
   MineCanvasNode,
   MineCanvasNodeData,
   MineCanvasNodeKind,
-  MineCanvasTimelineItem,
 } from "./mineCanvasTypes";
 
 const MIN_ZOOM = 0.25;
@@ -67,37 +69,6 @@ const EDGE_STYLE = {
   strokeWidth: 1.6,
 };
 
-const KIND_LABELS: Record<MineCanvasNodeKind, string> = {
-  text: "文字卡",
-  image: "图片卡",
-  quote: "引用卡",
-  link: "链接卡",
-  timeline: "时间节点卡",
-};
-
-const KIND_ACCENTS: Record<MineCanvasNodeKind, string> = {
-  text: "#002FA7",
-  image: "#6b7280",
-  quote: "#3f79d8",
-  link: "#002FA7",
-  timeline: "#3f79d8",
-};
-
-const KIND_SIZES: Record<MineCanvasNodeKind, { width: number; height: number }> = {
-  text: { width: 260, height: 170 },
-  image: { width: 300, height: 190 },
-  quote: { width: 270, height: 132 },
-  link: { width: 278, height: 156 },
-  timeline: { width: 330, height: 220 },
-};
-
-const CREATE_OPTIONS: Array<{ kind: MineCanvasNodeKind; icon: typeof Type; title: string }> = [
-  { kind: "text", icon: Type, title: "文字卡" },
-  { kind: "image", icon: ImageIcon, title: "图片卡" },
-  { kind: "quote", icon: Quote, title: "引用卡" },
-  { kind: "link", icon: LinkIcon, title: "链接卡" },
-  { kind: "timeline", icon: CalendarDays, title: "时间节点卡" },
-];
 
 const NODE_TYPES = { mine: MineCanvasNodeCard };
 const EDGE_TYPES = { mineCurve: MineCanvasEdgeComponent };
@@ -208,9 +179,9 @@ function prepareDocument(document: MineCanvasDocument): MineCanvasDocument {
       draggable: false,
       data: {
         ...migrateNodeData(node.data),
-        accent: node.data.accent || KIND_ACCENTS[node.data.kind],
-        width: node.data.width || KIND_SIZES[node.data.kind].width,
-        height: node.data.height || KIND_SIZES[node.data.kind].height,
+        accent: node.data.accent || getCard(node.data.kind)?.accent || "#002FA7",
+        width: node.data.width || getCard(node.data.kind)?.defaultSize.width || 260,
+        height: node.data.height || getCard(node.data.kind)?.defaultSize.height || 170,
       } as MineCanvasNodeData,
     }),
   );
@@ -252,24 +223,6 @@ function prepareDocument(document: MineCanvasDocument): MineCanvasDocument {
     nodes: markInteractiveNodes(nodes, "", ""),
     edges,
   };
-}
-
-function createDefaultNodeData(kind: MineCanvasNodeKind): MineCanvasNodeData {
-  const size = KIND_SIZES[kind];
-  if (kind === "text") {
-    return { kind, title: "新文字卡", bodyHtml: htmlParagraph("双击文字后，直接在卡片里写内容。"), heightMode: "auto", accent: KIND_ACCENTS[kind], ...size };
-  }
-  if (kind === "image") {
-    return { kind, title: "新图片卡", accent: KIND_ACCENTS[kind], ...size, fileName: "点击选择图片", naturalRatio: 1.58 };
-  }
-  if (kind === "quote") {
-    return { kind, title: "新引用卡", contentHtml: htmlParagraph("写下一句你想反复看到的话。"), author: "Unknown", accent: KIND_ACCENTS[kind], ...size };
-  }
-  if (kind === "link") {
-    return { kind, title: "新链接卡", summary: "双击这里修改链接简介。", url: "https://", accent: KIND_ACCENTS[kind], ...size };
-  }
-  const item: MineCanvasTimelineItem = { id: `time-${Date.now()}`, time: "2026", title: "新的时间节点", subtitle: "补充这段经历的副标题", color: "#3f79d8", hollow: true };
-  return { kind, title: "新时间节点卡", accent: KIND_ACCENTS[kind], ...size, items: [item] };
 }
 
 function getNodeRect(node: MineCanvasNode) {
@@ -596,7 +549,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   }, [viewport]);
 
   const addNode = useCallback((kind: MineCanvasNodeKind) => {
-    const data = createDefaultNodeData(kind);
+    const data = getCard(kind)?.createDefaultData() || { kind, title: "新卡片", accent: "#002FA7", width: 260, height: 170 } as MineCanvasNodeData;
     const size = { width: data.width, height: data.height };
     const id = `node-${kind}-${Date.now()}`;
     const nextNode = syncNodeSize({ id, type: "mine", position: findOpenPosition(nodes, getViewportCenter(size), size), selected: true, draggable: true, data });
@@ -628,7 +581,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
       updateNodeData(nodeId, (data) => {
         if (data.kind !== "image") return data;
         releaseObjectUrl(data.src);
-        const width = data.width || KIND_SIZES.image.width;
+        const width = data.width || getCard("image")?.defaultSize.width || 300;
         return { ...data, src, fileName: file.name, naturalRatio, width, height: clamp(Math.round(width / naturalRatio), 112, 390) };
       });
     };
@@ -692,7 +645,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
                 <div className={`mine-canvas-layer${selectedNodeId === node.id ? " is-active" : ""}`} key={node.id}>
                   <button className="mine-canvas-layer-main" type="button" onClick={() => focusNode(node)}>
                     <span style={{ "--layer-accent": node.data.accent } as CSSProperties} aria-hidden="true" />
-                    <strong>{node.data.title}</strong><small>{KIND_LABELS[node.data.kind]}</small>
+                    <strong>{node.data.title}</strong><small>{getCard(node.data.kind)?.label || node.data.kind}</small>
                   </button>
                   {isAuthor && <button className="mine-canvas-layer-delete" type="button" onClick={() => deleteNode(node.id)} aria-label={`删除 ${node.data.title}`}><Trash2 size={14} /></button>}
                 </div>
@@ -704,7 +657,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
               <button type="button" className="mine-create-toggle" onClick={() => { setCreatePanelOpen((current) => !current); clearSelection(); }} aria-label="新建节点">
                 {createPanelOpen ? <X size={16} /> : <Plus size={17} />}<span>新建</span>
               </button>
-              {createPanelOpen ? <CreatePanel addNode={addNode} /> : null}
+              {createPanelOpen ? <CreatePanel addNode={addNode} isAuthor={isAuthor} /> : null}
             </div>}
             <div className="mine-canvas-minimap-label"><span aria-hidden="true">Minimap</span><small>点击/拖拽定位</small></div>
             <div className="mine-canvas-minimap-slot" data-mine-canvas-minimap-slot />
@@ -764,12 +717,13 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   );
 }
 
-function CreatePanel({ addNode }: { addNode: (kind: MineCanvasNodeKind) => void }) {
+function CreatePanel({ addNode, isAuthor }: { addNode: (kind: MineCanvasNodeKind) => void; isAuthor: boolean }) {
+  const options = getCreateOptions().filter((opt) => !opt.authorOnly || isAuthor);
   return (
     <section className="mine-create-panel" aria-label="新建节点">
-      {CREATE_OPTIONS.map((item) => {
+      {options.map((item) => {
         const Icon = item.icon;
-        return <button type="button" key={item.kind} onClick={() => addNode(item.kind)} title={item.title}><Icon size={17} /><span>{item.title}</span></button>;
+        return <button type="button" key={item.kind} onClick={() => addNode(item.kind)} title={item.label}><Icon size={17} /><span>{item.label}</span></button>;
       })}
     </section>
   );

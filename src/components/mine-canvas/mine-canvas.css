@@ -773,6 +773,39 @@ textarea.mine-inline-input {
   font: 690 0.7rem / 1.3 var(--sans);
 }
 
+.mine-card--monitor {
+  /* accent color #059669 */
+}
+
+.mine-monitor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem 0.6rem;
+}
+
+.mine-monitor-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mine-monitor-app {
+  font: 690 0.78rem / 1.28 var(--sans);
+  color: #059669;
+}
+
+.mine-monitor-text {
+  font: 500 0.82rem / 1.32 var(--sans);
+  color: #20242e;
+}
+
+.mine-monitor-idle {
+  margin: 0;
+  color: #9ca3af;
+  font: 500 0.78rem / 1.32 var(--sans);
+}
+
 
 .mine-floating-toolbar {
   z-index: 1000;
