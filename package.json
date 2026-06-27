@@ -10,13 +10,14 @@
     "dev": "astro dev --host 0.0.0.0 --port 4321",
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0 --port 4321",
-    "monitor:activity": "node src/justin-kit/components/local-activity-status/scripts/activity-monitor.mjs"
+    "monitor:activity": "node src/justin-kit/components/local-activity-status/scripts/activity-monitor.mjs",
+    "db:push": "scp data/justinweb.db ${SERVER_HOST}:/path/to/justinweb/data/justinweb.db",
+    "db:pull": "scp ${SERVER_HOST}:/path/to/justinweb/data/justinweb.db data/justinweb.db"
   },
   "dependencies": {
     "@astrojs/node": "^10.1.4",
     "@astrojs/react": "^6.0.0",
     "@floating-ui/react": "^0.27.19",
-    "@libsql/client": "^0.17.4",
     "@tiptap/extension-color": "^3.27.1",
     "@tiptap/extension-text-align": "^3.27.1",
     "@tiptap/extension-text-style": "^3.27.1",
@@ -24,12 +25,14 @@
     "@tiptap/starter-kit": "^3.27.1",
     "@xyflow/react": "^12.11.1",
     "astro": "^6.3.1",
+    "better-sqlite3": "^12.11.1",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@types/node": "^20.19.25",
+    "@types/better-sqlite3": "^7.6.13",
     "typescript": "^5.9.3"
   }
 }

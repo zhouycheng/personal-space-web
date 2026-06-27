@@ -16,6 +16,7 @@ function validateDocument(body: unknown): body is object {
 export async function GET() {
   await seedIfEmpty();
   const data = await readCanvasDocument();
+  console.log(`[canvas-api] GET -> nodes:${(data as any)?.nodes?.length ?? 0}`);
   if (data) {
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -59,11 +60,13 @@ export async function POST({ request }: { request: Request }) {
       return new Response(JSON.stringify({ error: "Invalid document" }), { status: 400 });
     }
     await writeCanvasDocument(body);
+    console.log(`[canvas-api] POST saved -> nodes:${(body as any).nodes?.length ?? 0} edges:${(body as any).edges?.length ?? 0}`);
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch {
+  } catch (err) {
+    console.error("[canvas-api] POST error:", err);
     return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
   }
 }
