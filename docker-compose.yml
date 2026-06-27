@@ -13,9 +13,9 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=4321
+      - CANVAS_AUTH_TOKEN=${CANVAS_AUTH_TOKEN}
     env_file:
       - .env
-      - .env.local
     restart: unless-stopped
     logging:
       driver: "json-file"
