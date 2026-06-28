@@ -2,10 +2,6 @@ services:
   justinweb:
     build:
       context: .
-      args:
-        - CANVAS_SALT
-        - CANVAS_ENCRYPTED_TOKEN
-        - CANVAS_AUTH_TOKEN
     container_name: justinweb
     ports:
       - "4321:4321"
@@ -14,9 +10,14 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=4321
-      - CANVAS_AUTH_TOKEN=${CANVAS_AUTH_TOKEN}
+      - CANVAS_DB_PATH=${CANVAS_DB_PATH:-data/canvas.db}
+      - CANVAS_ASSET_DIR=${CANVAS_ASSET_DIR:-data/canvas-assets}
+      - JUSTIN_OS_DESKTOP_DIR=/app/dist/client/os-desktop
     env_file:
-      - .env
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -24,8 +25,52 @@ services:
         max-size: "20m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4321/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4321/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  canvas-backup:
+    profiles: ["backup"]
+    build:
+      context: .
+      dockerfile: ops/backup/Dockerfile
+    container_name: justinweb-canvas-backup
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - CANVAS_DB_PATH=/data/canvas.db
+      - CANVAS_ASSET_DIR=/data/canvas-assets
+      - BACKUP_CRON=${BACKUP_CRON:-5 * * * *}
+      - BACKUP_RUN_ON_START=${BACKUP_RUN_ON_START:-true}
+      - RESTIC_LOCAL_REPOSITORY=/backups/restic
+      - RESTIC_REMOTE_REPOSITORY=${RESTIC_REMOTE_REPOSITORY:-}
+      - RESTIC_LOCAL_PASSWORD_FILE=/run/secrets/restic_local_password
+      - RESTIC_REMOTE_PASSWORD_FILE=/run/secrets/restic_remote_password
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-auto}
+      - BACKUP_KEEP_HOURLY=${BACKUP_KEEP_HOURLY:-48}
+      - BACKUP_KEEP_DAILY=${BACKUP_KEEP_DAILY:-30}
+      - BACKUP_KEEP_WEEKLY=${BACKUP_KEEP_WEEKLY:-12}
+      - BACKUP_KEEP_MONTHLY=${BACKUP_KEEP_MONTHLY:-12}
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+      - ./restore:/restore
+    secrets:
+      - restic_local_password
+      - restic_remote_password
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/opt/backup/health.sh"]
+      interval: 30m
+      timeout: 10s
+      retries: 2
+      start_period: 2m
+
+secrets:
+  restic_local_password:
+    environment: RESTIC_LOCAL_PASSWORD
+  restic_remote_password:
+    environment: RESTIC_REMOTE_PASSWORD

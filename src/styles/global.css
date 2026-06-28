@@ -173,6 +173,15 @@ a {
   background: var(--paper);
 }
 
+.mine-canvas-bootstrap {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  background: #fbfaf4;
+  color: #6e7891;
+  font: 700 0.82rem / 1.4 system-ui, sans-serif;
+}
+
 .launch-stage {
   position: relative;
   flex: 1;

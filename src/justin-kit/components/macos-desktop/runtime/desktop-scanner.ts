@@ -2,23 +2,49 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import type { DesktopEntry, DesktopFileKind, DesktopIconVariant } from "./types";
 
-const DEFAULT_DESKTOP_DIR = "public/os-desktop";
+const DEVELOPMENT_DESKTOP_DIR = "public/os-desktop";
+const PRODUCTION_DESKTOP_DIR = "dist/client/os-desktop";
 const SUPPORTED_EXTENSIONS = new Set([".html", ".md"]);
 
 type ScanOptions = {
   desktopDir?: string;
   publicBasePath?: string;
+  strict?: boolean;
 };
 
+type DesktopDirectoryOptions = {
+  cwd?: string;
+  production?: boolean;
+  env?: Pick<NodeJS.ProcessEnv, "JUSTIN_OS_DESKTOP_DIR">;
+};
+
+export function resolveDesktopContentDirectory(options: DesktopDirectoryOptions = {}): string {
+  const cwd = options.cwd ?? process.cwd();
+  const production = options.production ?? process.env.NODE_ENV === "production";
+  const env = options.env ?? process.env;
+  const configured = env.JUSTIN_OS_DESKTOP_DIR?.trim();
+  const relativeOrAbsolute = configured || (production ? PRODUCTION_DESKTOP_DIR : DEVELOPMENT_DESKTOP_DIR);
+  return path.resolve(cwd, relativeOrAbsolute);
+}
+
 export async function getMacOsDesktopEntries(options: ScanOptions = {}): Promise<DesktopEntry[]> {
-  const desktopDir = options.desktopDir ?? DEFAULT_DESKTOP_DIR;
+  const desktopDir = options.desktopDir
+    ? path.resolve(process.cwd(), options.desktopDir)
+    : resolveDesktopContentDirectory();
   const publicBasePath = options.publicBasePath ?? "/os-desktop";
-  const absoluteRoot = path.resolve(process.cwd(), desktopDir);
+  const strict = options.strict ?? process.env.NODE_ENV === "production";
 
   try {
-    return await scanDirectory(absoluteRoot, "", publicBasePath);
+    const entries = await scanDirectory(desktopDir, "", publicBasePath);
+    if (strict && entries.length === 0) {
+      throw new Error(`Desktop content directory is empty: ${desktopDir}`);
+    }
+    return entries;
   } catch (error) {
-    if (isMissingDirectoryError(error)) return [];
+    if (isMissingDirectoryError(error)) {
+      if (strict) throw new Error(`Desktop content directory is missing: ${desktopDir}`, { cause: error });
+      return [];
+    }
     throw error;
   }
 }

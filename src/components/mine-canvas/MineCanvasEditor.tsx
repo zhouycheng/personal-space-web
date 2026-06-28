@@ -38,8 +38,10 @@ import { MineCanvasEdgeComponent } from "./MineCanvasEdge";
 import { MineCanvasNodeCard } from "./MineCanvasNodeCard";
 import { inferHandlePair, toControlOffset, type MineCanvasHandleSide } from "./mineCanvasGeometry";
 import { mineCanvasFonts } from "./mineCanvasFonts";
-import { tryDeriveAuthToken } from "../../lib/canvas-auth";
 import { getCard, getCreateOptions } from "../../lib/canvas/card-registry";
+import { createCanvasSaveQueue, type CanvasSaveStatus } from "../../features/canvas/client/canvas-save-queue";
+import { uploadCanvasAsset } from "../../features/canvas/client/canvas-assets";
+import { parseCanvasReadResponse } from "../../features/canvas/domain/canvas-document";
 // Import card modules so they self-register before editor reads from registry
 import "./cards/TextCard";
 import "./cards/ImageCard";
@@ -76,10 +78,11 @@ const EDGE_TYPES = { mineCurve: MineCanvasEdgeComponent };
 const DEFAULT_EDGE_OPTIONS = { type: "mineCurve" as const, style: EDGE_STYLE, data: {} as MineCanvasEdgeData };
 const PRO_OPTIONS = { hideAttribution: true };
 
-type MineCanvasEditorProps = {
-  seedDocument: MineCanvasDocument;
-  authSalt?: string;
-  authEncryptedToken?: string;
+const EMPTY_DOCUMENT: MineCanvasDocument = {
+  version: 4,
+  nodes: [],
+  edges: [],
+  viewport: { x: 0, y: 0, zoom: 0.8 },
 };
 
 function cloneDocument(document: MineCanvasDocument): MineCanvasDocument {
@@ -215,7 +218,7 @@ function prepareDocument(document: MineCanvasDocument): MineCanvasDocument {
   });
 
   return {
-    version: 3,
+    version: 4,
     viewport: {
       x: Number.isFinite(next.viewport?.x) ? next.viewport.x : 0,
       y: Number.isFinite(next.viewport?.y) ? next.viewport.y : 0,
@@ -280,23 +283,20 @@ function MineCanvasMiniMap({ onMapClick }: { onMapClick: (event: unknown, positi
   return portalRoot ? createPortal(minimap, portalRoot) : minimap;
 }
 
-export default function MineCanvasEditor({ seedDocument, authSalt, authEncryptedToken }: MineCanvasEditorProps) {
-  const preparedSeed = useMemo(() => prepareDocument(seedDocument), [seedDocument]);
+export default function MineCanvasEditor() {
   const [remoteDocument, setRemoteDocument] = useState<MineCanvasDocument | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [isAuthor, setIsAuthor] = useState(false);
-  const [authToken, setAuthToken] = useState("");
-  const [saveError, setSaveError] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<CanvasSaveStatus>("idle");
 
   // Refs for state setters — used by global window functions to always have the latest reference
   const setIsAuthorRef = useRef(setIsAuthor);
   setIsAuthorRef.current = setIsAuthor;
-  const setAuthTokenRef = useRef(setAuthToken);
-  setAuthTokenRef.current = setAuthToken;
 
   const initialDocument = useMemo(() => {
     if (remoteDocument) return prepareDocument(remoteDocument);
-    return preparedSeed;
-  }, [remoteDocument, preparedSeed]);
+    return prepareDocument(EMPTY_DOCUMENT);
+  }, [remoteDocument]);
 
   const [nodes, setNodes] = useState<MineCanvasNode[]>(initialDocument.nodes);
   const [edges, setEdges] = useState<MineCanvasEdge[]>(initialDocument.edges);
@@ -316,6 +316,8 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   const pendingImageNodeId = useRef("");
   const objectUrls = useRef<Set<string>>(new Set());
   const activeEditorNodeId = useRef("");
+  const saveQueueRef = useRef<ReturnType<typeof createCanvasSaveQueue<MineCanvasDocument>> | null>(null);
+  const saveTimerRef = useRef<number>(0);
   const zoomPercent = Math.round(viewport.zoom * 100);
 
   // ---- Refs for immediate save (updated synchronously with every mutation) ----
@@ -337,51 +339,85 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   useEffect(() => {
     let cancelled = false;
     fetch("/api/canvas")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled && data && Array.isArray(data.nodes)) {
-          setRemoteDocument(data);
-        }
+      .then((res) => {
+        if (!res.ok) throw new Error("Canvas load failed");
+        return res.json();
       })
-      .catch(() => { /* use seed fallback */ });
+      .then((data) => {
+        if (cancelled) return;
+        const snapshot = parseCanvasReadResponse(data);
+        const loadedDocument = prepareDocument(snapshot.document as unknown as MineCanvasDocument);
+        nodesRef.current = loadedDocument.nodes;
+        edgesRef.current = loadedDocument.edges;
+        viewportRef.current = loadedDocument.viewport;
+        centerNodeIdRef.current = loadedDocument.centerNodeId || "";
+        setNodes(loadedDocument.nodes);
+        setEdges(loadedDocument.edges);
+        setViewport(loadedDocument.viewport);
+        setCenterNodeIdState(loadedDocument.centerNodeId || "");
+        setRemoteDocument(loadedDocument);
+        saveQueueRef.current = createCanvasSaveQueue<MineCanvasDocument>({
+          initialRevision: snapshot.revision,
+          onStatusChange: setSaveStatus,
+          save: async (document, expectedRevision) => {
+            const response = await fetch("/api/canvas", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ document, expectedRevision }),
+            });
+            const body = await response.json();
+            if (response.status === 409) {
+              return { status: "conflict", revision: body.latest?.revision ?? expectedRevision };
+            }
+            if (!response.ok) throw new Error(body.error || "Canvas save failed");
+            return { status: "saved", revision: body.revision };
+          },
+        });
+        setLoadState("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setLoadState("error");
+      });
     return () => { cancelled = true; };
   }, []);
 
-  // Restore admin from sessionStorage on mount (persists across refresh, lost on tab close)
+  // Restore author state from the HttpOnly session cookie.
   useEffect(() => {
-    const existing = sessionStorage.getItem("author_token");
-    if (existing) {
-      setAuthToken(existing);
-      setIsAuthor(true);
-    }
+    localStorage.removeItem("author_password");
+    sessionStorage.removeItem("author_token");
+    fetch("/api/canvas/session", { credentials: "same-origin" })
+      .then((response) => response.json())
+      .then((body) => setIsAuthor(Boolean(body.authenticated)))
+      .catch(() => setIsAuthor(false));
   }, []);
 
   // Expose global admin activation function for console use
   useEffect(() => {
-    if (!authSalt || !authEncryptedToken) return;
-
     (window as unknown as Record<string, unknown>).enableAdmin = (passphrase: string) => {
       if (!passphrase) {
         console.warn("用法：enableAdmin('你的密码')");
         return Promise.resolve(false);
       }
-      return tryDeriveAuthToken(passphrase, authSalt, authEncryptedToken).then((token) => {
-        if (token) {
-          localStorage.setItem("author_password", passphrase);
-          sessionStorage.setItem("author_token", token);
-          setAuthTokenRef.current(token);
+      return (async () => {
+        const response = await fetch("/api/canvas/session", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passphrase }),
+        });
+        if (response.ok) {
           setIsAuthorRef.current(true);
           console.log("管理员模式已激活");
           return true;
         }
         console.warn("密码错误");
         return false;
-      });
+      })();
     };
 
-    (window as unknown as Record<string, unknown>).__disableAdmin = () => {
-      sessionStorage.removeItem("author_token");
-      setAuthTokenRef.current("");
+    (window as unknown as Record<string, unknown>).__disableAdmin = async () => {
+      await fetch("/api/canvas/session", { method: "DELETE", credentials: "same-origin" });
       setIsAuthorRef.current(false);
       console.log("已退出管理员模式");
     };
@@ -390,23 +426,7 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
       delete (window as unknown as Record<string, unknown>).enableAdmin;
       delete (window as unknown as Record<string, unknown>).__disableAdmin;
     };
-  }, [authSalt, authEncryptedToken]);
-
-  // Apply remote data to state once loaded
-  useEffect(() => {
-    if (!remoteDocument) return;
-    const doc = prepareDocument(remoteDocument);
-    nodesRef.current = doc.nodes;
-    edgesRef.current = doc.edges;
-    viewportRef.current = doc.viewport;
-    setNodes(doc.nodes);
-    setEdges(doc.edges);
-    setViewport(doc.viewport);
-    if (remoteDocument.centerNodeId) {
-      centerNodeIdRef.current = remoteDocument.centerNodeId;
-      setCenterNodeIdState(remoteDocument.centerNodeId);
-    }
-  }, [remoteDocument]);
+  }, []);
 
   const releaseObjectUrl = useCallback((src?: string) => {
     if (!isBlobUrl(src) || !objectUrls.current.has(src)) return;
@@ -422,24 +442,29 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
   // -------------------------------------------------------------- save
 
   const flushSave = useCallback(() => {
-    if (!isAuthor || !authToken) return;
-    setSaveError(false);
-    fetch("/api/canvas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
-      body: JSON.stringify({
-        version: 3,
-        nodes: nodesRef.current,
-        edges: edgesRef.current,
-        viewport: viewportRef.current,
-        centerNodeId: centerNodeIdRef.current || undefined,
-      }),
-    }).then((res) => {
-      if (!res.ok) setSaveError(true);
-    }).catch(() => {
-      setSaveError(true);
+    if (!isAuthor || loadState !== "ready") return;
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = 0;
+    }
+    saveQueueRef.current?.enqueue({
+      version: 4,
+      nodes: nodesRef.current,
+      edges: edgesRef.current,
+      viewport: viewportRef.current,
+      centerNodeId: centerNodeIdRef.current || undefined,
     });
-  }, [isAuthor, authToken]);
+  }, [isAuthor, loadState]);
+
+  const scheduleSave = useCallback(() => {
+    if (!isAuthor || loadState !== "ready") return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(flushSave, 400);
+  }, [flushSave, isAuthor, loadState]);
+
+  useEffect(() => () => {
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+  }, []);
 
   // Cmd+S manual save
   useEffect(() => {
@@ -577,8 +602,8 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     const next = markInteractiveNodes(nodesRef.current.map((node) => node.id === nodeId ? syncNodeSize({ ...node, data: updater(node.data) }) : node), selectedNodeId, editingNodeId);
     nodesRef.current = next;
     setNodes(next);
-    flushSave();
-  }, [editingNodeId, selectedNodeId, flushSave]);
+    scheduleSave();
+  }, [editingNodeId, selectedNodeId, scheduleSave]);
 
   const reportNodeHeight = useCallback((nodeId: string, measuredHeight: number, minimumHeight: number) => {
     setNodes((current) => {
@@ -744,13 +769,18 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
     fileInputRef.current?.click();
   }, [selectNode]);
 
-  const handleImageFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     const nodeId = pendingImageNodeId.current;
     event.target.value = "";
     if (!file || !nodeId) return;
-    const src = window.URL.createObjectURL(file);
-    objectUrls.current.add(src);
+    let asset;
+    try {
+      asset = await uploadCanvasAsset(file, file.name);
+    } catch {
+      setSaveStatus("error");
+      return;
+    }
     const preview = new window.Image();
     preview.onload = () => {
       const naturalRatio = preview.naturalWidth > 0 && preview.naturalHeight > 0 ? preview.naturalWidth / preview.naturalHeight : 1.58;
@@ -758,11 +788,11 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
         if (data.kind !== "image") return data;
         releaseObjectUrl(data.src);
         const width = data.width || getCard("image")?.defaultSize.width || 300;
-        return { ...data, src, fileName: file.name, naturalRatio, width, height: clamp(Math.round(width / naturalRatio), 112, 390) };
+        return { ...data, assetId: asset.id, src: asset.url, fileName: file.name, naturalRatio, width, height: clamp(Math.round(width / naturalRatio), 112, 390) };
       });
     };
-    preview.onerror = () => releaseObjectUrl(src);
-    preview.src = src;
+    preview.onerror = () => setSaveStatus("error");
+    preview.src = asset.url;
   }, [releaseObjectUrl, updateNodeData]);
 
   const zoomTo = useCallback((zoom: number) => {
@@ -825,6 +855,34 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
       { zoom: Math.max(viewport.zoom, 0.72), duration: 0 },
     );
   }, [centerNodeId, isFlowReady]);
+
+  if (loadState === "loading") {
+    return (
+      <div className="mine-canvas-editor mine-canvas-load-state" role="status" aria-live="polite">
+        <span className="mine-canvas-loading-mark" aria-hidden="true">J</span>
+        <strong>正在安全加载画布…</strong>
+        <p>数据库确认前不会显示占位节点。</p>
+      </div>
+    );
+  }
+
+  if (loadState === "error") {
+    return (
+      <div className="mine-canvas-editor mine-canvas-load-state is-error" role="alert">
+        <strong>画布加载失败</strong>
+        <p>为保护现有数据，未使用本地占位内容替代数据库。</p>
+        <button type="button" onClick={() => window.location.reload()}>重新加载</button>
+      </div>
+    );
+  }
+
+  const saveStatusText = {
+    idle: "",
+    saving: "保存中",
+    saved: "已保存 · 历史版本已保留",
+    error: "保存失败 · 本地改动待重试",
+    conflict: "检测到新版本 · 已停止覆盖",
+  }[saveStatus];
 
   return (
     <MineCanvasRuntimeContext.Provider value={runtime}>
@@ -919,7 +977,11 @@ export default function MineCanvasEditor({ seedDocument, authSalt, authEncrypted
           <output>{zoomPercent}%</output>
           <button type="button" onClick={() => zoomTo(viewport.zoom + 0.12)} aria-label="放大"><Plus size={16} /></button>
         </div>
-        {saveError && <span className="mine-canvas-save-error" title="保存失败，请检查网络连接">保存失败</span>}
+        {saveStatusText && (
+          <span className={`mine-canvas-save-status is-${saveStatus}`} role="status">
+            {saveStatusText}
+          </span>
+        )}
       </div>
     </MineCanvasRuntimeContext.Provider>
   );

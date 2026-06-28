@@ -24,6 +24,8 @@ const sizeByKind: Record<MineCanvasNodeKind, { width: number; height: number }> 
   quote: { width: 270, height: 132 },
   link: { width: 278, height: 156 },
   timeline: { width: 330, height: 460 },
+  monitor: { width: 320, height: 140 },
+  businesscard: { width: 280, height: 188 },
 };
 
 const node = (id: string, position: MineCanvasNode["position"], data: MineCanvasNodeData): MineCanvasNode => ({
@@ -38,7 +40,7 @@ const node = (id: string, position: MineCanvasNode["position"], data: MineCanvas
 });
 
 export const mineCanvasSeed: MineCanvasDocument = {
-  version: 3,
+  version: 4,
   viewport: { x: 280, y: 54, zoom: 0.72 },
   nodes: [
     node("intro", { x: 90, y: 170 }, {

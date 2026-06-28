@@ -1,5 +1,10 @@
 # Mine Canvas Persistence & Author Identity Design
 
+> Status: superseded. This design describes the original JSON-file and
+> browser-local author-token approach. The current implementation uses SQLite
+> append-only revisions, HttpOnly author sessions, stable `data/canvas-assets`,
+> and `/api/canvas` read/write envelopes with optimistic revision checks.
+
 ## Goals
 
 1. **Author edits persist** across page refreshes and tab sessions

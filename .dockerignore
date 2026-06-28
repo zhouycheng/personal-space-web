@@ -13,3 +13,8 @@ Thumbs.db
 .env
 .env.*
 docs/
+data/
+backups/
+restore/
+dist/
+output/

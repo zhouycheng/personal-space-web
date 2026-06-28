@@ -51,7 +51,7 @@ export function initLocalActivityStatusBadge(element: HTMLElement) {
         return;
       }
 
-      setState("active", snapshot.text, formatMeta(snapshot));
+      setState("active", snapshot.text ?? snapshot.appName, formatMeta(snapshot));
     } catch {
       setState("error", offlineText, "Malformed activity event");
     }

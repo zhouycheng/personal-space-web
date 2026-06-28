@@ -1,5 +1,11 @@
 # Mine Canvas Persistence & Author Identity — Implementation Plan
 
+> Status: superseded. The current implementation no longer uses browser-stored
+> author passwords, client-visible encrypted tokens, or `data/canvas.json`.
+> Current truth: SQLite append-only revisions in `src/server/canvas/`,
+> HttpOnly author sessions, stable `data/canvas-assets`, and `/api/canvas`
+> revision envelopes.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add server-side persistence and PBKDF2+AES-GCM author identity to the mine-canvas editor, so the author's edits survive deploys and are visible to all visitors, while visitors never see edit UI.

@@ -35,6 +35,7 @@ export type MineCanvasTextNodeData = MineCanvasNodeCommon & {
 
 export type MineCanvasImageNodeData = MineCanvasNodeCommon & {
   kind: "image";
+  assetId?: string;
   src?: string;
   fileName?: string;
   naturalRatio?: number;
@@ -63,6 +64,7 @@ export type MineCanvasMonitorNodeData = MineCanvasNodeCommon & {
 
 export type MineCanvasBusinessCardNodeData = MineCanvasNodeCommon & {
   kind: "businesscard";
+  avatarAssetId?: string;
   avatarSrc?: string;
   avatarFileName?: string;
   name: string;
@@ -98,7 +100,7 @@ export type MineCanvasNode = Node<MineCanvasNodeData, "mine">;
 export type MineCanvasEdge = Edge<MineCanvasEdgeData, "default" | "smoothstep" | "mineCurve">;
 
 export type MineCanvasDocument = {
-  version: 3;
+  version: 4;
   nodes: MineCanvasNode[];
   edges: MineCanvasEdge[];
   viewport: Viewport;

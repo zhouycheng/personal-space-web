@@ -1086,20 +1086,70 @@
   text-align: center;
 }
 
-.mine-canvas-save-error {
+.mine-canvas-save-status {
   position: absolute;
   z-index: 21;
   right: clamp(1rem, 2vw, 1.6rem);
   bottom: calc(clamp(1rem, 2svh, 1.6rem) + 3.4rem);
   font-size: 11px;
-  color: #dc2626;
+  color: #466078;
   padding: 0.28rem 0.56rem;
   background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(220, 38, 38, 0.24);
+  border: 1px solid rgba(70, 96, 120, 0.2);
   border-radius: 0.4rem;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 0.9rem 2.7rem rgba(37, 41, 53, 0.12);
+}
+
+.mine-canvas-save-status.is-error,
+.mine-canvas-save-status.is-conflict {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.24);
+}
+
+.mine-canvas-load-state {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.65rem;
+  min-height: 100%;
+  padding: 2rem;
+  background: #fbfaf4;
+  color: #24262e;
+  text-align: center;
+}
+
+.mine-canvas-load-state strong {
+  font: 800 clamp(1.05rem, 2vw, 1.35rem) / 1.2 var(--sans);
+}
+
+.mine-canvas-load-state p {
+  margin: 0;
+  color: #6e7891;
+  font: 600 0.82rem / 1.5 var(--sans);
+}
+
+.mine-canvas-loading-mark {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: var(--mine-blue);
+  color: white;
+  font: 900 1rem / 1 var(--sans);
+}
+
+.mine-canvas-load-state button {
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: var(--mine-blue);
+  color: white;
+  font: 700 0.8rem / 1 var(--sans);
+  cursor: pointer;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1127,7 +1177,7 @@
     bottom: 4.6rem;
   }
 
-  .mine-canvas-save-error {
+  .mine-canvas-save-status {
     right: 0.7rem;
     bottom: 8rem;
   }

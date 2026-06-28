@@ -35,30 +35,40 @@ YYYY-MM-DD｜vX.Y.Z｜Release 或 No Release
 
 ### Added
 
-- 新增基于 SQLite（better-sqlite3）的画布持久化存储，使用归一化表结构替代 MongoDB 文档模型。
-- 新增 `src/lib/canvas-store.ts`：SQLite 数据库读写接口，支持 `readCanvasDocument`、`writeCanvasDocument` 和初始化种子数据。
+- 新增不可变 `canvas_revisions` 历史表、revision 查询/恢复 API 和 `expectedRevision` 乐观锁；恢复旧内容时创建新版本，不修改历史数据。
+- 新增画布图片资源 API，图片和头像以 SHA-256 内容地址存放在 `data/canvas-assets/`。
+- 新增 HttpOnly 作者会话 API，移除浏览器明文密码和长期 Token 存储。
+- 新增独立 SQLite/Restic 备份容器，支持每小时本机与 S3 兼容异地备份、分层保留、完整性检查和安全恢复。
+- 新增 `/api/health`，检查生产桌面内容与 SQLite 可读性。
+- 新增桌面扫描、Canvas Store、保存队列、鉴权、文档协议、资源存储和 API 回归测试。
+- 新增基于 SQLite（better-sqlite3）的画布文档快照存储，替代 MongoDB 文档模型。
+- 新增 `src/server/canvas/canvas-store.ts`：SQLite 数据库读写接口，支持 append-only revision、乐观锁写入和初始化种子数据迁移。
 - 新增基于 contentEditable 的内联文本编辑系统（`MineCanvasInlineField`），替代旧的双击进入编辑模式交互。
 - 新增卡片拖拽手柄，所有卡片类型支持通过拖拽手柄调整位置。
-- Docker 多阶段构建新增健康检查（healthcheck）和数据库同步脚本。
+- Docker 多阶段构建新增 `/api/health` 健康检查，并由备份容器替代直接同步活动数据库脚本。
 - 部署脚本新增 `.env` 和 `.env.local` 双文件加载支持。
-- 构建阶段新增 `CANVAS_SALT` 和 `CANVAS_ENCRYPTED_TOKEN` 构建参数传递，支持 SSR 页面。
+- 画布鉴权只读取运行时 `CANVAS_AUTH_TOKEN`，不再向构建产物注入客户端鉴权变量。
 
 ### Changed
 
-- 将画布持久化从 MongoDB 迁移到 SQLite，并将防抖自动保存改为每次操作立即保存（`flushSave` 模式）。
+- 生产桌面扫描路径改为 `dist/client/os-desktop`，避免运行镜像缺少 `public/` 时全屏文件夹消失。
+- 画布数据库返回前只显示安全加载状态，不再先渲染种子数据后瞬间替换。
+- 画布重型依赖仅在首次进入 `/os` 时动态加载，并拆分 ReactFlow、Tiptap 与 UI 依赖块。
+- 画布保存改为串行合并队列；旧标签页不能覆盖较新的数据库 revision。
+- 将画布持久化从 MongoDB 迁移到 SQLite；后续升级为串行、合并且保留历史的 revision 保存模式。
 - 将 Astro 从 6.x 升级到 7.x。
 - 重新设计访客/作者权限模型：作者可编辑全部内容，访客仅可查看。
 - 优化时间线卡片文字样式。
 
 ### Fixed
 
-- 修复 Docker Compose 环境变量加载顺序问题：服务端仅从 `.env` 读取，`env_file` 移除 `.env.local`。
+- 修复 Docker Compose 生产边界问题：画布 token 仅运行时注入，桌面内容显式扫描 `/app/dist/client/os-desktop`。
 - 修复多阶段 Docker 构建中原生模块跨平台编译问题。
-- 修复 sync 脚本未加载 `.env.local` 的问题。
+- 废弃直接 rsync 活动 DB/WAL/SHM 的同步脚本，改用 SQLite Online Backup + Restic。
 
 ### Verified
 
-- 通过 `rtk npm run build`。
+- 通过 Node 测试、TypeScript、Astro 构建、生产桌面扫描、备份脚本语法和 Compose quiet 校验。
 
 ---
 

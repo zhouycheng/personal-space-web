@@ -11,4 +11,19 @@ export default defineConfig({
   adapter: node({
     mode: "standalone",
   }),
+  vite: {
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: "canvas-flow", test: /node_modules[\\/]@xyflow[\\/]/, priority: 3 },
+              { name: "canvas-editor", test: /node_modules[\\/]@tiptap[\\/]/, priority: 3 },
+              { name: "canvas-ui", test: /node_modules[\\/](@floating-ui|lucide-react)[\\/]/, priority: 2 },
+            ],
+          },
+        },
+      },
+    },
+  },
 });

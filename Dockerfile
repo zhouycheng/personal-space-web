@@ -11,14 +11,6 @@ RUN npm ci
 
 COPY . .
 
-# Build-time env vars needed by Astro SSR (from compose build args)
-ARG CANVAS_SALT
-ARG CANVAS_ENCRYPTED_TOKEN
-ARG CANVAS_AUTH_TOKEN
-ENV CANVAS_SALT=${CANVAS_SALT}
-ENV CANVAS_ENCRYPTED_TOKEN=${CANVAS_ENCRYPTED_TOKEN}
-ENV CANVAS_AUTH_TOKEN=${CANVAS_AUTH_TOKEN}
-
 RUN npm run build
 
 # Stage 2: Production runtime
@@ -35,7 +27,7 @@ RUN npm ci --omit=dev && \
     rm -rf /var/cache/apk/*
 
 COPY --from=builder /app/dist ./dist
-COPY data/ ./data/
+RUN mkdir -p ./data
 
 ENV HOST=0.0.0.0
 ENV PORT=4321
@@ -43,6 +35,6 @@ ENV PORT=4321
 EXPOSE 4321
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q --spider http://localhost:4321/ || exit 1
+  CMD wget -q --spider http://localhost:4321/api/health || exit 1
 
 CMD ["node", "dist/server/entry.mjs"]

@@ -18,7 +18,8 @@
 - Justin Kit 以源文件优先的组件库形式存在于 `src/justin-kit/` 下。
 - `Cursor Reveal Hero` 和 `Local Activity Status` 为已提取组件。
 - 本地活动 API 路由已接入，但徽章尚未挂载到当前启动页。
-- 基于 ReactFlow 的画布/白板节点编辑器已实现，支持七种卡片类型、内联编辑和 SQLite 持久化。
+- 基于 ReactFlow 的画布/白板节点编辑器已实现，支持七种卡片类型、内联编辑、不可变 SQLite revision、资源持久化和本机/S3 自动备份。
+- 生产全屏桌面扫描构建后的 `dist/client/os-desktop`，健康检查会检测空桌面和数据库故障。
 - 旧 Next 实现已从工作树移除。
 
 ## 文档索引

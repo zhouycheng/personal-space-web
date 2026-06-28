@@ -1,73 +1,53 @@
-import { timingSafeEqual } from "node:crypto";
-import { readCanvasDocument, seedIfEmpty, writeCanvasDocument } from "../../lib/canvas-store";
-import { mineCanvasSeed } from "../../components/mine-canvas/mineCanvasData";
+import { mineCanvasSeed } from "../../components/mine-canvas/mineCanvasData.ts";
+import {
+  normalizeCanvasDocument,
+  parseCanvasWriteRequest,
+} from "../../features/canvas/domain/canvas-document.ts";
+import { isCanvasSessionAuthorized } from "../../server/canvas/canvas-auth.ts";
+import { getCanvasStore, type StoredCanvasDocument } from "../../server/canvas/canvas-store.ts";
 
-function bufferEqual(a: Buffer, b: Buffer): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
+export const prerender = false;
 
-function validateDocument(body: unknown): body is object {
-  if (!body || typeof body !== "object") return false;
-  const doc = body as Record<string, unknown>;
-  return typeof doc.version === "number" && Array.isArray(doc.nodes) && Array.isArray(doc.edges) && doc.viewport != null;
-}
-
-export async function GET() {
-  await seedIfEmpty();
-  const data = await readCanvasDocument();
-  console.log(`[canvas-api] GET -> nodes:${(data as any)?.nodes?.length ?? 0}`);
-  if (data) {
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
-      },
-    });
-  }
-  return new Response(JSON.stringify(mineCanvasSeed), {
-    status: 200,
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-store",
     },
   });
 }
 
+function currentSnapshot() {
+  const store = getCanvasStore();
+  let snapshot = store.seedIfEmpty(mineCanvasSeed as unknown as StoredCanvasDocument);
+  if (snapshot.document.version !== 4) {
+    const migrated = store.write(normalizeCanvasDocument(snapshot.document), snapshot.revision);
+    snapshot = migrated.snapshot;
+  }
+  return snapshot;
+}
+
+export async function GET() {
+  return json(currentSnapshot());
+}
+
 export async function POST({ request }: { request: Request }) {
-  const authToken = import.meta.env.CANVAS_AUTH_TOKEN;
-  if (!authToken) {
-    console.error("[canvas-api] CANVAS_AUTH_TOKEN env var is not set — canvas save disabled");
-    return new Response(JSON.stringify({ error: "Server not configured" }), { status: 500 });
-  }
-
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-  }
-
-  const token = authHeader.slice(7);
-  const expected = Buffer.from(authToken, "utf-8");
-  const actual = Buffer.from(token, "utf-8");
-
-  if (!bufferEqual(expected, actual)) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  if (!isCanvasSessionAuthorized(request)) {
+    return json({ error: "Unauthorized" }, 401);
   }
 
   try {
-    const body = await request.json();
-    if (!validateDocument(body)) {
-      return new Response(JSON.stringify({ error: "Invalid document" }), { status: 400 });
+    const input = parseCanvasWriteRequest(await request.json());
+    currentSnapshot();
+    const result = getCanvasStore().write(input.document, input.expectedRevision);
+    if (result.status === "conflict") {
+      return json({ error: "Revision conflict", latest: result.snapshot }, 409);
     }
-    await writeCanvasDocument(body);
-    console.log(`[canvas-api] POST saved -> nodes:${(body as any).nodes?.length ?? 0} edges:${(body as any).edges?.length ?? 0}`);
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("[canvas-api] POST error:", err);
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
+    return json(result.snapshot);
+  } catch (error) {
+    return json({
+      error: error instanceof Error ? error.message : "Invalid canvas request",
+    }, 400);
   }
 }

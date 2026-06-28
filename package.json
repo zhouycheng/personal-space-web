@@ -12,8 +12,9 @@
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0 --port 4321",
     "monitor:activity": "node src/justin-kit/components/local-activity-status/scripts/activity-monitor.mjs",
-    "db:push": "bash scripts/sync-db-push.sh",
-    "db:pull": "bash scripts/sync-db-pull.sh"
+    "db:backup": "docker compose --profile backup run --rm canvas-backup /opt/backup/backup.sh",
+    "db:backup:check": "docker compose --profile backup run --rm canvas-backup /opt/backup/check.sh",
+    "db:restore": "docker compose --profile backup run --rm canvas-backup /opt/backup/restore.sh"
   },
   "dependencies": {
     "@astrojs/node": "^11.0.0",

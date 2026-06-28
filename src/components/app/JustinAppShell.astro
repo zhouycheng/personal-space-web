@@ -4,30 +4,18 @@ import MineCanvas from "/src/components/mine-canvas/MineCanvas.astro";
 import WorksPortfolio from "/src/components/works/WorksPortfolio.astro";
 import MacOsDesktop from "/src/justin-kit/components/macos-desktop/MacOsDesktop.astro";
 import { getMacOsDesktopEntries } from "/src/justin-kit/components/macos-desktop/runtime/desktop-scanner";
-
-type AppPage = "home" | "works" | "os";
+import { isAppPage, NAV_ITEMS, PAGE_TITLES, type AppPage } from "/src/app/navigation";
 
 type Props = {
   initialPage?: AppPage;
 };
 
-const navItems = [
-  { page: "home", path: "/home", number: "01", label: "首页" },
-  { page: "works", path: "/works", number: "02", label: "作品集" },
-  { page: "os", path: "/os", number: "03", label: "我的" },
-] satisfies Array<{ page: AppPage; path: string; number: string; label: string }>;
-
 const { initialPage = "home" } = Astro.props;
-const activePage = navItems.some((item) => item.page === initialPage) ? initialPage : "home";
-const titleByPage = {
-  home: "Justin OS",
-  works: "Justin OS - 作品集",
-  os: "Justin OS - 我的",
-} satisfies Record<AppPage, string>;
+const activePage = isAppPage(initialPage) ? initialPage : "home";
 const macOsDesktopEntries = await getMacOsDesktopEntries();
 ---
 
-<BaseLayout title={titleByPage[activePage]}>
+<BaseLayout title={PAGE_TITLES[activePage]}>
   <main
     class:list={["app-shell", activePage === "home" && "is-home-active"]}
     data-initial-page={activePage}
@@ -114,7 +102,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
 
     <!-- 固定底部导航栏：不随页面切换刷新 -->
     <nav class="app-dock" aria-label="主导航">
-      {navItems.map((item) => (
+      {NAV_ITEMS.map((item) => (
         <a
           class:list={[activePage === item.page && "is-active"]}
           data-page={item.page}
@@ -133,6 +121,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
       scaleTerminalDelay,
       serializeHomeTransitionState,
     } from "./homeRuntimeState.mjs";
+    import { normalizeAppPath, PAGE_TITLES } from "../../app/navigation";
 
     (() => {
       const BOOT_PLAYED_KEY = "justin-terminal-boot-played";
@@ -161,11 +150,6 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
       const CAMERA_SCROLL_DISTANCE = 860;
       const PROJECTION_SETTLE_MS = 1200;
       const HOME_ROUTE_REVEAL_MS = 280;
-      const PAGE_TITLES = {
-        home: "Justin OS",
-        works: "Justin OS - 作品集",
-        os: "Justin OS - 我的",
-      };
 
       let awaitingLaunch = false;
       let launchInProgress = false;
@@ -195,11 +179,6 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         return Object.prototype.hasOwnProperty.call(pages, name) ? name : null;
       }
 
-      function normalizePathname(pathname) {
-        const normalized = pathname.replace(/\/+$/, "");
-        return normalized || "/";
-      }
-
       function buildRouteMaps() {
         const routeByPage = new Map();
         const pageByRoute = new Map([["/", "home"]]);
@@ -210,7 +189,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
           if (!page || !href) return;
 
           const url = new URL(href, window.location.origin);
-          const path = normalizePathname(url.pathname);
+          const path = normalizeAppPath(url.pathname);
           routeByPage.set(page, path);
           pageByRoute.set(path, page);
         });
@@ -219,7 +198,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
       }
 
       function getPageFromLocation() {
-        const path = normalizePathname(window.location.pathname);
+        const path = normalizeAppPath(window.location.pathname);
         return routeMaps.pageByRoute.get(path) ?? "home";
       }
 
@@ -237,7 +216,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
 
       function pushRouteForPage(name) {
         const route = getRouteForPage(name);
-        if (normalizePathname(window.location.pathname) === route) return;
+        if (normalizeAppPath(window.location.pathname) === route) return;
         window.history.pushState({ page: name }, "", route);
       }
 
@@ -1225,7 +1204,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
           if (!page || !href) return;
 
           const url = new URL(href, window.location.origin);
-          const path = normalizePathname(url.pathname);
+          const path = normalizeAppPath(url.pathname);
           if (url.origin !== window.location.origin || !routeMaps.pageByRoute.has(path)) return;
 
           event.preventDefault();

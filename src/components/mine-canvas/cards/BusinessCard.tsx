@@ -4,6 +4,7 @@ import { registerCard } from "../../../lib/canvas/card-registry";
 import type { MineCanvasNodeData } from "../mineCanvasTypes";
 import { MineCanvasRuntimeContext } from "../mineCanvasRuntime";
 import { CardInlineField } from "../MineCanvasCardShared";
+import { uploadCanvasAsset } from "../../../features/canvas/client/canvas-assets";
 
 type BusinessCardData = Extract<MineCanvasNodeData, { kind: "businesscard" }>;
 
@@ -38,8 +39,20 @@ function BusinessCard({ contentRef, data, nodeId, update }: {
         const sx = (img.width - minDim) / 2;
         const sy = (img.height - minDim) / 2;
         ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        update((current) => current.kind === "businesscard" ? { ...current, avatarSrc: dataUrl, avatarFileName: file.name } : current);
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          try {
+            const asset = await uploadCanvasAsset(blob, `${file.name}.jpg`);
+            update((current) => current.kind === "businesscard" ? {
+              ...current,
+              avatarAssetId: asset.id,
+              avatarSrc: asset.url,
+              avatarFileName: file.name,
+            } : current);
+          } catch {
+            console.error("头像上传失败");
+          }
+        }, "image/jpeg", 0.85);
       };
       img.src = reader.result as string;
     };

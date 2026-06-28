@@ -1,16 +1,7 @@
 ---
-import MineCanvasEditor from "./MineCanvasEditor";
-import { mineCanvasSeed } from "./mineCanvasData";
-
-const authSalt = import.meta.env.CANVAS_SALT || "";
-const authEncryptedToken = import.meta.env.CANVAS_ENCRYPTED_TOKEN || "";
+import MineCanvasLoader from "./MineCanvasLoader";
 ---
 
 <div class="mine-canvas-mount" data-mine-canvas-mount>
-  <MineCanvasEditor
-    seedDocument={mineCanvasSeed}
-    authSalt={authSalt}
-    authEncryptedToken={authEncryptedToken}
-    client:only="react"
-  />
+  <MineCanvasLoader client:only="react" />
 </div>

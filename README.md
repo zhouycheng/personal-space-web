@@ -39,7 +39,10 @@
 - 已提取 `Cursor Reveal Hero` Astro 组件。
 - 已提取 `Local Activity Status` Astro 组件。
 - 活动监控的 Astro API 路由。
-- SQLite 驱动的画布数据持久化和加密鉴权。
+- SQLite 驱动的画布持久化：每次保存追加不可变 revision，使用乐观锁阻止旧标签页覆盖新数据。
+- 画布作者鉴权使用 HttpOnly 会话 Cookie，浏览器不再保存明文密码或长期 Bearer Token。
+- 画布图片和头像存放在 `data/canvas-assets/`，与 SQLite 一起进入本机和 S3 备份。
+- 全屏桌面内容在开发环境读取 `public/os-desktop/`，生产环境读取构建产物 `dist/client/os-desktop/`。
 
 尚未实现：
 
@@ -62,6 +65,9 @@ npm install
 npm run dev
 npm run build
 npm run preview
+npm run db:backup
+npm run db:backup:check
+npm run db:restore -- local latest
 ```
 
 dev 和 preview 脚本绑定到 `0.0.0.0:4321`。
@@ -87,6 +93,10 @@ JustinWeb/
   src/pages/api/activity/update.ts              POST 活动更新
   src/pages/api/activity/stream.ts              SSE 活动流
   src/pages/api/canvas.ts                       画布持久化 API
+  src/pages/api/canvas/session.ts               作者会话 API
+  src/pages/api/canvas/revisions.ts             不可变版本历史 API
+  src/pages/api/canvas/assets/                  持久化图片资源 API
+  src/pages/api/health.ts                       桌面与数据库健康检查
   src/layouts/BaseLayout.astro                  HTML 外壳
   src/styles/global.css                         路由外壳、启动、Dock 和 OS 样式
   src/data/kit.ts                               Justin Kit 目录
@@ -96,8 +106,30 @@ JustinWeb/
   public/os-desktop/                            Justin OS 桌面文件
   src/justin-kit/                               组件库源文件
   src/components/mine-canvas/                   画布编辑器组件
-  src/lib/canvas-store.ts                       SQLite 画布存储
+  src/server/canvas/                            SQLite、鉴权与资源存储边界
+  src/features/canvas/                          文档协议、保存队列与客户端资源接口
+  ops/backup/                                   SQLite + Restic 备份容器
 ```
+
+## 画布数据安全
+
+- 浏览器在数据库快照返回前只显示加载状态，不会先渲染种子节点再替换。
+- `canvas_revisions` 只追加新版本；旧版本不会被更新或删除。
+- 保存请求携带 `expectedRevision`。服务器版本已变化时返回 `409`，客户端停止覆盖并保留待保存内容。
+- 恢复旧版本会创建一个新的当前 revision，历史链保持完整。
+- 旧 `canvas` 表只用于首次迁移，不会在新保存流程中继续覆盖。
+
+## 自动备份
+
+备份服务每小时使用 SQLite Online Backup 创建一致性快照，执行完整性检查后同时写入本机 Restic 仓库和 S3 兼容仓库。默认保留 48 个小时版本、30 个日版本、12 个周版本和 12 个月版本。
+
+在 `.env` 或 `.env.local` 配置 `RESTIC_LOCAL_PASSWORD`、`RESTIC_REMOTE_PASSWORD`、`RESTIC_REMOTE_REPOSITORY` 和 S3 凭据，然后启用备份 profile：
+
+```bash
+COMPOSE_PROFILES=backup docker compose up -d --build
+```
+
+`db:restore` 只恢复到 `restore/` 并运行 `PRAGMA integrity_check`，不会自动覆盖生产数据。应用正式恢复前必须先停止 Web 容器。
 
 ## 作品集数据
 
