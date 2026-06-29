@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>单面符号半球 v3</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052d95;
+        --star: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #202635;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1420px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(960px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .shell {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background: linear-gradient(180deg, var(--blue), var(--deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .dome-layer {
+        position: absolute;
+        z-index: 8;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .dome-layer canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        pointer-events: auto;
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--star);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .note {
+        margin: 13px 0 0;
+        color: #667083;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 940px) {
+        .top {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>符号半球：单面右转，小尺寸</h1>
+          <p class="sub">
+            这一版恢复海洋字符的轻微闪动，同时把顶层采样重新压疏，边缘虚化继续保留。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+
+      <section class="shell">
+        <div class="desktop">
+          <div class="dome-layer">
+            <canvas data-symbol-dome aria-label="单面符号半球右转草图"></canvas>
+          </div>
+          <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+          <div class="icons">
+            <div class="icon"><span class="folder"></span><span>组件库</span></div>
+            <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+            <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+          </div>
+          <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+        </div>
+        <p class="note">这版重点看顶部是否不再太密，以及海洋字符是否恢复轻微闪动。</p>
+      </section>
+    </main>
+
+    <script>
+      const canvas = document.querySelector("[data-symbol-dome]");
+      const ctx = canvas.getContext("2d");
+      const star = { r: 255, g: 230, b: 106 };
+      const landColor = { r: 255, g: 242, b: 142 };
+      const ocean = { r: 188, g: 185, b: 150 };
+      const points = [];
+      const landMasses = [
+        { u: 0.14, v: 0.36, rx: 0.054, ry: 0.074, w: 1.08 },
+        { u: 0.36, v: 0.62, rx: 0.072, ry: 0.09, w: 1.12 },
+        { u: 0.64, v: 0.31, rx: 0.058, ry: 0.072, w: 1.04 },
+        { u: 0.86, v: 0.72, rx: 0.066, ry: 0.088, w: 1.1 },
+      ];
+
+      let seed = 32731;
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let rotation = 0;
+      let lastFrameAt = 0;
+      let mouseX = -9999;
+      let mouseY = -9999;
+      let hasMouse = false;
+      let lookX = 0;
+      let lookY = 0;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function wrap01(value) {
+        return ((value % 1) + 1) % 1;
+      }
+
+      function circularDistance(a, b) {
+        const d = Math.abs(a - b);
+        return Math.min(d, 1 - d);
+      }
+
+      function noise(u, v) {
+        const a = Math.sin((u * 31.7 + v * 19.3) * 6.28318);
+        const b = Math.sin((u * 9.2 - v * 43.1) * 6.28318);
+        const c = Math.sin((u * 61.4 + v * 7.7) * 6.28318);
+        return (a * 0.5 + b * 0.32 + c * 0.18 + 1) * 0.5;
+      }
+
+      function hash01(a, b, c) {
+        const n = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
+        return n - Math.floor(n);
+      }
+
+      function landValue(u, v) {
+        let value = 0;
+
+        for (const land of landMasses) {
+          const dx = circularDistance(u, land.u) / land.rx;
+          const dy = (v - land.v) / land.ry;
+          const d = dx * dx + dy * dy;
+          value += Math.max(0, 1 - d) * land.w;
+        }
+
+        value += (noise(u, v) - 0.5) * 0.22;
+        return value;
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = rect.width;
+        height = rect.height;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        makePoints();
+      }
+
+      function makePoints() {
+        points.length = 0;
+        const rows = Math.round(clamp(height / 12.2, 40, 62));
+
+        for (let row = 0; row < rows; row += 1) {
+          const v = (row + 0.5) / rows;
+          const domeWidth = Math.sqrt(Math.max(0, 1 - (1 - v) * (1 - v)));
+          const topEase = clamp((v - 0.03) / 0.28, 0, 1);
+          const count = Math.max(6, Math.round(8 + domeWidth * 78 * (0.34 + topEase * 0.66)));
+          const rowShift = row % 2 ? 0.5 : 0;
+
+          for (let i = 0; i < count; i += 1) {
+            const t = (i + rowShift) / count;
+            const xNorm = (t - 0.5) * 2;
+            const edge = Math.abs(xNorm);
+            if (edge > 0.995) continue;
+
+            points.push({
+              row,
+              v,
+              xNorm,
+              t,
+              jitterX: (random() - 0.5) * 0.1,
+              jitterY: (random() - 0.5) * 0.13,
+              base: 0.78 + random() * 0.22,
+              glyphPick: random(),
+              wave: random() * Math.PI * 2,
+            });
+          }
+        }
+      }
+
+      function draw(now) {
+        const elapsed = lastFrameAt ? Math.min(0.05, (now - lastFrameAt) / 1000) : 0.016;
+        lastFrameAt = now;
+        ctx.clearRect(0, 0, width, height);
+
+        const radiusX = Math.min(width * 0.43, height * 1.08);
+        const radiusY = Math.min(height * 0.74, radiusX * 0.88);
+        const cx = width * 0.5;
+        const cy = height * 1.03;
+        const speed = 0.064;
+        rotation = wrap01(rotation + speed * elapsed);
+        const targetLookX = hasMouse ? clamp((mouseX - cx) / (radiusX * 1.05), -1, 1) : 0;
+        const targetLookY = hasMouse ? clamp((mouseY - (cy - radiusY * 0.48)) / (radiusY * 0.85), -1, 1) : 0;
+        lookX += (targetLookX - lookX) * 0.035;
+        lookY += (targetLookY - lookY) * 0.035;
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (const point of points) {
+          const visibleWidth = Math.sqrt(Math.max(0, 1 - (1 - point.v) * (1 - point.v)));
+          const curveY = point.v;
+          const xCurve = point.xNorm * visibleWidth;
+          const edgeFade = clamp((1 - Math.abs(point.xNorm)) * 2.5, 0, 1);
+          const topFade = clamp((point.v - 0.02) / 0.16, 0.56, 1);
+          const rowScale = 0.52 + point.v * 0.62;
+          const parallax = Math.sin((point.t + rotation) * Math.PI * 2) * 4.6 * visibleWidth;
+          const faceWeight = clamp((1 - Math.abs(point.xNorm) * 0.78) * (0.45 + point.v * 0.55), 0, 1);
+          const lookOffsetX = lookX * radiusX * 0.055 * faceWeight;
+          const lookOffsetY = lookY * radiusY * 0.035 * faceWeight;
+          const x = cx + xCurve * radiusX + point.jitterX * 8 + parallax + lookOffsetX;
+          const y = cy - radiusY + curveY * radiusY + point.jitterY * 8 + lookOffsetY;
+
+          if (x < -36 || x > width + 36 || y < -36 || y > height + 36) continue;
+
+          const surfaceU = wrap01(point.t - rotation);
+          const surfaceV = point.v;
+          const land = landValue(surfaceU, surfaceV);
+          const landThreshold = 0.36;
+          const isLand = surfaceV > 0.22 && land > landThreshold;
+          const glyph = isLand ? "#" : point.glyphPick > 0.52 ? "%" : "x";
+          const localNoise = noise(surfaceU + 0.13, surfaceV + 0.27);
+          const distanceToMouse = Math.hypot(x - mouseX, y - mouseY);
+          const hover = hasMouse ? clamp(1 - distanceToMouse / 118, 0, 1) : 0;
+          const fontSize = (5.8 + rowScale * 4.75) * (1 - hover * 0.34);
+          const landAlpha = 0.54 + localNoise * 0.12 + Math.max(0, land - landThreshold) * 0.18;
+          const oceanAlpha = 0.15 + localNoise * 0.12;
+          const alpha = (isLand ? landAlpha : oceanAlpha) * edgeFade * topFade * point.base * (1 - hover * 0.45);
+          const blur = 0.12 + (1 - edgeFade) * 0.85 + hover * 0.55;
+
+          ctx.save();
+          ctx.globalAlpha = clamp(alpha, 0.015, 0.68);
+          const color = isLand ? landColor : ocean;
+          ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+          ctx.filter = `blur(${blur.toFixed(2)}px)`;
+          ctx.font = `780 ${fontSize.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+          ctx.fillText(glyph, x, y);
+          ctx.restore();
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      canvas.addEventListener("pointermove", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = event.clientX - rect.left;
+        mouseY = event.clientY - rect.top;
+        hasMouse = true;
+      });
+
+      canvas.addEventListener("pointerenter", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = event.clientX - rect.left;
+        mouseY = event.clientY - rect.top;
+        hasMouse = true;
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        hasMouse = false;
+        mouseX = -9999;
+        mouseY = -9999;
+      });
+
+      window.addEventListener("resize", resize);
+      resize();
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>

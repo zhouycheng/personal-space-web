@@ -1,0 +1,23 @@
+---
+import "./symbol-dome-background.css";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div
+  class:list={["jk-symbol-dome-background", className]}
+  data-symbol-dome-background
+  aria-hidden="true"
+>
+  <canvas data-symbol-dome-canvas></canvas>
+</div>
+
+<script>
+  import { initSymbolDomeBackgrounds } from "./symbol-dome-background";
+
+  initSymbolDomeBackgrounds();
+</script>

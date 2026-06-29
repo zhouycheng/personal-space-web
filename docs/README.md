@@ -16,7 +16,8 @@
 - 首页启动讨论应使用 `../CONTEXT.md` 中的共享状态名称：`全显状态`、`推拉状态` 和 `Justin OS 状态`。
 - 项目主题色为纯克莱因蓝 `#002FA7`（`rgb(0, 47, 167)`）。品牌蓝色 UI、终端屏幕、OS 桌面投影和激活 Dock 控件应使用此纯色，而非蓝色渐变。
 - Justin Kit 以源文件优先的组件库形式存在于 `src/justin-kit/` 下。
-- `Cursor Reveal Hero` 和 `Local Activity Status` 为已提取组件。
+- `Cursor Reveal Hero`、`Local Activity Status` 和 `Symbol Dome Background` 为已提取组件。
+- Justin OS 桌面背景已由静态星星层替换为单面符号半球，仍保持纯克莱因蓝基底。
 - 本地活动 API 路由已接入，但徽章尚未挂载到当前启动页。
 - 基于 ReactFlow 的画布/白板节点编辑器已实现，支持七种卡片类型、内联编辑、不可变 SQLite revision、资源持久化和本机/S3 自动备份。
 - 生产全屏桌面扫描构建后的 `dist/client/os-desktop`，健康检查会检测空桌面和数据库故障。
@@ -36,6 +37,7 @@
 - `../src/justin-kit/README.md`：Justin Kit 目录和组件边界。
 - `../src/justin-kit/components/cursor-reveal-hero/README.md`：光标揭示组件用法和行为。
 - `../src/justin-kit/components/local-activity-status/README.md`：本地活动组件、API、时序和监控设置。
+- `../src/justin-kit/components/symbol-dome-background/README.md`：符号半球背景的用法和行为。
 - `plans/2026-06-25-astro-justin-os-kit.md`：Astro 重建实现记录。
 
 ## 更新规则

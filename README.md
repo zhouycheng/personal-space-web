@@ -38,6 +38,7 @@
 - Justin Kit 源文件夹和类型化目录。
 - 已提取 `Cursor Reveal Hero` Astro 组件。
 - 已提取 `Local Activity Status` Astro 组件。
+- 已提取并挂载 `Symbol Dome Background` Astro 组件，用单面符号半球替换 Justin OS 桌面星星层。
 - 活动监控的 Astro API 路由。
 - SQLite 驱动的画布持久化：每次保存追加不可变 revision，使用乐观锁阻止旧标签页覆盖新数据。
 - 画布作者鉴权使用 HttpOnly 会话 Cookie + 当前标签页 `sessionStorage` token，浏览器不再保存明文密码或长期 Bearer Token；关闭标签页即销毁当前管理员身份。
@@ -105,6 +106,7 @@ JustinWeb/
   src/assets/projects/                          作品集预览资源
   public/os-desktop/                            Justin OS 桌面文件
   src/justin-kit/                               组件库源文件
+  src/playground/                               草图归档和未采用方案
   src/components/mine-canvas/                   画布编辑器组件
   src/server/canvas/                            SQLite、鉴权与资源存储边界
   src/features/canvas/                          文档协议、保存队列与客户端资源接口

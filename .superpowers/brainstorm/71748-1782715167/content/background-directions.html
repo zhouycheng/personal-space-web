@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>zhoust.cn 背景动效方向</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052c91;
+        --yellow: #ffe25d;
+        --paper: #f7f3ea;
+        --ink: #1e2433;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f5f2ec;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1380px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 34px 0 42px;
+      }
+
+      .header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 20px;
+        align-items: end;
+        margin-bottom: 22px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 54px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(760px, 100%);
+        margin: 12px 0 0;
+        color: #60687a;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+
+      .domain {
+        justify-self: end;
+        border: 1px solid rgba(8, 39, 112, 0.14);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.64);
+        color: #1b55bc;
+        font: 800 14px / 1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 30px rgba(34, 45, 74, 0.08);
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid rgba(22, 32, 58, 0.12);
+        border-radius: 8px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 20px 54px rgba(26, 35, 61, 0.09);
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      .card:hover,
+      .card.selected {
+        transform: translateY(-3px);
+        border-color: rgba(27, 83, 183, 0.4);
+        box-shadow: 0 26px 70px rgba(8, 47, 148, 0.16);
+      }
+
+      .preview {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background: var(--blue);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -40px 90px rgba(0, 23, 92, 0.08);
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 20;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 18px;
+        color: rgba(235, 244, 255, 0.72);
+        font: 700 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .menu strong {
+        color: var(--yellow);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 18;
+        top: 40px;
+        right: 24px;
+        display: grid;
+        gap: 20px;
+        color: #fff;
+        font: 700 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+      }
+
+      .icon {
+        width: 54px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        color: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 20;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 94px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .body {
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr);
+        gap: 14px;
+        padding: 15px 2px 0;
+      }
+
+      .letter {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+        font: 900 16px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .tag {
+        margin: 5px 0 0;
+        color: #1b55bc;
+        font: 800 12px / 1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .desc {
+        margin: 9px 0 0;
+        color: #5e6575;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      .recommend {
+        display: inline-block;
+        margin-left: 8px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(255, 226, 93, 0.35);
+        color: #835f00;
+        font-size: 11px;
+        vertical-align: 2px;
+      }
+
+      .signal-node {
+        position: absolute;
+        width: var(--s, 7px);
+        height: var(--s, 7px);
+        left: var(--x);
+        top: var(--y);
+        border-radius: 50%;
+        background: rgba(255, 226, 93, 0.86);
+        box-shadow: 0 0 0 4px rgba(255, 226, 93, 0.12), 0 0 20px rgba(255, 226, 93, 0.3);
+        animation: pulse 3.8s ease-in-out infinite;
+      }
+
+      .signal-node::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: var(--line, 90px);
+        height: 1px;
+        background: linear-gradient(90deg, rgba(255, 226, 93, 0.42), transparent);
+        transform: rotate(var(--r, 12deg));
+        transform-origin: left center;
+      }
+
+      .signal-aura {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 34vw;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 226, 93, 0.09), transparent 63%);
+        opacity: 0;
+        transform: translate(-50%, -50%);
+        transition: opacity 0.2s ease;
+      }
+
+      .card:hover .signal-aura {
+        opacity: 1;
+      }
+
+      .glyph {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        color: rgba(255, 229, 110, var(--o, 0.58));
+        font: 900 var(--f, 14px) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 15px rgba(255, 229, 110, 0.34);
+        animation: blink 2.6s steps(1, end) infinite;
+        animation-delay: var(--d, 0s);
+      }
+
+      .grid-bg {
+        position: absolute;
+        inset: 0;
+        opacity: 0.55;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px) 0 0 / 44px 44px,
+          linear-gradient(0deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px) 0 0 / 44px 44px,
+          radial-gradient(circle at 32% 34%, rgba(255, 226, 93, 0.14), transparent 22%),
+          radial-gradient(circle at 68% 62%, rgba(255, 255, 255, 0.1), transparent 28%);
+      }
+
+      .blueprint-mark {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        width: var(--w, 54px);
+        height: var(--h, 28px);
+        border: 1px solid rgba(255, 226, 93, 0.35);
+        border-radius: 999px;
+        opacity: 0.62;
+      }
+
+      .blueprint-mark::before {
+        content: "";
+        position: absolute;
+        inset: 7px;
+        border-radius: inherit;
+        border: 1px dashed rgba(255, 255, 255, 0.24);
+      }
+
+      .comet {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        width: var(--w, 74px);
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), rgba(255, 226, 93, 0.9));
+        filter: drop-shadow(0 0 12px rgba(255, 226, 93, 0.36));
+        transform: rotate(var(--r, -24deg));
+        animation: drift 5s ease-in-out infinite;
+        animation-delay: var(--d, 0s);
+      }
+
+      .comet::after {
+        content: "";
+        position: absolute;
+        right: -4px;
+        top: -3px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--yellow);
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.5;
+        }
+        45% {
+          transform: scale(1.35);
+          opacity: 0.92;
+        }
+      }
+
+      @keyframes blink {
+        0%,
+        55%,
+        100% {
+          opacity: var(--o, 0.58);
+        }
+        56%,
+        74% {
+          opacity: 0.12;
+        }
+      }
+
+      @keyframes drift {
+        0%,
+        100% {
+          translate: 0 0;
+          opacity: 0.28;
+        }
+        50% {
+          translate: 28px -18px;
+          opacity: 0.82;
+        }
+      }
+
+      @media (max-width: 920px) {
+        .header {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="header">
+        <div>
+          <h1>把星星换成什么，才像 zhoust.cn？</h1>
+          <p class="sub">
+            下面不是最终实现，只是交互方向板。点击你有感觉的一张：我建议优先选 A，或者 A 的节点语言加 C 的克制网格。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+
+      <section class="cards">
+        <article class="card option" data-choice="signal-map" onclick="toggleSelect(this)">
+          <div class="preview">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="signal-aura"></div>
+            <span class="signal-node" style="--x: 12%; --y: 24%; --s: 7px; --line: 126px; --r: 16deg"></span>
+            <span class="signal-node" style="--x: 29%; --y: 54%; --s: 5px; --line: 96px; --r: -22deg"></span>
+            <span class="signal-node" style="--x: 46%; --y: 18%; --s: 4px; --line: 82px; --r: 38deg"></span>
+            <span class="signal-node" style="--x: 55%; --y: 68%; --s: 8px; --line: 120px; --r: -10deg"></span>
+            <span class="signal-node" style="--x: 75%; --y: 39%; --s: 6px; --line: 84px; --r: 20deg"></span>
+            <span class="signal-node" style="--x: 84%; --y: 78%; --s: 4px; --line: 74px; --r: -36deg"></span>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="body">
+            <div class="letter">A</div>
+            <div>
+              <h2>个人信号地图 <span class="recommend">推荐</span></h2>
+              <p class="tag">节点 / 连接线 / 鼠标靠近时轻微脉冲</p>
+              <p class="desc">
+                把星星换成稀疏的信号节点，像 zhoust.cn 这台个人系统正在和作品、笔记、组件库互相连线。保留金色点光，但不再像普通星空。
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="terminal-fireflies" onclick="toggleSelect(this)">
+          <div class="preview">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <span class="glyph" style="--x: 9%; --y: 20%; --f: 13px; --d: 0.1s">&gt;</span>
+            <span class="glyph" style="--x: 25%; --y: 63%; --f: 10px; --d: 1.2s">_</span>
+            <span class="glyph" style="--x: 36%; --y: 34%; --f: 13px; --d: 0.6s">{ }</span>
+            <span class="glyph" style="--x: 50%; --y: 74%; --f: 12px; --d: 1.8s">~/</span>
+            <span class="glyph" style="--x: 66%; --y: 22%; --f: 15px; --d: 0.3s">*</span>
+            <span class="glyph" style="--x: 80%; --y: 62%; --f: 11px; --d: 1s">01</span>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="body">
+            <div class="letter">B</div>
+            <div>
+              <h2>终端萤光</h2>
+              <p class="tag">命令符 / 光标 / 小代码碎片</p>
+              <p class="desc">
+                星星换成终端符号，跟首页启动的 zsh 体验呼应。鼠标经过时符号短暂亮起，像命令行留下的余光；个性强，但需要控制密度避免显得花。
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="blueprint-grid" onclick="toggleSelect(this)">
+          <div class="preview">
+            <div class="grid-bg"></div>
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <span class="blueprint-mark" style="--x: 10%; --y: 28%; --w: 74px; --h: 34px"></span>
+            <span class="blueprint-mark" style="--x: 38%; --y: 56%; --w: 52px; --h: 26px"></span>
+            <span class="blueprint-mark" style="--x: 64%; --y: 18%; --w: 92px; --h: 38px"></span>
+            <span class="blueprint-mark" style="--x: 71%; --y: 70%; --w: 58px; --h: 28px"></span>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="body">
+            <div class="letter">C</div>
+            <div>
+              <h2>人生系统蓝图</h2>
+              <p class="tag">极淡网格 / 标注环 / 低干扰背景</p>
+              <p class="desc">
+                星星换成“系统图纸”的痕迹，更成熟、更工具化。适合你想让 Justin OS 看起来像一个可长期使用的个人工作台，而不是玩具桌面。
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="shortcut-comets" onclick="toggleSelect(this)">
+          <div class="preview">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <span class="comet" style="--x: 10%; --y: 25%; --w: 82px; --r: -20deg; --d: 0s"></span>
+            <span class="comet" style="--x: 22%; --y: 76%; --w: 58px; --r: -34deg; --d: 1.4s"></span>
+            <span class="comet" style="--x: 48%; --y: 44%; --w: 102px; --r: -16deg; --d: 0.7s"></span>
+            <span class="comet" style="--x: 69%; --y: 20%; --w: 64px; --r: -28deg; --d: 2.1s"></span>
+            <span class="comet" style="--x: 78%; --y: 72%; --w: 74px; --r: -24deg; --d: 1s"></span>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="body">
+            <div class="letter">D</div>
+            <div>
+              <h2>快捷方式流星</h2>
+              <p class="tag">短光迹 / Dock hover 联动 / 页面切换时穿梭</p>
+              <p class="desc">
+                把星星变成小型“快捷方式轨迹”。动感最强，适合强调探索和跳转，但如果速度太快会抢图标和窗口的注意力。
+              </p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

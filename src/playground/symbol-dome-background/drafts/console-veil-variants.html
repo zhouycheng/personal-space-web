@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>终端光幕变体</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052d95;
+        --yellow: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #202635;
+        --mx: 0;
+        --my: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1440px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(860px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .hint {
+        margin: 0 0 16px;
+        border-left: 4px solid rgba(255, 218, 73, 0.75);
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.62);
+        color: #5c6372;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .card:hover,
+      .card.selected {
+        transform: translateY(-3px);
+        border-color: rgba(255, 207, 54, 0.8);
+        box-shadow: 0 28px 72px rgba(7, 53, 170, 0.16);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background:
+          radial-gradient(circle at calc(50% + var(--mx) * 10%) calc(45% + var(--my) * 8%), rgba(255, 230, 106, 0.055), transparent 36%),
+          linear-gradient(180deg, var(--blue), var(--deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--yellow);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .veil {
+        position: absolute;
+        inset: 0;
+        z-index: 8;
+        pointer-events: none;
+      }
+
+      .whisper {
+        padding: 42px 54px;
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 17px 24px;
+        opacity: 0.68;
+        transform: translate3d(calc(var(--mx) * -9px), calc(var(--my) * 6px), 0);
+        transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+        mask-image: radial-gradient(ellipse at 42% 45%, #000 0%, #000 58%, transparent 100%);
+      }
+
+      .whisper span {
+        color: rgba(255, 230, 106, var(--o));
+        font: 850 var(--s) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 14px rgba(255, 230, 106, 0.2);
+        animation: blink var(--d) steps(1, end) infinite;
+      }
+
+      .logstream {
+        display: grid;
+        align-content: center;
+        gap: 12px;
+        padding: 42px 34px;
+        opacity: 0.68;
+        transform: translate3d(calc(var(--mx) * 7px), calc(var(--my) * 4px), 0);
+        transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+        mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 82%, transparent 100%);
+      }
+
+      .logline {
+        width: 92%;
+        min-height: 18px;
+        border-radius: 999px;
+        padding: 4px 12px;
+        background: linear-gradient(90deg, rgba(255, 230, 106, 0.1), rgba(255, 230, 106, 0.02), transparent);
+        color: rgba(255, 236, 150, var(--o));
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 12px rgba(255, 230, 106, 0.2);
+        white-space: nowrap;
+        animation: float-line var(--d) ease-in-out infinite;
+      }
+
+      .logline:nth-child(2n) {
+        margin-left: 9%;
+      }
+
+      .logline:nth-child(3n) {
+        width: 72%;
+      }
+
+      .raster {
+        display: grid;
+        grid-template-columns: repeat(18, minmax(0, 1fr));
+        grid-auto-rows: 22px;
+        padding: 42px 46px;
+        opacity: 0.62;
+        transform: translate3d(calc(var(--mx) * -6px), calc(var(--my) * -6px), 0);
+        transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .raster span {
+        color: rgba(255, 230, 106, var(--o));
+        font: 820 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 12px rgba(255, 230, 106, 0.18);
+        animation: blink var(--d) steps(1, end) infinite;
+      }
+
+      .pathmap {
+        opacity: 0.66;
+        transform: translate3d(calc(var(--mx) * 10px), calc(var(--my) * -6px), 0);
+        transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .pathmap svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .pathmap path,
+      .pathmap line,
+      .pathmap circle {
+        fill: none;
+        stroke: rgba(255, 230, 106, 0.26);
+        stroke-width: 1;
+      }
+
+      .pathmap .soft {
+        stroke: rgba(255, 255, 255, 0.12);
+      }
+
+      .pathmap text {
+        fill: rgba(255, 230, 106, 0.38);
+        font: 740 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .info {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 13px;
+        padding: 14px 1px 0;
+      }
+
+      .letter {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+        font: 900 16px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      .rec {
+        display: inline-block;
+        margin-left: 7px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(255, 230, 106, 0.38);
+        color: #835f00;
+        font: 850 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        vertical-align: 2px;
+      }
+
+      .tag {
+        margin: 6px 0 0;
+        color: #1b55bc;
+        font: 850 12px / 1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .desc {
+        margin: 8px 0 0;
+        color: #5f6676;
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      @keyframes blink {
+        0%,
+        66%,
+        100% {
+          opacity: 1;
+        }
+        67%,
+        78% {
+          opacity: 0.18;
+        }
+      }
+
+      @keyframes float-line {
+        0%,
+        100% {
+          transform: translateX(0);
+          opacity: 0.68;
+        }
+        50% {
+          transform: translateX(18px);
+          opacity: 1;
+        }
+      }
+
+      @media (max-width: 940px) {
+        .top,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>终端光幕：4 个细分方向</h1>
+          <p class="sub">
+            都从上一轮 B 出发：淡黄色、低透明、像启动后的终端余光。差别在于它更像“碎片”“日志”“栅格”还是“个人路径图”。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+      <p class="hint">移动鼠标会有一点视差。先看哪一个更像你想要的桌面气质，后面再调密度和透明度。</p>
+
+      <section class="cards">
+        <article class="card option" data-choice="whisper-console" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="veil whisper" data-glyphs="whisper"></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">A</div>
+            <div>
+              <h2>低语终端 <span class="rec">推荐</span></h2>
+              <p class="tag">稀疏字符 / 大留白 / 最像背景</p>
+              <p class="desc">保留 B 的味道，但不变成文字墙。适合正式桌面：看得到终端气质，又不会干扰图标和窗口。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="log-stream" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="veil logstream">
+              <span class="logline" style="--o:.42;--d:6.4s">justin@zhoust.cn boot --surface home --state open</span>
+              <span class="logline" style="--o:.26;--d:7.2s">load /works/listenhub  status=ready  mode=quiet</span>
+              <span class="logline" style="--o:.34;--d:5.8s">mount /mine/life-system  renderer=markdown</span>
+              <span class="logline" style="--o:.22;--d:6.9s">watch design-skill/index  signal=warm</span>
+              <span class="logline" style="--o:.32;--d:7.5s">sync component-library  desktop-icon=folder</span>
+              <span class="logline" style="--o:.2;--d:6.2s">history restore --route /home --dock active</span>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">B</div>
+            <div>
+              <h2>日志河流</h2>
+              <p class="tag">横向日志 / 系统正在运行 / 叙事感强</p>
+              <p class="desc">更像 Justin OS 背后真的在跑任务。个性更明显，但需要压淡，否则用户会忍不住读背景文字。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="command-raster" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="veil raster" data-glyphs="raster"></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">C</div>
+            <div>
+              <h2>命令光栅</h2>
+              <p class="tag">规整网格 / 数字屏幕感 / 更冷静</p>
+              <p class="desc">更系统化，像屏幕上有一层低透明命令采样。比 B 更抽象，也更容易控制成精致背景。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="path-echo" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="veil pathmap">
+              <svg viewBox="0 0 800 450" aria-hidden="true">
+                <path d="M80 310 C178 196 268 232 348 132 S526 68 690 158" />
+                <path class="soft" d="M104 128 C210 88 280 170 368 194 S570 206 718 90" />
+                <path class="soft" d="M92 362 C230 330 316 382 444 312 S612 250 748 322" />
+                <line x1="160" y1="168" x2="304" y2="262" />
+                <line class="soft" x1="354" y1="142" x2="606" y2="286" />
+                <circle cx="160" cy="168" r="5" />
+                <circle cx="304" cy="262" r="4" />
+                <circle cx="354" cy="142" r="6" />
+                <circle cx="606" cy="286" r="5" />
+                <circle cx="686" cy="156" r="4" />
+                <text x="90" y="120">~/home</text>
+                <text x="176" y="158">/works</text>
+                <text x="318" y="254">design.skill</text>
+                <text x="368" y="132">component.lib</text>
+                <text x="608" y="276">life.system</text>
+                <text x="620" y="344">zhoust.cn</text>
+              </svg>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">D</div>
+            <div>
+              <h2>路径回声</h2>
+              <p class="tag">命令路径 / 节点线稿 / 更个人化</p>
+              <p class="desc">把终端字符变成 zhoust.cn 的目录路径和系统节点。它比纯字符更有结构，也更像你的个人桌面。</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const glyphPool = ["01", "02", "03", "~/", "cd", "ls", "run", "open", "home", "works", "mine", "kit", "zsh", "sys", "now", "log", "view", "OK", "src", "_", ">", "*"];
+      let seed = 71;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      }
+
+      function pick() {
+        return glyphPool[Math.floor(random() * glyphPool.length)];
+      }
+
+      document.querySelectorAll("[data-glyphs]").forEach((layer) => {
+        const mode = layer.dataset.glyphs;
+        const count = mode === "raster" ? 126 : 50;
+        for (let index = 0; index < count; index += 1) {
+          const span = document.createElement("span");
+          span.textContent = pick();
+          span.style.setProperty("--o", (0.1 + random() * (mode === "raster" ? 0.2 : 0.28)).toFixed(3));
+          span.style.setProperty("--s", `${(8 + random() * (mode === "raster" ? 3 : 6)).toFixed(1)}px`);
+          span.style.setProperty("--d", `${(3.5 + random() * 3.8).toFixed(2)}s`);
+          layer.append(span);
+        }
+      });
+
+      const root = document.documentElement;
+      let tx = 0;
+      let ty = 0;
+      let mx = 0;
+      let my = 0;
+
+      window.addEventListener("pointermove", (event) => {
+        tx = (event.clientX / window.innerWidth - 0.5) * 2;
+        ty = (event.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      function frame() {
+        mx += (tx - mx) * 0.07;
+        my += (ty - my) * 0.07;
+        root.style.setProperty("--mx", mx.toFixed(3));
+        root.style.setProperty("--my", my.toFixed(3));
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

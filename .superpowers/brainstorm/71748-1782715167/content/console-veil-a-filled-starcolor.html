@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>低语终端 A 填满版</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052d95;
+        --star: 255, 230, 106;
+        --paper: #f7f3ea;
+        --ink: #202635;
+        --mx: 0;
+        --my: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1420px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(900px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .shell {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background: linear-gradient(180deg, var(--blue), var(--deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .whisper {
+        position: absolute;
+        z-index: 8;
+        inset: -2.8%;
+        pointer-events: none;
+        transform: translate3d(calc(var(--mx) * -7px), calc(var(--my) * 5px), 0);
+        transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .whisper span {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        color: rgba(var(--star), var(--o));
+        font: 850 var(--s) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        filter: blur(var(--blur));
+        transform: translate(-50%, -50%) rotate(var(--r));
+        animation: blink var(--d) steps(1, end) infinite;
+        animation-delay: var(--delay);
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: rgb(var(--star));
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .note {
+        margin: 13px 0 0;
+        color: #667083;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      @keyframes blink {
+        0%,
+        70%,
+        100% {
+          opacity: 1;
+        }
+        71%,
+        82% {
+          opacity: 0.26;
+        }
+      }
+
+      @media (max-width: 940px) {
+        .top {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>低语终端 A：填满导航后方</h1>
+          <p class="sub">
+            按你圈出来的问题修：字符层铺满整个蓝色桌面，包含顶部菜单、下半区和 Dock 后面；只用星星金黄色，没有白色光、没有发光，只加一点模糊。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+
+      <section class="shell">
+        <div class="desktop">
+          <div class="whisper" data-glyphs></div>
+          <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+          <div class="icons">
+            <div class="icon"><span class="folder"></span><span>组件库</span></div>
+            <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+            <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+          </div>
+          <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+        </div>
+        <p class="note">这版保留上一版 A 的低语终端气质，只修分布、颜色和发光问题。移动鼠标时仍有轻微视差。</p>
+      </section>
+    </main>
+
+    <script>
+      const glyphPool = ["01", "02", "03", "~/", "cd", "ls", "run", "open", "home", "works", "mine", "kit", "zsh", "sys", "now", "log", "view", "OK", "src", "_", ">", "*"];
+      let seed = 191;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      }
+
+      function range(min, max) {
+        return min + (max - min) * random();
+      }
+
+      function pick() {
+        return glyphPool[Math.floor(random() * glyphPool.length)];
+      }
+
+      const layer = document.querySelector("[data-glyphs]");
+      const rows = 7;
+      const cols = 12;
+      const positions = [];
+
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          if ((row === 3 || row === 4) && col > 8 && col < 11) continue;
+          positions.push({
+            x: ((col + 0.5) / cols) * 100 + range(-1.8, 1.8),
+            y: ((row + 0.45) / rows) * 100 + range(-2.2, 2.2),
+          });
+        }
+      }
+
+      [
+        { x: -1.5, y: 4.5 },
+        { x: 101.5, y: 12 },
+        { x: 5, y: 101 },
+        { x: 38, y: 100.5 },
+        { x: 72, y: 100.8 },
+        { x: 95, y: 94 },
+      ].forEach((point) => positions.push(point));
+
+      positions.forEach((point, index) => {
+        const span = document.createElement("span");
+        span.textContent = pick();
+        span.style.setProperty("--x", `${point.x.toFixed(2)}%`);
+        span.style.setProperty("--y", `${point.y.toFixed(2)}%`);
+        span.style.setProperty("--o", range(0.1, index % 10 === 0 ? 0.28 : 0.22).toFixed(3));
+        span.style.setProperty("--s", `${range(8.5, index % 12 === 0 ? 14.5 : 12.2).toFixed(1)}px`);
+        span.style.setProperty("--r", `${range(-4, 4).toFixed(1)}deg`);
+        span.style.setProperty("--blur", `${range(0.15, 0.55).toFixed(2)}px`);
+        span.style.setProperty("--d", `${range(4.2, 8.2).toFixed(2)}s`);
+        span.style.setProperty("--delay", `${range(-8, 0).toFixed(2)}s`);
+        layer.append(span);
+      });
+
+      const root = document.documentElement;
+      let tx = 0;
+      let ty = 0;
+      let mx = 0;
+      let my = 0;
+
+      window.addEventListener("pointermove", (event) => {
+        tx = (event.clientX / window.innerWidth - 0.5) * 2;
+        ty = (event.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      function frame() {
+        mx += (tx - mx) * 0.07;
+        my += (ty - my) * 0.07;
+        root.style.setProperty("--mx", mx.toFixed(3));
+        root.style.setProperty("--my", my.toFixed(3));
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

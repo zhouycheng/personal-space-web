@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>zhoust.cn 萤火虫矩阵草图</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --blue-deep: #052d95;
+        --yellow: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #1f2635;
+        --flow-x: 0;
+        --flow-y: 0;
+        --angle: -18deg;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1440px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(820px, 100%);
+        margin: 12px 0 0;
+        color: #636b7b;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .hint {
+        margin: 0 0 16px;
+        border-left: 4px solid rgba(255, 218, 73, 0.75);
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.62);
+        color: #5c6372;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .card:hover,
+      .card.selected {
+        transform: translateY(-3px);
+        border-color: rgba(255, 207, 54, 0.8);
+        box-shadow: 0 28px 72px rgba(7, 53, 170, 0.16);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background:
+          radial-gradient(circle at calc(50% + var(--flow-x) * 10%) calc(50% + var(--flow-y) * 8%), rgba(255, 230, 106, 0.07), transparent 38%),
+          linear-gradient(180deg, var(--blue), var(--blue-deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -40px 90px rgba(0, 20, 82, 0.1);
+      }
+
+      .desktop::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: var(--grain, 0.16);
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / var(--grid, 64px) var(--grid, 64px),
+          linear-gradient(0deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / var(--grid, 64px) var(--grid, 64px);
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--yellow);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .matrix {
+        position: absolute;
+        z-index: 8;
+        inset: 0;
+        pointer-events: none;
+        transform:
+          translate3d(calc(var(--flow-x) * var(--drift-x, 12px)), calc(var(--flow-y) * var(--drift-y, 8px)), 0);
+        transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .firefly {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        width: var(--s, 4px);
+        height: var(--s, 4px);
+        border-radius: 999px;
+        opacity: var(--o, 0.38);
+        background: rgba(255, 230, 106, 0.9);
+        box-shadow:
+          0 0 calc(var(--s, 4px) * 2.2) rgba(255, 230, 106, 0.34),
+          0 0 calc(var(--s, 4px) * 5) rgba(255, 230, 106, 0.12);
+        transform:
+          translate(-50%, -50%)
+          translate3d(calc(var(--flow-x) * var(--push, 8px)), calc(var(--flow-y) * var(--push, 8px)), 0);
+        animation: breathe var(--dur, 4.4s) ease-in-out infinite;
+        animation-delay: var(--delay, 0s);
+      }
+
+      .firefly::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: 50%;
+        width: var(--tail, 24px);
+        height: var(--tail-h, 2px);
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, rgba(255, 230, 106, var(--tail-o, 0.2)));
+        filter: blur(var(--tail-blur, 0.4px));
+        transform:
+          translateY(-50%)
+          rotate(var(--angle))
+          scaleX(calc(1 + max(var(--flow-power), 0) * var(--tail-power, 0.55)));
+        transform-origin: right center;
+      }
+
+      .firefly::after {
+        content: "";
+        position: absolute;
+        inset: calc(var(--halo, -8px));
+        border-radius: inherit;
+        background: radial-gradient(circle, rgba(255, 230, 106, var(--halo-o, 0.11)), transparent 62%);
+      }
+
+      .card[data-choice="calm-field"] .matrix {
+        --drift-x: 7px;
+        --drift-y: 5px;
+      }
+
+      .card[data-choice="calm-field"] .desktop {
+        --grid: 82px;
+        --grain: 0.08;
+      }
+
+      .card[data-choice="wind-field"] .matrix {
+        --drift-x: 19px;
+        --drift-y: 13px;
+      }
+
+      .card[data-choice="wind-field"] .desktop {
+        --grid: 88px;
+        --grain: 0.05;
+      }
+
+      .card[data-choice="wake-field"] .matrix {
+        --drift-x: 10px;
+        --drift-y: 10px;
+      }
+
+      .card[data-choice="wake-field"] .desktop {
+        --grid: 58px;
+        --grain: 0.12;
+      }
+
+      .card[data-choice="deep-field"] .matrix {
+        --drift-x: 14px;
+        --drift-y: 9px;
+      }
+
+      .card[data-choice="deep-field"] .matrix.layer-back {
+        z-index: 6;
+        opacity: 0.62;
+        transform:
+          translate3d(calc(var(--flow-x) * -5px), calc(var(--flow-y) * -3px), 0)
+          scale(1.04);
+      }
+
+      .card[data-choice="deep-field"] .matrix.layer-front {
+        z-index: 10;
+        transform:
+          translate3d(calc(var(--flow-x) * 18px), calc(var(--flow-y) * 11px), 0);
+      }
+
+      .info {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 13px;
+        padding: 14px 1px 0;
+      }
+
+      .letter {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+        font: 900 16px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      .rec {
+        display: inline-block;
+        margin-left: 7px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(255, 230, 106, 0.38);
+        color: #835f00;
+        font: 850 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        vertical-align: 2px;
+      }
+
+      .tag {
+        margin: 6px 0 0;
+        color: #1b55bc;
+        font: 850 12px / 1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .desc {
+        margin: 8px 0 0;
+        color: #5f6676;
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          opacity: calc(var(--o, 0.38) * 0.6);
+        }
+        48% {
+          opacity: var(--o, 0.38);
+        }
+      }
+
+      @media (max-width: 940px) {
+        .top,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>萤火虫矩阵：跟随方向，不追着光标</h1>
+          <p class="sub">
+            这组草图都使用主题淡黄色和透明拖尾。移动鼠标时，整片背景会根据移动方向产生惯性偏移，光点仍铺满桌面，不会聚集到光标后面。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+      <p class="hint">建议你打开页面后在四张蓝色桌面上横向、斜向移动鼠标，感受每种拖尾的“风感”。点击你喜欢的一张即可。</p>
+
+      <section class="cards">
+        <article class="card option" data-choice="calm-field" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="matrix">
+              <span class="firefly" style="--x: 8%; --y: 18%; --s: 3px; --o: .22; --tail: 18px; --push: 3px; --delay: -.2s"></span>
+              <span class="firefly" style="--x: 18%; --y: 43%; --s: 4px; --o: .34; --tail: 22px; --push: 5px; --delay: -1.5s"></span>
+              <span class="firefly" style="--x: 29%; --y: 24%; --s: 3px; --o: .24; --tail: 16px; --push: 4px; --delay: -.7s"></span>
+              <span class="firefly" style="--x: 39%; --y: 66%; --s: 5px; --o: .38; --tail: 24px; --push: 6px; --delay: -2.1s"></span>
+              <span class="firefly" style="--x: 51%; --y: 34%; --s: 3px; --o: .26; --tail: 18px; --push: 4px; --delay: -.4s"></span>
+              <span class="firefly" style="--x: 60%; --y: 78%; --s: 4px; --o: .3; --tail: 20px; --push: 5px; --delay: -1.1s"></span>
+              <span class="firefly" style="--x: 73%; --y: 51%; --s: 3px; --o: .23; --tail: 16px; --push: 4px; --delay: -2.6s"></span>
+              <span class="firefly" style="--x: 86%; --y: 26%; --s: 4px; --o: .34; --tail: 22px; --push: 5px; --delay: -.9s"></span>
+              <span class="firefly" style="--x: 14%; --y: 77%; --s: 3px; --o: .2; --tail: 16px; --push: 3px; --delay: -1.8s"></span>
+              <span class="firefly" style="--x: 47%; --y: 12%; --s: 4px; --o: .31; --tail: 22px; --push: 4px; --delay: -2.4s"></span>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">A</div>
+            <div>
+              <h2>安静矩阵 <span class="rec">最稳</span></h2>
+              <p class="tag">低密度 / 短拖尾 / 透明度最低</p>
+              <p class="desc">最适合正式落地：像桌面背景有呼吸，但不会抢文件图标、Dock 和窗口。光标移动只改变整体风向，很克制。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="wind-field" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="matrix">
+              <span class="firefly" style="--x: 7%; --y: 22%; --s: 4px; --o: .3; --tail: 38px; --tail-o: .22; --push: 9px; --delay: -.1s"></span>
+              <span class="firefly" style="--x: 16%; --y: 67%; --s: 5px; --o: .42; --tail: 52px; --tail-o: .26; --push: 12px; --delay: -1.2s"></span>
+              <span class="firefly" style="--x: 28%; --y: 35%; --s: 3px; --o: .28; --tail: 34px; --tail-o: .2; --push: 10px; --delay: -2s"></span>
+              <span class="firefly" style="--x: 39%; --y: 16%; --s: 5px; --o: .4; --tail: 56px; --tail-o: .28; --push: 13px; --delay: -.8s"></span>
+              <span class="firefly" style="--x: 49%; --y: 72%; --s: 4px; --o: .33; --tail: 42px; --tail-o: .24; --push: 11px; --delay: -2.7s"></span>
+              <span class="firefly" style="--x: 61%; --y: 42%; --s: 5px; --o: .44; --tail: 58px; --tail-o: .26; --push: 14px; --delay: -1.7s"></span>
+              <span class="firefly" style="--x: 76%; --y: 20%; --s: 3px; --o: .24; --tail: 34px; --tail-o: .2; --push: 8px; --delay: -.5s"></span>
+              <span class="firefly" style="--x: 84%; --y: 65%; --s: 4px; --o: .36; --tail: 46px; --tail-o: .25; --push: 12px; --delay: -2.2s"></span>
+              <span class="firefly" style="--x: 91%; --y: 36%; --s: 3px; --o: .22; --tail: 30px; --tail-o: .18; --push: 8px; --delay: -1s"></span>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">B</div>
+            <div>
+              <h2>风场拖尾 <span class="rec">更有生命感</span></h2>
+              <p class="tag">中密度 / 长拖尾 / 方向感最明显</p>
+              <p class="desc">移动鼠标时像整片萤火虫被风吹动。它最接近你说的“跟随光标方向”，但动效参数要压住，避免桌面太热闹。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="wake-field" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="matrix">
+              <span class="firefly" style="--x: 9%; --y: 16%; --s: 3px; --o: .2; --tail: 18px; --tail-o: .15; --push: 6px; --delay: -.2s"></span>
+              <span class="firefly" style="--x: 18%; --y: 34%; --s: 4px; --o: .31; --tail: 26px; --tail-o: .2; --push: 8px; --delay: -1s"></span>
+              <span class="firefly" style="--x: 24%; --y: 59%; --s: 3px; --o: .25; --tail: 24px; --tail-o: .18; --push: 8px; --delay: -1.8s"></span>
+              <span class="firefly" style="--x: 35%; --y: 82%; --s: 5px; --o: .38; --tail: 34px; --tail-o: .22; --push: 10px; --delay: -.7s"></span>
+              <span class="firefly" style="--x: 45%; --y: 25%; --s: 4px; --o: .3; --tail: 28px; --tail-o: .19; --push: 8px; --delay: -2.3s"></span>
+              <span class="firefly" style="--x: 53%; --y: 54%; --s: 5px; --o: .42; --tail: 40px; --tail-o: .25; --push: 11px; --halo-o: .18; --delay: -1.4s"></span>
+              <span class="firefly" style="--x: 66%; --y: 75%; --s: 3px; --o: .23; --tail: 22px; --tail-o: .17; --push: 7px; --delay: -.4s"></span>
+              <span class="firefly" style="--x: 73%; --y: 33%; --s: 4px; --o: .35; --tail: 32px; --tail-o: .22; --push: 9px; --delay: -2.5s"></span>
+              <span class="firefly" style="--x: 86%; --y: 52%; --s: 3px; --o: .24; --tail: 24px; --tail-o: .17; --push: 7px; --delay: -1.2s"></span>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">C</div>
+            <div>
+              <h2>唤醒光场</h2>
+              <p class="tag">有网格感 / 局部更亮 / 像被鼠标唤醒</p>
+              <p class="desc">仍然铺满桌面，但中间区域会更像“被经过的方向点亮”。它更有交互反馈，代价是会比 A/B 更明显。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="deep-field" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="matrix layer-back">
+              <span class="firefly" style="--x: 6%; --y: 28%; --s: 2px; --o: .16; --tail: 22px; --push: 3px; --delay: -.2s"></span>
+              <span class="firefly" style="--x: 20%; --y: 62%; --s: 3px; --o: .2; --tail: 28px; --push: 4px; --delay: -1.8s"></span>
+              <span class="firefly" style="--x: 37%; --y: 15%; --s: 2px; --o: .16; --tail: 20px; --push: 3px; --delay: -1s"></span>
+              <span class="firefly" style="--x: 58%; --y: 38%; --s: 3px; --o: .2; --tail: 30px; --push: 4px; --delay: -2.5s"></span>
+              <span class="firefly" style="--x: 77%; --y: 76%; --s: 2px; --o: .17; --tail: 22px; --push: 3px; --delay: -.8s"></span>
+              <span class="firefly" style="--x: 91%; --y: 26%; --s: 3px; --o: .2; --tail: 26px; --push: 4px; --delay: -1.3s"></span>
+            </div>
+            <div class="matrix layer-front">
+              <span class="firefly" style="--x: 12%; --y: 46%; --s: 4px; --o: .3; --tail: 36px; --tail-o: .22; --push: 8px; --delay: -.5s"></span>
+              <span class="firefly" style="--x: 30%; --y: 78%; --s: 5px; --o: .36; --tail: 46px; --tail-o: .24; --push: 10px; --delay: -1.7s"></span>
+              <span class="firefly" style="--x: 49%; --y: 28%; --s: 4px; --o: .32; --tail: 38px; --tail-o: .23; --push: 9px; --delay: -2.2s"></span>
+              <span class="firefly" style="--x: 67%; --y: 58%; --s: 5px; --o: .38; --tail: 48px; --tail-o: .25; --push: 11px; --delay: -.9s"></span>
+              <span class="firefly" style="--x: 84%; --y: 43%; --s: 4px; --o: .28; --tail: 34px; --tail-o: .2; --push: 8px; --delay: -1.2s"></span>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">D</div>
+            <div>
+              <h2>分层萤火</h2>
+              <p class="tag">前后两层 / 轻微视差 / 空间感最好</p>
+              <p class="desc">远处小光点和近处拖尾反向缓动，像桌面有深度。最漂亮，但实现时要注意性能和移动端降级。</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const root = document.documentElement;
+      let targetX = 0;
+      let targetY = 0;
+      let flowX = 0;
+      let flowY = 0;
+      let lastX = window.innerWidth / 2;
+      let lastY = window.innerHeight / 2;
+      let lastMoveAt = performance.now();
+
+      window.addEventListener("pointermove", (event) => {
+        const dx = event.clientX - lastX;
+        const dy = event.clientY - lastY;
+        const distance = Math.hypot(dx, dy);
+        if (distance > 1) {
+          targetX = Math.max(-1, Math.min(1, dx / 80));
+          targetY = Math.max(-1, Math.min(1, dy / 80));
+          root.style.setProperty("--angle", `${Math.atan2(dy, dx) * 180 / Math.PI}deg`);
+          root.style.setProperty("--flow-power", String(Math.min(1, distance / 80)));
+        }
+        lastX = event.clientX;
+        lastY = event.clientY;
+        lastMoveAt = performance.now();
+      });
+
+      function tick(now) {
+        if (now - lastMoveAt > 520) {
+          targetX *= 0.94;
+          targetY *= 0.94;
+          root.style.setProperty("--flow-power", "0");
+        }
+
+        flowX += (targetX - flowX) * 0.08;
+        flowY += (targetY - flowY) * 0.08;
+        root.style.setProperty("--flow-x", flowX.toFixed(3));
+        root.style.setProperty("--flow-y", flowY.toFixed(3));
+        requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(tick);
+    </script>
+  </body>
+</html>

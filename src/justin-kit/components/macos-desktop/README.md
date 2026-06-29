@@ -44,6 +44,7 @@ public/os-desktop/
 - 显示设置持久化到 `justin-os-desktop-view-settings`。
 - 手动调整的窗口尺寸持久化到 `justin-os-window-sizes`。全屏框架和自动视口裁剪不会被保存。
 - 重叠的图标通过 FLIP 弹跳动画推开。
+- 背景挂载 `symbol-dome-background`，在图标、窗口和菜单下方绘制符号半球。
 - 组件监听以下事件：
   - `justin-os-desktop:clear-windows`：清除打开的窗口，不重置图标位置。
   - `justin-os-desktop:open-display-controls`：打开显示设置窗口。

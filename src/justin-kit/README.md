@@ -26,6 +26,7 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 - `cursor-reveal-hero`：旧首页遮罩/揭示英雄效果，现为独立 Astro 组件，带本地 CSS 和指针脚本。
 - `local-activity-status`：macOS 前台应用监控、Astro API 运行时、SSE 徽章、应用目录、TTL 存储和监听脚本。
 - `macos-desktop`：Justin OS 桌面图标层、递归桌面文件扫描器、macOS 风格窗口、图标拖拽、碰撞避免和显示控件。
+- `symbol-dome-background`：Justin OS 桌面背景的 Canvas 符号半球，替代原星星层，带单面右转、海洋闪动和轻微鼠标朝向。
 
 ## 计划中的目录条目
 

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>低语终端 A 修正版</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052d95;
+        --yellow: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #202635;
+        --mx: 0;
+        --my: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1420px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(880px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .hint {
+        margin: 0 0 16px;
+        border-left: 4px solid rgba(255, 218, 73, 0.75);
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.62);
+        color: #5c6372;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .mock-shell {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background:
+          radial-gradient(circle at calc(50% + var(--mx) * 7%) calc(48% + var(--my) * 6%), rgba(255, 230, 106, 0.052), transparent 38%),
+          linear-gradient(180deg, var(--blue), var(--deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .terminal-whisper {
+        position: absolute;
+        z-index: 8;
+        inset: -10%;
+        pointer-events: none;
+        transform: translate3d(calc(var(--mx) * -10px), calc(var(--my) * 7px), 0);
+        transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .terminal-whisper::after {
+        content: "";
+        position: absolute;
+        inset: 8%;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at 50% 50%, rgba(255, 230, 106, 0.036), transparent 55%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 24%, transparent 78%, rgba(255, 255, 255, 0.025));
+      }
+
+      .glyph {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        color: rgba(255, 230, 106, var(--o));
+        font: 850 var(--s) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 14px rgba(255, 230, 106, 0.19);
+        transform: translate(-50%, -50%) rotate(var(--r));
+        animation:
+          blink var(--blink) steps(1, end) infinite,
+          float var(--float) ease-in-out infinite;
+        animation-delay: var(--delay), calc(var(--delay) * 0.72);
+      }
+
+      .glyph.is-soft {
+        filter: blur(0.18px);
+        text-shadow: 0 0 18px rgba(255, 230, 106, 0.15);
+      }
+
+      .glyph.is-edge {
+        opacity: 0.82;
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--yellow);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.84);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+        backdrop-filter: blur(6px);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .notes {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 13px;
+      }
+
+      .note {
+        border: 1px solid rgba(26, 37, 64, 0.08);
+        border-radius: 8px;
+        padding: 13px 14px;
+        background: rgba(255, 255, 255, 0.64);
+      }
+
+      .note strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #173f9c;
+        font-size: 14px;
+      }
+
+      .note p {
+        margin: 0;
+        color: #667083;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      @keyframes blink {
+        0%,
+        72%,
+        100% {
+          opacity: 1;
+        }
+        73%,
+        84% {
+          opacity: 0.2;
+        }
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          translate: 0 0;
+        }
+        50% {
+          translate: var(--fx) var(--fy);
+        }
+      }
+
+      @media (max-width: 940px) {
+        .top,
+        .notes {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>低语终端 A：铺开版</h1>
+          <p class="sub">
+            按上一版 A 改：不做小簇、不做边界花活，只把字符均匀铺到整块屏幕，包含顶部菜单和 Dock 后方，同时保留一点屏幕外延伸。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+      <p class="hint">这一版不是新方向，是上一版 A 的修正稿。移动鼠标可以看轻微视差，字符不追光标，只像投影层在慢慢偏移。</p>
+
+      <section class="mock-shell">
+        <div class="desktop">
+          <div class="terminal-whisper" data-terminal-whisper></div>
+          <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+          <div class="icons">
+            <div class="icon"><span class="folder"></span><span>组件库</span></div>
+            <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+            <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+          </div>
+          <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+        </div>
+        <div class="notes">
+          <div class="note">
+            <strong>分布</strong>
+            <p>用均匀散布避免聚集，不再集中到某个区域，也不像网格排版。</p>
+          </div>
+          <div class="note">
+            <strong>层级</strong>
+            <p>背景从菜单和 Dock 后面穿过去，UI 是盖在投影层上。</p>
+          </div>
+          <div class="note">
+            <strong>屏幕外</strong>
+            <p>少量字符在边缘被裁切，让画面像外面还有连续内容。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const glyphs = ["~/", "cd", "ls", "run", "open", "home", "works", "mine", "kit", "zsh", "sys", "now", "log", "view", "OK", "src", "_", ">", "01", "02", "03", "init", "dock", "path"];
+      let seed = 293;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      }
+
+      function range(min, max) {
+        return min + (max - min) * random();
+      }
+
+      function pick() {
+        return glyphs[Math.floor(random() * glyphs.length)];
+      }
+
+      function distance(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      function makeDistributedPoints(count) {
+        const points = [];
+        const minDistance = 10.5;
+        let attempts = 0;
+
+        while (points.length < count && attempts < 5000) {
+          attempts += 1;
+          const point = {
+            x: range(-7, 107),
+            y: range(-8, 108),
+          };
+          const edge = point.x < 0 || point.x > 100 || point.y < 0 || point.y > 100;
+          const requiredDistance = edge ? minDistance * 0.72 : minDistance;
+          if (points.every((existing) => distance(point, existing) > requiredDistance)) {
+            points.push(point);
+          }
+        }
+
+        return points;
+      }
+
+      const layer = document.querySelector("[data-terminal-whisper]");
+      makeDistributedPoints(72).forEach((point, index) => {
+        const span = document.createElement("span");
+        span.className = "glyph";
+        if (index % 5 === 0) span.classList.add("is-soft");
+        if (point.x < 0 || point.x > 100 || point.y < 0 || point.y > 100) span.classList.add("is-edge");
+        span.textContent = pick();
+        span.style.setProperty("--x", `${point.x.toFixed(2)}%`);
+        span.style.setProperty("--y", `${point.y.toFixed(2)}%`);
+        span.style.setProperty("--o", range(0.09, index % 9 === 0 ? 0.32 : 0.25).toFixed(3));
+        span.style.setProperty("--s", `${range(8.2, index % 11 === 0 ? 15 : 12.6).toFixed(1)}px`);
+        span.style.setProperty("--r", `${range(-7, 7).toFixed(1)}deg`);
+        span.style.setProperty("--blink", `${range(4.2, 8.4).toFixed(2)}s`);
+        span.style.setProperty("--float", `${range(8, 14).toFixed(2)}s`);
+        span.style.setProperty("--delay", `${range(-8, 0).toFixed(2)}s`);
+        span.style.setProperty("--fx", `${range(-2.8, 2.8).toFixed(1)}px`);
+        span.style.setProperty("--fy", `${range(-3.4, 3.4).toFixed(1)}px`);
+        layer.append(span);
+      });
+
+      const root = document.documentElement;
+      let tx = 0;
+      let ty = 0;
+      let mx = 0;
+      let my = 0;
+
+      window.addEventListener("pointermove", (event) => {
+        tx = (event.clientX / window.innerWidth - 0.5) * 2;
+        ty = (event.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      function frame() {
+        mx += (tx - mx) * 0.07;
+        my += (ty - my) * 0.07;
+        root.style.setProperty("--mx", mx.toFixed(3));
+        root.style.setProperty("--my", my.toFixed(3));
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

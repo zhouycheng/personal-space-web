@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>符号半球轴向修正版</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052d95;
+        --star: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #202635;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1420px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(960px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .shell {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background: linear-gradient(180deg, var(--blue), var(--deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .dome-layer {
+        position: absolute;
+        z-index: 8;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .dome-layer canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        pointer-events: auto;
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--star);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .note {
+        margin: 13px 0 0;
+        color: #667083;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 940px) {
+        .top {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>符号半球：正面轴向 + 光标控速</h1>
+          <p class="sub">
+            半球保持正向面对。没有光标时很慢向右旋转；光标在左侧时向左、在右侧时向右，移动越快瞬时速度越明显。半球也比上一版更大。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+
+      <section class="shell">
+        <div class="desktop">
+          <div class="dome-layer">
+            <canvas data-symbol-dome aria-label="符号半球轴向修正版"></canvas>
+          </div>
+          <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+          <div class="icons">
+            <div class="icon"><span class="folder"></span><span>组件库</span></div>
+            <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+            <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+          </div>
+          <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+        </div>
+        <p class="note">建议测试：鼠标离开蓝色屏幕看默认慢速右转；进入屏幕后停在左/右侧看方向；快速横向移动看瞬时加速。</p>
+      </section>
+    </main>
+
+    <script>
+      const canvas = document.querySelector("[data-symbol-dome]");
+      const ctx = canvas.getContext("2d");
+      const glyphs = ["x", "*", "+", ">", "_", "~", "/", "0", "1", "3", "J", "O", "S", "z", "h", "c", "d", "run", "log", "sys", "kit"];
+      const points = [];
+      const star = { r: 255, g: 230, b: 106 };
+      let seed = 2028;
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let mouseX = 0;
+      let mouseY = 0;
+      let hasMouse = false;
+      let pointerSpeed = 0;
+      let lastPointerX = 0;
+      let lastPointerY = 0;
+      let lastPointerAt = 0;
+      let yaw = 0;
+      let angularVelocity = 0.028;
+      let lastFrameAt = 0;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      }
+
+      function pick() {
+        return glyphs[Math.floor(random() * glyphs.length)];
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = rect.width;
+        height = rect.height;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function makePoints() {
+        points.length = 0;
+        const rings = 43;
+        for (let ring = 0; ring < rings; ring += 1) {
+          const v = ring / (rings - 1);
+          const theta = v * Math.PI * 0.5;
+          const ringRadius = Math.sin(theta);
+          const y = Math.cos(theta);
+          const count = Math.max(14, Math.round(18 + ringRadius * 116));
+          for (let i = 0; i < count; i += 1) {
+            const phi = (i / count) * Math.PI * 2 + (ring % 2) * 0.035;
+            const noise = 0.985 + random() * 0.03;
+            points.push({
+              x: Math.cos(phi) * ringRadius * noise,
+              y: y * noise,
+              z: Math.sin(phi) * ringRadius * noise,
+              glyph: pick(),
+              base: 0.52 + random() * 0.48,
+              wobble: random() * Math.PI * 2,
+            });
+          }
+        }
+      }
+
+      function rotateY(point, angle) {
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        return {
+          x: point.x * c + point.z * s,
+          y: point.y,
+          z: -point.x * s + point.z * c,
+        };
+      }
+
+      function updatePointerSpeed(event, now) {
+        if (!lastPointerAt) {
+          lastPointerX = event.clientX;
+          lastPointerY = event.clientY;
+          lastPointerAt = now;
+          return;
+        }
+
+        const dt = Math.max(16, now - lastPointerAt);
+        const dx = event.clientX - lastPointerX;
+        const dy = event.clientY - lastPointerY;
+        const pxPerSecond = Math.hypot(dx, dy) / dt * 1000;
+        pointerSpeed = pointerSpeed * 0.58 + pxPerSecond * 0.42;
+        lastPointerX = event.clientX;
+        lastPointerY = event.clientY;
+        lastPointerAt = now;
+      }
+
+      function draw(now) {
+        const elapsed = lastFrameAt ? Math.min(0.05, (now - lastFrameAt) / 1000) : 0.016;
+        lastFrameAt = now;
+        ctx.clearRect(0, 0, width, height);
+
+        const domeRadius = Math.min(width * 0.37, height * 0.74);
+        const cx = width * 0.5;
+        const cy = height * 1.12;
+        const domeTop = cy - domeRadius * 0.92;
+        const domeDistance = Math.hypot((mouseX - cx) / domeRadius, (mouseY - cy) / (domeRadius * 0.9));
+        const mouseInDome = hasMouse && mouseY > domeTop - 36 && domeDistance < 1.1;
+
+        let targetVelocity = 0.028;
+        if (hasMouse) {
+          const side = clamp((mouseX - cx) / (domeRadius * 0.82), -1, 1);
+          const speedBoost = clamp(pointerSpeed / 2600, 0, 0.11);
+          targetVelocity = side * (0.018 + speedBoost);
+        }
+
+        pointerSpeed *= 0.94;
+        angularVelocity += (targetVelocity - angularVelocity) * 0.055;
+        yaw += angularVelocity * elapsed;
+
+        const prepared = [];
+        const globalLean = hasMouse ? clamp((mouseX - cx) / (domeRadius * 2.2), -0.11, 0.11) : 0;
+
+        for (const point of points) {
+          let p = rotateY(point, yaw + globalLean);
+
+          const depth = (p.z + 1) / 2;
+          const perspective = 0.78 + depth * 0.28;
+          const screenX = cx + p.x * domeRadius * perspective;
+          const screenY = cy - p.y * domeRadius * 0.92 * perspective;
+          if (screenY < -28 || screenY > height + 28 || screenX < -34 || screenX > width + 34) continue;
+
+          const distanceToMouse = Math.hypot(screenX - mouseX, screenY - mouseY);
+          const mouseEffect = mouseInDome ? Math.max(0, 1 - distanceToMouse / 126) : 0;
+          const sizeBase = 7.8 + depth * 3.3 + Math.sin(now * 0.00045 + point.wobble) * 0.18;
+          const size = sizeBase * (1 - mouseEffect * 0.46);
+          const alpha = (0.1 + depth * 0.31) * point.base * (1 - mouseEffect * 0.66);
+          const blur = 0.12 + (1 - depth) * 0.5 + mouseEffect * 0.75;
+
+          prepared.push({
+            x: screenX,
+            y: screenY,
+            z: p.z,
+            glyph: point.glyph,
+            size,
+            alpha,
+            blur,
+          });
+        }
+
+        prepared.sort((a, b) => a.z - b.z);
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (const item of prepared) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0.02, item.alpha);
+          ctx.fillStyle = `rgb(${star.r}, ${star.g}, ${star.b})`;
+          ctx.filter = `blur(${item.blur.toFixed(2)}px)`;
+          ctx.font = `800 ${item.size.toFixed(1)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+          ctx.fillText(item.glyph, item.x, item.y);
+          ctx.restore();
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      canvas.addEventListener("pointermove", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = event.clientX - rect.left;
+        mouseY = event.clientY - rect.top;
+        hasMouse = true;
+        updatePointerSpeed(event, performance.now());
+      });
+
+      canvas.addEventListener("pointerenter", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = event.clientX - rect.left;
+        mouseY = event.clientY - rect.top;
+        hasMouse = true;
+        lastPointerX = event.clientX;
+        lastPointerY = event.clientY;
+        lastPointerAt = performance.now();
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        hasMouse = false;
+        pointerSpeed = 0;
+        lastPointerAt = 0;
+      });
+
+      window.addEventListener("resize", resize);
+      resize();
+      makePoints();
+      requestAnimationFrame(draw);
+    </script>
+  </body>
+</html>

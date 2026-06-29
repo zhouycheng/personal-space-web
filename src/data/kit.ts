@@ -10,7 +10,7 @@ export type KitItem = {
   sourcePath: string;
   preview: {
     label: string;
-    kind: "cursor-reveal" | "activity-status" | "design-system" | "flutter-card";
+    kind: "cursor-reveal" | "activity-status" | "symbol-dome" | "design-system" | "flutter-card";
   };
 };
 
@@ -46,6 +46,19 @@ export const KIT_ITEMS: KitItem[] = [
     preview: {
       label: "查看状态",
       kind: "activity-status",
+    },
+  },
+  {
+    id: "symbol-dome-background",
+    category: "JS Motion",
+    title: "Symbol Dome Background",
+    summary: "Justin OS 桌面背景的单面符号半球，使用 %、x 和 # 采样点缓慢右转。",
+    status: "extracted",
+    tags: ["canvas", "background", "motion"],
+    sourcePath: "src/justin-kit/components/symbol-dome-background",
+    preview: {
+      label: "查看半球",
+      kind: "symbol-dome",
     },
   },
   {

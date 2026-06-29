@@ -20,53 +20,10 @@
   pointer-events: auto;
 }
 
-.macos-starfield,
 .macos-desktop-icons,
 .macos-window-layer {
   position: absolute;
   inset: 0;
-}
-
-.macos-starfield {
-  z-index: 1;
-  pointer-events: none;
-}
-
-.macos-star {
-  position: absolute;
-  left: var(--star-x);
-  top: var(--star-y);
-  width: 1rem;
-  height: 1rem;
-  opacity: 0.62;
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: #ffe66a;
-  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
-  filter: drop-shadow(0 0.12rem 0.25rem rgba(4, 42, 125, 0.18));
-}
-
-.macos-star--tiny {
-  width: 0.48rem;
-  height: 0.48rem;
-  opacity: 0.28;
-}
-
-.macos-star--small {
-  width: 0.72rem;
-  height: 0.72rem;
-  opacity: 0.5;
-}
-
-.macos-star--medium {
-  width: 1rem;
-  height: 1rem;
-  opacity: 0.58;
-}
-
-.macos-star--large {
-  width: 1.45rem;
-  height: 1.45rem;
-  opacity: 0.65;
 }
 
 .macos-desktop-icons {

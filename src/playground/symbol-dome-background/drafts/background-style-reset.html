@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>zhoust.cn 背景风格重置</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --blue-2: #052d95;
+        --yellow: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #202635;
+        --mx: 0;
+        --my: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1440px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(840px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .hint {
+        margin: 0 0 16px;
+        border-left: 4px solid rgba(255, 218, 73, 0.75);
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.62);
+        color: #5c6372;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .card:hover,
+      .card.selected {
+        transform: translateY(-3px);
+        border-color: rgba(255, 207, 54, 0.8);
+        box-shadow: 0 28px 72px rgba(7, 53, 170, 0.16);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background: linear-gradient(180deg, var(--blue), var(--blue-2));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--yellow);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .contours svg,
+      .blueprint svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .contours {
+        opacity: 0.56;
+        transform: translate3d(calc(var(--mx) * 12px), calc(var(--my) * 8px), 0);
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .contours path {
+        fill: none;
+        stroke: rgba(255, 230, 106, 0.34);
+        stroke-width: 1.2;
+        stroke-linecap: round;
+      }
+
+      .contours path:nth-child(2n) {
+        stroke: rgba(255, 255, 255, 0.14);
+      }
+
+      .console {
+        padding: 42px 44px;
+        opacity: 0.6;
+        display: grid;
+        grid-template-columns: repeat(14, 1fr);
+        gap: 11px 18px;
+        transform: translate3d(calc(var(--mx) * -9px), calc(var(--my) * 7px), 0);
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .console span {
+        color: rgba(255, 230, 106, var(--o, 0.28));
+        font: 850 var(--s, 11px) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 14px rgba(255, 230, 106, 0.22);
+        animation: blink var(--d, 4s) steps(1, end) infinite;
+      }
+
+      .wave {
+        opacity: 0.72;
+        background:
+          repeating-radial-gradient(
+            ellipse at calc(50% + var(--mx) * 10%) calc(48% + var(--my) * 8%),
+            rgba(255, 230, 106, 0.2) 0,
+            rgba(255, 230, 106, 0.2) 1px,
+            transparent 1px,
+            transparent 18px
+          );
+        mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+        transform: rotate(-7deg) scale(1.12);
+        animation: wave-shift 8s linear infinite;
+      }
+
+      .wave::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          repeating-linear-gradient(
+            104deg,
+            rgba(255, 255, 255, 0.08) 0,
+            rgba(255, 255, 255, 0.08) 1px,
+            transparent 1px,
+            transparent 18px
+          );
+        opacity: 0.42;
+      }
+
+      .blueprint {
+        opacity: 0.62;
+        transform: translate3d(calc(var(--mx) * 7px), calc(var(--my) * 7px), 0);
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .blueprint line,
+      .blueprint rect,
+      .blueprint circle,
+      .blueprint path {
+        fill: none;
+        stroke: rgba(255, 230, 106, 0.3);
+        stroke-width: 1;
+      }
+
+      .blueprint .white {
+        stroke: rgba(255, 255, 255, 0.13);
+      }
+
+      .blueprint text {
+        fill: rgba(255, 230, 106, 0.4);
+        font: 700 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.9);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .info {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 13px;
+        padding: 14px 1px 0;
+      }
+
+      .letter {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+        font: 900 16px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      .rec {
+        display: inline-block;
+        margin-left: 7px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(255, 230, 106, 0.38);
+        color: #835f00;
+        font: 850 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        vertical-align: 2px;
+      }
+
+      .tag {
+        margin: 6px 0 0;
+        color: #1b55bc;
+        font: 850 12px / 1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .desc {
+        margin: 8px 0 0;
+        color: #5f6676;
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      @keyframes blink {
+        0%,
+        64%,
+        100% {
+          opacity: 1;
+        }
+        65%,
+        76% {
+          opacity: 0.2;
+        }
+      }
+
+      @keyframes wave-shift {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          background-position: 36px 18px;
+        }
+      }
+
+      @media (max-width: 940px) {
+        .top,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>换风格：不走星星/萤火虫路线</h1>
+          <p class="sub">
+            这次直接换背景母题，不再堆散点。每个方向都保持 Justin OS 的蓝底和淡黄色主题色，但视觉记忆点更明确。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+      <p class="hint">移动鼠标会有轻微视差。先不用看实现难度，先判断哪个“像你的个人 OS 桌面”。</p>
+
+      <section class="cards">
+        <article class="card option" data-choice="contour-system" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="layer contours">
+              <svg viewBox="0 0 800 450" aria-hidden="true">
+                <path d="M-30 104 C82 42 150 142 264 95 S452 27 584 92 740 160 836 87" />
+                <path d="M-40 154 C70 88 158 190 278 142 S454 78 590 139 738 212 842 141" />
+                <path d="M-30 212 C92 145 164 255 296 199 S482 124 625 188 736 270 842 206" />
+                <path d="M-38 274 C88 208 181 318 312 260 S506 189 642 249 758 332 842 268" />
+                <path d="M-28 342 C92 279 192 382 335 330 S510 250 666 317 760 391 840 334" />
+                <path d="M78 18 C128 74 125 128 184 166 S292 170 340 234 438 298 530 262 650 232 724 298" />
+                <path d="M132 420 C202 350 234 288 316 288 S420 362 506 320 598 205 710 176" />
+              </svg>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">A</div>
+            <div>
+              <h2>系统等高线 <span class="rec">我推荐</span></h2>
+              <p class="tag">线稿 / 地形图 / 安静但有记忆点</p>
+              <p class="desc">像把“人生系统”做成地图。它不散、不花，也比普通星空更像个人 OS，适合作为长期背景。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="console-veil" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="layer console" aria-hidden="true">
+              <span style="--o:.18;--s:10px;--d:4.1s">01</span><span style="--o:.28;--s:12px;--d:5.4s">~/</span><span style="--o:.14;--s:9px;--d:3.6s">init</span><span style="--o:.34;--s:13px;--d:4.8s">&gt;</span><span style="--o:.16;--s:10px;--d:5.9s">map</span><span style="--o:.22;--s:11px;--d:3.8s">03</span><span style="--o:.12;--s:9px;--d:5.1s">sys</span><span style="--o:.3;--s:12px;--d:4.5s">_</span><span style="--o:.2;--s:10px;--d:5.8s">os</span><span style="--o:.16;--s:9px;--d:4s">now</span><span style="--o:.26;--s:12px;--d:5s">{}</span><span style="--o:.14;--s:10px;--d:4.3s">log</span><span style="--o:.22;--s:11px;--d:5.7s">02</span><span style="--o:.18;--s:10px;--d:3.9s">run</span>
+              <span style="--o:.13;--s:9px;--d:5.5s">kit</span><span style="--o:.31;--s:13px;--d:4.6s">*</span><span style="--o:.18;--s:10px;--d:5.2s">life</span><span style="--o:.2;--s:10px;--d:3.7s">view</span><span style="--o:.27;--s:12px;--d:4.9s">cd</span><span style="--o:.13;--s:9px;--d:5.8s">mine</span><span style="--o:.24;--s:11px;--d:4.2s">01</span><span style="--o:.15;--s:10px;--d:5.6s">open</span><span style="--o:.28;--s:12px;--d:3.8s">zsh</span><span style="--o:.12;--s:9px;--d:5.1s">note</span><span style="--o:.2;--s:10px;--d:4.4s">path</span><span style="--o:.16;--s:9px;--d:5.5s">mem</span><span style="--o:.26;--s:12px;--d:4.7s">OK</span><span style="--o:.14;--s:10px;--d:5.9s">io</span>
+              <span style="--o:.2;--s:10px;--d:4.2s">dock</span><span style="--o:.12;--s:9px;--d:5.4s">usr</span><span style="--o:.29;--s:12px;--d:3.9s">&gt;</span><span style="--o:.17;--s:10px;--d:5.7s">flow</span><span style="--o:.22;--s:11px;--d:4.8s">home</span><span style="--o:.15;--s:9px;--d:5.6s">src</span><span style="--o:.3;--s:13px;--d:4s">_</span><span style="--o:.18;--s:10px;--d:5.2s">web</span><span style="--o:.21;--s:10px;--d:4.6s">build</span><span style="--o:.13;--s:9px;--d:5.8s">art</span><span style="--o:.25;--s:12px;--d:3.8s">OS</span><span style="--o:.14;--s:9px;--d:4.9s">go</span><span style="--o:.19;--s:10px;--d:5.3s">now</span><span style="--o:.12;--s:9px;--d:4.5s">log</span>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">B</div>
+            <div>
+              <h2>终端光幕</h2>
+              <p class="tag">字符碎片 / 启动页呼应 / 更数字化</p>
+              <p class="desc">把背景变成很淡的命令行余光。个性强，跟首页 zsh 最顺，但要控制密度，否则会像装饰文字墙。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="moire-waves" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="layer wave" aria-hidden="true"></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">C</div>
+            <div>
+              <h2>屏幕波纹</h2>
+              <p class="tag">CRT / 扫描波 / 光标扰动</p>
+              <p class="desc">像 Justin OS 投影本身是一块发光屏幕，背景不是图案而是“屏幕介质”。动效会更高级，但容易偏冷。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option" data-choice="coordinate-blueprint" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="layer blueprint">
+              <svg viewBox="0 0 800 450" aria-hidden="true">
+                <line class="white" x1="80" y1="0" x2="80" y2="450" />
+                <line class="white" x1="220" y1="0" x2="220" y2="450" />
+                <line class="white" x1="360" y1="0" x2="360" y2="450" />
+                <line class="white" x1="500" y1="0" x2="500" y2="450" />
+                <line class="white" x1="640" y1="0" x2="640" y2="450" />
+                <line class="white" x1="0" y1="82" x2="800" y2="82" />
+                <line class="white" x1="0" y1="178" x2="800" y2="178" />
+                <line class="white" x1="0" y1="274" x2="800" y2="274" />
+                <line class="white" x1="0" y1="370" x2="800" y2="370" />
+                <circle cx="170" cy="130" r="34" />
+                <circle cx="170" cy="130" r="70" class="white" />
+                <rect x="296" y="91" width="138" height="72" rx="12" />
+                <path d="M434 127 C498 92 545 183 612 141 S730 116 770 168" />
+                <rect x="165" y="278" width="210" height="70" rx="14" />
+                <circle cx="550" cy="304" r="48" />
+                <path d="M130 330 L270 116 L550 304 L706 112" class="white" />
+                <text x="92" y="68">HOME_VECTOR</text>
+                <text x="306" y="82">WORKS_CLUSTER</text>
+                <text x="496" y="368">MINE_ARCHIVE</text>
+              </svg>
+            </div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">D</div>
+            <div>
+              <h2>坐标蓝图</h2>
+              <p class="tag">网格 / 框选 / 个人系统架构图</p>
+              <p class="desc">最像“工作台”和“控制台”。如果你想让桌面更理性、更产品化，这个方向会比光点类稳很多。</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const root = document.documentElement;
+      let tx = 0;
+      let ty = 0;
+      let mx = 0;
+      let my = 0;
+
+      window.addEventListener("pointermove", (event) => {
+        tx = (event.clientX / window.innerWidth - 0.5) * 2;
+        ty = (event.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      function frame() {
+        mx += (tx - mx) * 0.07;
+        my += (ty - my) * 0.07;
+        root.style.setProperty("--mx", mx.toFixed(3));
+        root.style.setProperty("--my", my.toFixed(3));
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

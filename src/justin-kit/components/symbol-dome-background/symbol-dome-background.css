@@ -1,0 +1,22 @@
+.jk-symbol-dome-background {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+.jk-symbol-dome-background canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.98;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jk-symbol-dome-background canvas {
+    opacity: 0.82;
+  }
+}

@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>低语终端散布版</title>
+    <style>
+      :root {
+        --blue: #0735aa;
+        --deep: #052d95;
+        --yellow: #ffe66a;
+        --paper: #f7f3ea;
+        --ink: #202635;
+        --mx: 0;
+        --my: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        width: min(1440px, calc(100vw - 42px));
+        margin: 0 auto;
+        padding: 30px 0 44px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .sub {
+        width: min(880px, 100%);
+        margin: 12px 0 0;
+        color: #626a7a;
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .domain {
+        border: 1px solid rgba(7, 53, 170, 0.16);
+        border-radius: 999px;
+        padding: 11px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #164fae;
+        font: 850 13px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 12px 32px rgba(28, 38, 65, 0.08);
+      }
+
+      .hint {
+        margin: 0 0 16px;
+        border-left: 4px solid rgba(255, 218, 73, 0.75);
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.62);
+        color: #5c6372;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid rgba(26, 37, 64, 0.12);
+        border-radius: 8px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 20px 54px rgba(24, 35, 62, 0.09);
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .card:hover,
+      .card.selected {
+        transform: translateY(-3px);
+        border-color: rgba(255, 207, 54, 0.8);
+        box-shadow: 0 28px 72px rgba(7, 53, 170, 0.16);
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 7px;
+        background:
+          radial-gradient(circle at calc(54% + var(--mx) * 7%) calc(43% + var(--my) * 6%), rgba(255, 230, 106, 0.055), transparent 35%),
+          linear-gradient(180deg, var(--blue), var(--deep));
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+          inset 0 -42px 94px rgba(0, 20, 82, 0.1);
+      }
+
+      .veil {
+        position: absolute;
+        z-index: 8;
+        inset: -16%;
+        pointer-events: none;
+        transform: translate3d(calc(var(--mx) * var(--drift-x)), calc(var(--my) * var(--drift-y)), 0);
+        transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .veil::after {
+        content: "";
+        position: absolute;
+        inset: 12%;
+        border-radius: 50%;
+        background: radial-gradient(ellipse at 48% 48%, rgba(255, 230, 106, 0.045), transparent 60%);
+        transform: scale(1.15);
+      }
+
+      .glyph {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        color: rgba(255, 230, 106, var(--o));
+        font: 850 var(--s) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 14px rgba(255, 230, 106, 0.2);
+        transform: rotate(var(--r));
+        animation:
+          blink var(--blink) steps(1, end) infinite,
+          breathe var(--float) ease-in-out infinite;
+        animation-delay: var(--delay), calc(var(--delay) * 0.7);
+      }
+
+      .cluster {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        display: grid;
+        gap: 9px;
+        color: rgba(255, 230, 106, var(--o));
+        font: 850 var(--s) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 0 14px rgba(255, 230, 106, 0.22);
+        transform: rotate(var(--r));
+        opacity: 0.78;
+      }
+
+      .cluster span {
+        animation: blink var(--blink) steps(1, end) infinite;
+      }
+
+      .variant-scatter .veil {
+        --drift-x: -10px;
+        --drift-y: 7px;
+      }
+
+      .variant-edge .veil {
+        --drift-x: 12px;
+        --drift-y: -8px;
+      }
+
+      .variant-edge .veil {
+        opacity: 0.9;
+      }
+
+      .variant-depth .veil-back {
+        --drift-x: -5px;
+        --drift-y: 4px;
+        opacity: 0.5;
+        filter: blur(0.25px);
+        transform:
+          translate3d(calc(var(--mx) * -5px), calc(var(--my) * 4px), 0)
+          scale(1.04);
+      }
+
+      .variant-depth .veil-front {
+        --drift-x: 15px;
+        --drift-y: -10px;
+        z-index: 9;
+      }
+
+      .variant-path .veil {
+        --drift-x: 9px;
+        --drift-y: 7px;
+      }
+
+      .pathline {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        width: var(--w);
+        height: 1px;
+        background: linear-gradient(90deg, rgba(255, 230, 106, 0.28), transparent);
+        transform: rotate(var(--r));
+        opacity: 0.55;
+      }
+
+      .pathline::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: -3px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: rgba(255, 230, 106, 0.44);
+        box-shadow: 0 0 16px rgba(255, 230, 106, 0.2);
+      }
+
+      .menu {
+        position: absolute;
+        z-index: 30;
+        inset: 0 0 auto;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 17px;
+        color: rgba(236, 244, 255, 0.7);
+        font: 750 10px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-shadow: 0 1px 8px rgba(0, 26, 91, 0.28);
+      }
+
+      .menu strong {
+        color: var(--yellow);
+        font-family: "Brush Script MT", cursive;
+        font-size: 15px;
+      }
+
+      .icons {
+        position: absolute;
+        z-index: 24;
+        top: 41px;
+        right: 23px;
+        display: grid;
+        gap: 19px;
+        color: #fff;
+        font: 720 9px / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        text-align: center;
+        text-shadow: 0 1px 4px rgba(0, 26, 91, 0.28);
+      }
+
+      .icon {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .folder,
+      .file {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+      }
+
+      .folder {
+        background: linear-gradient(180deg, #ffe879, #ffda4f);
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.22);
+      }
+
+      .file {
+        display: grid;
+        place-items: end center;
+        border: 3px solid #b8d9ff;
+        background: #fff;
+        box-shadow: 0 8px 13px rgba(0, 29, 92, 0.18);
+      }
+
+      .file span {
+        margin-bottom: 5px;
+        border-radius: 4px;
+        padding: 2px 4px;
+        background: #1b63be;
+        color: #fff;
+        font-size: 7px;
+      }
+
+      .dock {
+        position: absolute;
+        z-index: 32;
+        left: 50%;
+        bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 93px);
+        height: 38px;
+        border-radius: 999px;
+        padding: 5px;
+        background: rgba(248, 249, 255, 0.84);
+        box-shadow: 0 16px 42px rgba(0, 20, 86, 0.22);
+        transform: translateX(-50%);
+        backdrop-filter: blur(6px);
+      }
+
+      .dock span {
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: rgba(38, 45, 69, 0.45);
+        font: 900 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .dock span:first-child {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .info {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 13px;
+        padding: 14px 1px 0;
+      }
+
+      .letter {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+        font: 900 16px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      .rec {
+        display: inline-block;
+        margin-left: 7px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(255, 230, 106, 0.38);
+        color: #835f00;
+        font: 850 11px / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        vertical-align: 2px;
+      }
+
+      .tag {
+        margin: 6px 0 0;
+        color: #1b55bc;
+        font: 850 12px / 1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .desc {
+        margin: 8px 0 0;
+        color: #5f6676;
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      @keyframes blink {
+        0%,
+        68%,
+        100% {
+          opacity: 1;
+        }
+        69%,
+        82% {
+          opacity: 0.16;
+        }
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          translate: 0 0;
+        }
+        50% {
+          translate: var(--fx) var(--fy);
+        }
+      }
+
+      @media (max-width: 940px) {
+        .top,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        .domain {
+          justify-self: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>低语终端：散开、溢出、覆盖整屏</h1>
+          <p class="sub">
+            这版保留你喜欢的 A，但去掉整齐网格。字符从屏幕外延伸进来，背景铺满菜单栏和 Dock 后方，像整块投影屏背后都有终端残影。
+          </p>
+        </div>
+        <div class="domain">zhoust.cn / Justin OS</div>
+      </div>
+      <p class="hint">移动鼠标看轻微视差。重点看：哪种“散”的方式更舒服，哪种最像真实桌面背景。</p>
+
+      <section class="cards">
+        <article class="card option variant-scatter" data-choice="scattered-whisper" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="veil" data-mode="scatter" data-count="58"></div>
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">A</div>
+            <div>
+              <h2>散落低语 <span class="rec">推荐</span></h2>
+              <p class="tag">随机散布 / 全屏覆盖 / 最接近你要的 A</p>
+              <p class="desc">字符不再排队，而是像终端输出被投影打散。顶部和底部都有，边缘有被裁切的内容，屏幕外延伸感最自然。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option variant-edge" data-choice="edge-overflow" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="veil" data-mode="edge" data-count="62"></div>
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">B</div>
+            <div>
+              <h2>边界溢出</h2>
+              <p class="tag">边缘更密 / 中央留白 / 屏幕外感最强</p>
+              <p class="desc">让字符主要从四周渗进来，中间留给桌面图标和窗口。它很有“画面外还有系统”的感觉，但中心会更安静。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option variant-depth" data-choice="depth-whisper" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="veil veil-back" data-mode="scatter" data-count="46"></div>
+            <div class="veil veil-front" data-mode="scatter" data-count="34"></div>
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">C</div>
+            <div>
+              <h2>分层低语</h2>
+              <p class="tag">前后层 / 轻微景深 / 更像屏幕空间</p>
+              <p class="desc">一层更远更虚，一层更近更清。比 A 更有空间感，但实现会比单层稍复杂，移动端需要减少数量。</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card option variant-path" data-choice="scattered-paths" onclick="window.toggleSelect?.(this)">
+          <div class="desktop">
+            <div class="veil" data-mode="paths" data-count="42"></div>
+            <div class="menu"><strong>Justin OS</strong><span>14:34</span></div>
+            <div class="icons">
+              <div class="icon"><span class="folder"></span><span>组件库</span></div>
+              <div class="icon"><span class="folder"></span><span>Design Skill</span></div>
+              <div class="icon"><span class="file"><span>.md</span></span><span>人生系统</span></div>
+            </div>
+            <div class="dock"><span>01 首页</span><span>02 作品集</span><span>03 我的</span></div>
+          </div>
+          <div class="info">
+            <div class="letter">D</div>
+            <div>
+              <h2>散点路径</h2>
+              <p class="tag">字符 + 微弱连线 / 更个人系统化</p>
+              <p class="desc">在散布字符里加极少量路径线，让它不像纯装饰，更像 zhoust.cn 的目录和节点漂在屏幕后面。</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const glyphs = ["~/", "cd", "ls", "run", "open", "home", "works", "mine", "kit", "zsh", "sys", "now", "log", "view", "OK", "src", "_", ">", "01", "02", "03", "zhoust", "init", "dock"];
+      let seed = 173;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      }
+
+      function range(min, max) {
+        return min + (max - min) * random();
+      }
+
+      function pick() {
+        return glyphs[Math.floor(random() * glyphs.length)];
+      }
+
+      function setGlyphStyle(span, mode, index) {
+        const edge = mode === "edge";
+        let x = range(-12, 112);
+        let y = range(-14, 114);
+
+        if (edge) {
+          const side = Math.floor(random() * 4);
+          if (side === 0) y = range(-15, 12);
+          if (side === 1) x = range(88, 115);
+          if (side === 2) y = range(84, 116);
+          if (side === 3) x = range(-15, 14);
+        }
+
+        span.style.setProperty("--x", `${x.toFixed(2)}%`);
+        span.style.setProperty("--y", `${y.toFixed(2)}%`);
+        span.style.setProperty("--o", range(edge ? 0.12 : 0.1, edge ? 0.34 : 0.3).toFixed(3));
+        span.style.setProperty("--s", `${range(8, edge ? 16 : 14).toFixed(1)}px`);
+        span.style.setProperty("--r", `${range(-12, 12).toFixed(1)}deg`);
+        span.style.setProperty("--blink", `${range(3.8, 7.8).toFixed(2)}s`);
+        span.style.setProperty("--float", `${range(6.8, 12).toFixed(2)}s`);
+        span.style.setProperty("--delay", `${range(-8, 0).toFixed(2)}s`);
+        span.style.setProperty("--fx", `${range(-4, 4).toFixed(1)}px`);
+        span.style.setProperty("--fy", `${range(-5, 5).toFixed(1)}px`);
+
+        if (mode === "paths" && index % 7 === 0) {
+          span.style.setProperty("--o", range(0.22, 0.42).toFixed(3));
+        }
+      }
+
+      document.querySelectorAll("[data-mode]").forEach((veil) => {
+        const mode = veil.dataset.mode || "scatter";
+        const count = Number(veil.dataset.count || 52);
+
+        for (let index = 0; index < count; index += 1) {
+          if (mode === "paths" && index % 6 === 0) {
+            const line = document.createElement("span");
+            line.className = "pathline";
+            line.style.setProperty("--x", `${range(-8, 100).toFixed(2)}%`);
+            line.style.setProperty("--y", `${range(-8, 104).toFixed(2)}%`);
+            line.style.setProperty("--w", `${range(48, 140).toFixed(1)}px`);
+            line.style.setProperty("--r", `${range(-34, 34).toFixed(1)}deg`);
+            veil.append(line);
+          }
+
+          if (mode === "scatter" && index % 13 === 0) {
+            const cluster = document.createElement("span");
+            cluster.className = "cluster";
+            cluster.style.setProperty("--x", `${range(-8, 105).toFixed(2)}%`);
+            cluster.style.setProperty("--y", `${range(-8, 105).toFixed(2)}%`);
+            cluster.style.setProperty("--o", range(0.12, 0.28).toFixed(3));
+            cluster.style.setProperty("--s", `${range(8, 11.5).toFixed(1)}px`);
+            cluster.style.setProperty("--r", `${range(-8, 8).toFixed(1)}deg`);
+            cluster.style.setProperty("--blink", `${range(4.4, 8).toFixed(2)}s`);
+            const a = document.createElement("span");
+            const b = document.createElement("span");
+            a.textContent = `${pick()} ${pick()}`;
+            b.textContent = `${pick()} --${pick()}`;
+            cluster.append(a, b);
+            veil.append(cluster);
+            continue;
+          }
+
+          const span = document.createElement("span");
+          span.className = "glyph";
+          span.textContent = pick();
+          setGlyphStyle(span, mode, index);
+          veil.append(span);
+        }
+      });
+
+      const root = document.documentElement;
+      let tx = 0;
+      let ty = 0;
+      let mx = 0;
+      let my = 0;
+
+      window.addEventListener("pointermove", (event) => {
+        tx = (event.clientX / window.innerWidth - 0.5) * 2;
+        ty = (event.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      function frame() {
+        mx += (tx - mx) * 0.07;
+        my += (ty - my) * 0.07;
+        root.style.setProperty("--mx", mx.toFixed(3));
+        root.style.setProperty("--my", my.toFixed(3));
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
