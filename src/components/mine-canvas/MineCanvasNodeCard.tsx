@@ -37,10 +37,17 @@ export function MineCanvasNodeCard({ data, id, isConnectable, selected }: NodePr
   useMeasuredNodeHeight(contentRef, Boolean(autoHeightKind), (height) => {
     if (!autoHeightKind) return;
     const outerCard = contentRef.current?.closest(".mine-card");
-    const outerScrollHeight = outerCard instanceof HTMLElement ? outerCard.scrollHeight : 0;
+    const cardStyle = outerCard instanceof HTMLElement ? window.getComputedStyle(outerCard) : null;
+    const cardChromeHeight = cardStyle
+      ? Number.parseFloat(cardStyle.paddingTop) +
+        Number.parseFloat(cardStyle.paddingBottom) +
+        Number.parseFloat(cardStyle.borderTopWidth) +
+        Number.parseFloat(cardStyle.borderBottomWidth) +
+        2
+      : 0;
     runtime?.reportNodeHeight(
       id,
-      resolveMeasuredCardHeight(autoHeightKind, height, outerScrollHeight),
+      resolveMeasuredCardHeight(autoHeightKind, height, cardChromeHeight),
       autoHeightKind === "text" ? TEXT_MIN_HEIGHT : autoHeightKind === "timeline" ? TIMELINE_MIN_HEIGHT : 164,
     );
   });

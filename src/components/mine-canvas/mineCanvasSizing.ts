@@ -10,16 +10,9 @@ const CONTENT_PADDING_BY_KIND: Record<MineCanvasAutoHeightKind, number> = {
 export function resolveMeasuredCardHeight(
   kind: MineCanvasAutoHeightKind,
   measuredContentHeight: number,
-  outerScrollHeight = 0,
+  measuredChromeHeight = 0,
 ) {
-  const contentHeight = measuredContentHeight + CONTENT_PADDING_BY_KIND[kind];
-  if (kind !== "timeline" || outerScrollHeight <= 0) {
-    return Math.ceil(contentHeight);
-  }
-  // Timeline cards have an overflowing outer card with padding, dots, and
-  // connector lines.  Measuring the inner content plus a fixed offset can
-  // undershoot when several items wrap, so prefer the card's own scrollHeight.
-  return Math.ceil(Math.max(contentHeight, outerScrollHeight + 2));
+  return Math.ceil(measuredContentHeight + Math.max(CONTENT_PADDING_BY_KIND[kind], measuredChromeHeight));
 }
 
 export function resolveMeasuredHeight(

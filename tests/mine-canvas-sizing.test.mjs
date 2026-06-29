@@ -20,7 +20,8 @@ test("measured height never drops below the card minimum", () => {
   assert.equal(resolveMeasuredHeight("auto", 200, 48, 150), 150);
 });
 
-test("timeline height prefers the outer card scroll height", () => {
-  assert.equal(resolveMeasuredCardHeight("timeline", 520, 610), 612);
+test("timeline height uses card chrome but can shrink after item deletion", () => {
+  assert.equal(resolveMeasuredCardHeight("timeline", 520, 34), 556);
   assert.equal(resolveMeasuredCardHeight("timeline", 520, 0), 556);
+  assert.equal(resolveMeasuredHeight("auto", 612, resolveMeasuredCardHeight("timeline", 300, 34), 176), 336);
 });
