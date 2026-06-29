@@ -144,31 +144,30 @@
 .mine-canvas-brand {
   display: flex;
   align-items: center;
-  gap: 0.72rem;
   min-height: 3.7rem;
   border-bottom: 1px solid rgba(37, 41, 53, 0.1);
   padding-bottom: 0.86rem;
 }
 
-.mine-canvas-brand > span {
-  width: 2.15rem;
-  height: 2.15rem;
-  display: inline-grid;
-  place-items: center;
-  border: 2px solid var(--mine-blue);
-  border-radius: 0.55rem;
-  background: #f7d34b;
-  color: var(--mine-blue);
-  font: 900 0.96rem / 1 var(--sans);
-}
-
 .mine-canvas-brand strong {
-  display: block;
-  color: var(--mine-blue);
-  font: 900 0.98rem / 1.1 var(--sans);
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 0.18rem;
+  padding: 0.38rem 0.58rem 0.33rem;
+  background: var(--mine-blue);
+  color: #ffe056;
+  font-family: "Brush Script MT", "Snell Roundhand", "Marker Felt", var(--mono);
+  font-size: clamp(1.28rem, 1.8vw, 1.6rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  text-shadow: 0 0.08rem 0 rgba(7, 43, 120, 0.18);
+  transform: rotate(-2deg);
+  transform-origin: left center;
+  white-space: nowrap;
 }
 
-.mine-canvas-brand p,
 .mine-canvas-section-title small,
 .mine-canvas-minimap-label small {
   margin: 0.24rem 0 0;

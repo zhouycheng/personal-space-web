@@ -910,7 +910,7 @@ export default function MineCanvasEditor() {
     <MineCanvasRuntimeContext.Provider value={runtime}>
       <div className={`mine-canvas-editor${!isAuthor ? " is-visitor" : ""}`}>
         <aside className="mine-canvas-sidebar" aria-label="我的画布节点列表">
-          <div className="mine-canvas-brand"><span aria-hidden="true">J</span><div><strong>Justin Canvas</strong><p>{nodes.length} 个节点</p></div></div>
+          <div className="mine-canvas-brand" aria-label="Justin Canvas"><strong>Justin Canvas</strong></div>
           <section className="mine-canvas-layers" aria-label="全部节点">
             <div className="mine-canvas-section-title"><span aria-hidden="true">Layers</span><small>全部节点</small></div>
             <div className="mine-canvas-node-list">
