@@ -606,19 +606,21 @@ export default function MineCanvasEditor() {
   }, [editingNodeId, selectedNodeId, scheduleSave]);
 
   const reportNodeHeight = useCallback((nodeId: string, measuredHeight: number, minimumHeight: number) => {
-    setNodes((current) => {
-      let changed = false;
-      const next = current.map((node) => {
-        if (node.id !== nodeId || (node.data.kind !== "text" && node.data.kind !== "timeline" && node.data.kind !== "businesscard")) return node;
-        const mode = node.data.kind === "text" ? node.data.heightMode : "auto";
-        const height = resolveMeasuredHeight(mode, node.data.height, measuredHeight, minimumHeight);
-        if (height === node.data.height) return node;
-        changed = true;
-        return syncNodeSize({ ...node, data: { ...node.data, height } });
-      });
-      return changed ? markInteractiveNodes(next, selectedNodeId, editingNodeId) : current;
+    let changed = false;
+    const next = nodesRef.current.map((node) => {
+      if (node.id !== nodeId || (node.data.kind !== "text" && node.data.kind !== "timeline" && node.data.kind !== "businesscard")) return node;
+      const mode = node.data.kind === "text" ? node.data.heightMode : "auto";
+      const height = resolveMeasuredHeight(mode, node.data.height, measuredHeight, minimumHeight);
+      if (height === node.data.height) return node;
+      changed = true;
+      return syncNodeSize({ ...node, data: { ...node.data, height } });
     });
-  }, [editingNodeId, selectedNodeId]);
+    if (!changed) return;
+    const marked = markInteractiveNodes(next, selectedNodeId, editingNodeId);
+    nodesRef.current = marked;
+    setNodes(marked);
+    scheduleSave();
+  }, [editingNodeId, scheduleSave, selectedNodeId]);
 
   const setCenterNodeId = useCallback((nodeId: string) => {
     setCenterNodeIdState((current) => {

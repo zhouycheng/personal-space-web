@@ -10,6 +10,7 @@ import {
 import { getCard } from "../../lib/canvas/card-registry";
 import { MineCanvasRuntimeContext } from "./mineCanvasRuntime";
 import type { MineCanvasNode, MineCanvasNodeData } from "./mineCanvasTypes";
+import { resolveMeasuredCardHeight, type MineCanvasAutoHeightKind } from "./mineCanvasSizing";
 import { useMeasuredNodeHeight } from "./useMeasuredNodeHeight";
 import { CardToolbar, TEXT_MIN_HEIGHT, TIMELINE_MIN_HEIGHT } from "./MineCanvasCardShared";
 
@@ -28,11 +29,20 @@ export function MineCanvasNodeCard({ data, id, isConnectable, selected }: NodePr
   const contentRef = useRef<HTMLDivElement | null>(null);
   const editing = runtime?.editingNodeId === id;
   const style = { "--mine-node-accent": data.accent } as CSSProperties;
+  const autoHeightKind: MineCanvasAutoHeightKind | null =
+    data.kind === "text" || data.kind === "timeline" || data.kind === "businesscard" ? data.kind : null;
 
   const update = useCallback((updater: (current: MineCanvasNodeData) => MineCanvasNodeData) => runtime?.updateNodeData(id, updater), [id, runtime]);
 
-  useMeasuredNodeHeight(contentRef, data.kind === "text" || data.kind === "timeline" || data.kind === "businesscard", (height) => {
-    runtime?.reportNodeHeight(id, height + (data.kind === "timeline" ? 36 : 28), data.kind === "text" ? TEXT_MIN_HEIGHT : data.kind === "timeline" ? TIMELINE_MIN_HEIGHT : 164);
+  useMeasuredNodeHeight(contentRef, Boolean(autoHeightKind), (height) => {
+    if (!autoHeightKind) return;
+    const outerCard = contentRef.current?.closest(".mine-card");
+    const outerScrollHeight = outerCard instanceof HTMLElement ? outerCard.scrollHeight : 0;
+    runtime?.reportNodeHeight(
+      id,
+      resolveMeasuredCardHeight(autoHeightKind, height, outerScrollHeight),
+      autoHeightKind === "text" ? TEXT_MIN_HEIGHT : autoHeightKind === "timeline" ? TIMELINE_MIN_HEIGHT : 164,
+    );
   });
 
   const cardDef = getCard(data.kind);
