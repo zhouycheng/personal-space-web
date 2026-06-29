@@ -37,7 +37,7 @@ YYYY-MM-DD｜vX.Y.Z｜Release 或 No Release
 
 - 新增不可变 `canvas_revisions` 历史表、revision 查询/恢复 API 和 `expectedRevision` 乐观锁；恢复旧内容时创建新版本，不修改历史数据。
 - 新增画布图片资源 API，图片和头像以 SHA-256 内容地址存放在 `data/canvas-assets/`。
-- 新增 HttpOnly 作者会话 API，移除浏览器明文密码和长期 Token 存储。
+- 新增 HttpOnly 作者会话 API，并绑定当前标签页 `sessionStorage` token；移除浏览器明文密码和长期 Token 存储。
 - 新增独立 SQLite/Restic 备份容器，支持每小时本机与 S3 兼容异地备份、分层保留、完整性检查和安全恢复。
 - 新增 `/api/health`，检查生产桌面内容与 SQLite 可读性。
 - 新增桌面扫描、Canvas Store、保存队列、鉴权、文档协议、资源存储和 API 回归测试。

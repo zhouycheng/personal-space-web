@@ -1,3 +1,5 @@
+import { canvasAdminHeaders } from "./canvas-admin-session";
+
 export type UploadedCanvasAsset = {
   id: string;
   url: string;
@@ -12,6 +14,7 @@ export async function uploadCanvasAsset(file: Blob, fileName = "canvas-image"): 
   const response = await fetch("/api/canvas/assets", {
     method: "POST",
     credentials: "same-origin",
+    headers: canvasAdminHeaders(),
     body: form,
   });
   const body = await response.json();

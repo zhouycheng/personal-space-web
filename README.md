@@ -40,7 +40,7 @@
 - 已提取 `Local Activity Status` Astro 组件。
 - 活动监控的 Astro API 路由。
 - SQLite 驱动的画布持久化：每次保存追加不可变 revision，使用乐观锁阻止旧标签页覆盖新数据。
-- 画布作者鉴权使用 HttpOnly 会话 Cookie，浏览器不再保存明文密码或长期 Bearer Token。
+- 画布作者鉴权使用 HttpOnly 会话 Cookie + 当前标签页 `sessionStorage` token，浏览器不再保存明文密码或长期 Bearer Token；关闭标签页即销毁当前管理员身份。
 - 画布图片和头像存放在 `data/canvas-assets/`，与 SQLite 一起进入本机和 S3 备份。
 - 全屏桌面内容在开发环境读取 `public/os-desktop/`，生产环境读取构建产物 `dist/client/os-desktop/`。
 

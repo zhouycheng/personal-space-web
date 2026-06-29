@@ -39,6 +39,13 @@ import { MineCanvasNodeCard } from "./MineCanvasNodeCard";
 import { inferHandlePair, toControlOffset, type MineCanvasHandleSide } from "./mineCanvasGeometry";
 import { mineCanvasFonts } from "./mineCanvasFonts";
 import { getCard, getCreateOptions } from "../../lib/canvas/card-registry";
+import {
+  canvasAdminHeaders,
+  clearCanvasAdminTabToken,
+  createCanvasAdminTabToken,
+  getCanvasAdminTabToken,
+  setCanvasAdminTabToken,
+} from "../../features/canvas/client/canvas-admin-session";
 import { createCanvasSaveQueue, type CanvasSaveStatus } from "../../features/canvas/client/canvas-save-queue";
 import { uploadCanvasAsset } from "../../features/canvas/client/canvas-assets";
 import { parseCanvasReadResponse } from "../../features/canvas/domain/canvas-document";
@@ -363,7 +370,7 @@ export default function MineCanvasEditor() {
             const response = await fetch("/api/canvas", {
               method: "POST",
               credentials: "same-origin",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...canvasAdminHeaders() },
               body: JSON.stringify({ document, expectedRevision }),
             });
             const body = await response.json();
@@ -382,14 +389,23 @@ export default function MineCanvasEditor() {
     return () => { cancelled = true; };
   }, []);
 
-  // Restore author state from the HttpOnly session cookie.
+  // Restore author state for this tab only. The HttpOnly cookie is shared by
+  // the browser, so it must be paired with a sessionStorage tab token.
   useEffect(() => {
     localStorage.removeItem("author_password");
     sessionStorage.removeItem("author_token");
-    fetch("/api/canvas/session", { credentials: "same-origin" })
+    const tabToken = getCanvasAdminTabToken();
+    if (!tabToken) {
+      setIsAuthor(false);
+      return;
+    }
+    fetch("/api/canvas/session", { credentials: "same-origin", headers: canvasAdminHeaders() })
       .then((response) => response.json())
       .then((body) => setIsAuthor(Boolean(body.authenticated)))
-      .catch(() => setIsAuthor(false));
+      .catch(() => {
+        clearCanvasAdminTabToken();
+        setIsAuthor(false);
+      });
   }, []);
 
   // Expose global admin activation function for console use
@@ -400,23 +416,27 @@ export default function MineCanvasEditor() {
         return Promise.resolve(false);
       }
       return (async () => {
+        const tabToken = createCanvasAdminTabToken();
         const response = await fetch("/api/canvas/session", {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ passphrase }),
+          body: JSON.stringify({ passphrase, tabToken }),
         });
         if (response.ok) {
+          setCanvasAdminTabToken(tabToken);
           setIsAuthorRef.current(true);
           console.log("管理员模式已激活");
           return true;
         }
+        clearCanvasAdminTabToken();
         console.warn("密码错误");
         return false;
       })();
     };
 
-    (window as unknown as Record<string, unknown>).__disableAdmin = async () => {
+    (window as unknown as Record<string, unknown>).disposeAdmin = async () => {
+      clearCanvasAdminTabToken();
       await fetch("/api/canvas/session", { method: "DELETE", credentials: "same-origin" });
       setIsAuthorRef.current(false);
       console.log("已退出管理员模式");
@@ -424,7 +444,7 @@ export default function MineCanvasEditor() {
 
     return () => {
       delete (window as unknown as Record<string, unknown>).enableAdmin;
-      delete (window as unknown as Record<string, unknown>).__disableAdmin;
+      delete (window as unknown as Record<string, unknown>).disposeAdmin;
     };
   }, []);
 

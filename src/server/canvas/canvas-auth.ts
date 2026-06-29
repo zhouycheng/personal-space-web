@@ -1,7 +1,16 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import {
+  CANVAS_ADMIN_TAB_HEADER,
+  isCanvasAdminTabToken,
+} from "../../features/canvas/domain/canvas-admin-session.ts";
 
 export const CANVAS_SESSION_COOKIE = "justin_canvas_session";
 export const CANVAS_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+
+type CanvasSessionPayload = {
+  expiresAt: number;
+  tabHash: string;
+};
 
 function signature(payload: string, secret: string) {
   return createHmac("sha256", secret).update(payload).digest("base64url");
@@ -15,21 +24,41 @@ function constantTimeEqual(left: string, right: string) {
 
 export function createCanvasSession(
   secret: string,
+  tabToken: string,
   now = Date.now(),
   ttlMs = CANVAS_SESSION_TTL_MS,
 ) {
-  const payload = String(now + ttlMs);
+  const payload = Buffer.from(JSON.stringify({
+    expiresAt: now + ttlMs,
+    tabHash: hashCanvasAdminTabToken(tabToken),
+  } satisfies CanvasSessionPayload)).toString("base64url");
   return `${payload}.${signature(payload, secret)}`;
 }
 
-export function verifyCanvasSession(value: string, secret: string, now = Date.now()) {
+export function hashCanvasAdminTabToken(value: string) {
+  return createHash("sha256").update(value).digest("base64url");
+}
+
+function parseCanvasSessionPayload(value: string): CanvasSessionPayload | null {
+  try {
+    const payload = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as CanvasSessionPayload;
+    if (!payload || typeof payload.expiresAt !== "number" || typeof payload.tabHash !== "string") return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export function verifyCanvasSession(value: string, secret: string, tabToken: string, now = Date.now()) {
   const separator = value.indexOf(".");
   if (separator < 1) return false;
   const payload = value.slice(0, separator);
   const providedSignature = value.slice(separator + 1);
-  const expiresAt = Number(payload);
-  if (!Number.isFinite(expiresAt) || expiresAt <= now) return false;
-  return constantTimeEqual(providedSignature, signature(payload, secret));
+  if (!isCanvasAdminTabToken(tabToken)) return false;
+  if (!constantTimeEqual(providedSignature, signature(payload, secret))) return false;
+  const parsedPayload = parseCanvasSessionPayload(payload);
+  if (!parsedPayload || !Number.isFinite(parsedPayload.expiresAt) || parsedPayload.expiresAt <= now) return false;
+  return constantTimeEqual(parsedPayload.tabHash, hashCanvasAdminTabToken(tabToken));
 }
 
 export function getCanvasAuthSecret() {
@@ -50,9 +79,17 @@ export function readCookie(request: Request, name: string) {
   return "";
 }
 
+export function readCanvasAdminTabToken(request: Request) {
+  return request.headers.get(CANVAS_ADMIN_TAB_HEADER)?.trim() || "";
+}
+
 export function isCanvasSessionAuthorized(request: Request, secret = getCanvasAuthSecret()) {
   if (!secret) return false;
-  return verifyCanvasSession(readCookie(request, CANVAS_SESSION_COOKIE), secret);
+  return verifyCanvasSession(
+    readCookie(request, CANVAS_SESSION_COOKIE),
+    secret,
+    readCanvasAdminTabToken(request),
+  );
 }
 
 export function canvasSessionCookie(value: string, options: { clear?: boolean } = {}) {
