@@ -12,6 +12,18 @@ export default defineConfig({
     mode: "standalone",
   }),
   vite: {
+    optimizeDeps: {
+      include: [
+        "@floating-ui/react",
+        "@tiptap/extension-color",
+        "@tiptap/extension-text-align",
+        "@tiptap/extension-text-style",
+        "@tiptap/react",
+        "@tiptap/starter-kit",
+        "@xyflow/react",
+        "lucide-react",
+      ],
+    },
     build: {
       rolldownOptions: {
         output: {
