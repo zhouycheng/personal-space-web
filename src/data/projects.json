@@ -63,8 +63,8 @@
   },
   {
     "id": "exercises-eagles",
-    "navLabel": "ExercisesEagles",
-    "title": "ExercisesEagles",
+    "navLabel": "QandA",
+    "title": "QandA",
     "tags": ["微信小程序", "Web"],
     "summary": "面向大学生日常复习的刷题工具，让语文、英语、Python 等科目可以在电脑、手机和 Pad 上轻量练习。",
     "highlights": [
@@ -77,7 +77,7 @@
     "startedText": "开发周期：从 26 年 6 月开始",
     "preview": {
       "src": "/src/assets/projects/exercises-eagles-preview.svg",
-      "alt": "ExercisesEagles 软件预览图"
+      "alt": "QandA 软件预览图"
     },
     "links": [
       {
