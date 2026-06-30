@@ -167,6 +167,7 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     roots.forEach((root) => {
       const viewport = root.querySelector("[data-project-viewport]");
       const track = root.querySelector("[data-project-track]");
+      const page = root.closest(".app-page");
       const tabs = Array.from(root.querySelectorAll("[data-project-tab]"));
       const panels = Array.from(root.querySelectorAll("[data-project-panel]"));
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -185,6 +186,11 @@ const portfolioProjects = projectRecords.map((project, index) => ({
       let unlockTimer = 0;
       let isAnimating = false;
       let touchStartY = 0;
+      let routeActive = isRouteActive();
+
+      function isRouteActive() {
+        return !page || page.classList.contains("is-active");
+      }
 
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
@@ -208,11 +214,13 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
       function lockAnimation() {
         isAnimating = true;
+        track.classList.add("is-animating");
         if (unlockTimer) window.clearTimeout(unlockTimer);
         unlockTimer = window.setTimeout(() => {
           isAnimating = false;
           wheelIntent = 0;
           wheelDirection = 0;
+          track.classList.remove("is-animating");
         }, ANIMATION_LOCK_MS);
       }
 
@@ -230,6 +238,7 @@ const portfolioProjects = projectRecords.map((project, index) => ({
       }
 
       function handleWheel(event) {
+        if (!routeActive) return;
         event.preventDefault();
         if (isAnimating) return;
 
@@ -251,12 +260,14 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
       tabs.forEach((tab) => {
         tab.addEventListener("click", () => {
+          if (!routeActive) return;
           const index = Number(tab.getAttribute("data-project-index") ?? "0");
           goToProject(index);
         });
       });
 
       viewport.addEventListener("keydown", (event) => {
+        if (!routeActive) return;
         if (event.key === "ArrowDown" || event.key === "PageDown") {
           event.preventDefault();
           goToProject(activeIndex + 1);
@@ -281,10 +292,12 @@ const portfolioProjects = projectRecords.map((project, index) => ({
       viewport.addEventListener("wheel", handleWheel, { passive: false });
 
       viewport.addEventListener("touchstart", (event) => {
+        if (!routeActive) return;
         touchStartY = event.touches[0]?.clientY ?? 0;
       }, { passive: true });
 
       viewport.addEventListener("touchmove", (event) => {
+        if (!routeActive) return;
         if (!touchStartY || isAnimating) return;
         const currentY = event.touches[0]?.clientY ?? touchStartY;
         const delta = touchStartY - currentY;
@@ -295,12 +308,23 @@ const portfolioProjects = projectRecords.map((project, index) => ({
       }, { passive: false });
 
       window.addEventListener("resize", () => {
+        if (!routeActive) return;
         if (resizeFrame) return;
         resizeFrame = window.requestAnimationFrame(() => {
           resizeFrame = 0;
           setActiveProject(activeIndex);
         });
       });
+
+      if (page) {
+        const pageObserver = new MutationObserver(() => {
+          const nextRouteActive = isRouteActive();
+          if (nextRouteActive === routeActive) return;
+          routeActive = nextRouteActive;
+          if (routeActive) setActiveProject(activeIndex);
+        });
+        pageObserver.observe(page, { attributes: true, attributeFilter: ["class"] });
+      }
 
       setActiveProject(0);
     });
@@ -407,6 +431,9 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     height: 100%;
     transform: translate3d(0, calc(var(--active-project-index, 0) * -100%), 0);
     transition: transform 0.58s cubic-bezier(0.2, 0.82, 0.18, 1);
+  }
+
+  .works-portfolio__track.is-animating {
     will-change: transform;
   }
 

@@ -111,6 +111,13 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
       let activeWindowGesture = null;
       let selectionGesture = null;
       let desktopLayoutFrame = 0;
+      let viewSettingsSaveTimer = 0;
+      let selectionFrame = 0;
+      let selectionPendingPoint = null;
+      let iconDragFrame = 0;
+      let iconDragCommit = null;
+      let windowGestureFrame = 0;
+      let windowGestureEvent = null;
 
       collectEntries(entries, entryById);
       entryById.set(SYSTEM_DISPLAY_CONTROLS_ID, SYSTEM_DISPLAY_CONTROLS_ENTRY);
@@ -209,6 +216,22 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
         }
       }
 
+      function scheduleSaveViewSettings() {
+        if (viewSettingsSaveTimer) window.clearTimeout(viewSettingsSaveTimer);
+        viewSettingsSaveTimer = window.setTimeout(() => {
+          viewSettingsSaveTimer = 0;
+          saveViewSettings();
+        }, 180);
+      }
+
+      function flushViewSettingsSave() {
+        if (viewSettingsSaveTimer) {
+          window.clearTimeout(viewSettingsSaveTimer);
+          viewSettingsSaveTimer = 0;
+        }
+        saveViewSettings();
+      }
+
       function getIconMetrics(settings = viewSettings) {
         const labelLineHeight = settings.labelSize * 1.25;
         const labelHeight = Math.ceil(labelLineHeight * 2);
@@ -235,7 +258,7 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
         root.style.setProperty("--macos-icon-label-max-height", `${iconMetrics.labelHeight}px`);
         root.style.setProperty("--macos-icon-cell-width", `${iconMetrics.width}px`);
         root.style.setProperty("--macos-icon-cell-height", `${iconMetrics.height}px`);
-        if (options.persist) saveViewSettings();
+        if (options.persist) scheduleSaveViewSettings();
         if (options.relayout) layoutDesktopIcons({ animate: Boolean(options.animate) });
       }
 
@@ -540,8 +563,11 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
 
           iconLayer.setPointerCapture?.(event.pointerId);
 
-          const handleMove = (moveEvent) => {
-            currentPoint = clampPointToDesktop(getIconLayerPoint(moveEvent));
+          const commitSelectionMove = () => {
+            selectionFrame = 0;
+            if (!selectionPendingPoint) return;
+            currentPoint = selectionPendingPoint;
+            selectionPendingPoint = null;
             maybeStartSelection();
             if (!didSelect) return;
 
@@ -554,7 +580,26 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
             selectIconsByRect(rect);
           };
 
+          const scheduleSelectionMove = (moveEvent) => {
+            selectionPendingPoint = clampPointToDesktop(getIconLayerPoint(moveEvent));
+            if (selectionFrame) return;
+            selectionFrame = window.requestAnimationFrame(commitSelectionMove);
+          };
+
+          const flushSelectionMove = () => {
+            if (selectionFrame) {
+              window.cancelAnimationFrame(selectionFrame);
+              selectionFrame = 0;
+            }
+            commitSelectionMove();
+          };
+
+          const handleMove = (moveEvent) => {
+            scheduleSelectionMove(moveEvent);
+          };
+
           const handleUp = (upEvent) => {
+            flushSelectionMove();
             window.clearTimeout(holdTimer);
             iconLayer.releasePointerCapture?.(upEvent.pointerId);
             iconLayer.removeEventListener("pointermove", handleMove);
@@ -595,9 +640,7 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
 
           iconElement.setPointerCapture?.(event.pointerId);
 
-          const handleMove = (moveEvent) => {
-            const dx = moveEvent.clientX - startX;
-            const dy = moveEvent.clientY - startY;
+          const applyDragMove = (dx, dy) => {
             if (!didDrag && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
             didDrag = true;
             if (!selectedIconIds.has(id)) clearIconSelection();
@@ -625,7 +668,36 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
             }));
           };
 
+          const commitIconDrag = () => {
+            iconDragFrame = 0;
+            const commit = iconDragCommit;
+            iconDragCommit = null;
+            if (commit) applyDragMove(commit.dx, commit.dy);
+          };
+
+          const scheduleIconDrag = (moveEvent) => {
+            iconDragCommit = {
+              dx: moveEvent.clientX - startX,
+              dy: moveEvent.clientY - startY,
+            };
+            if (iconDragFrame) return;
+            iconDragFrame = window.requestAnimationFrame(commitIconDrag);
+          };
+
+          const flushIconDrag = () => {
+            if (iconDragFrame) {
+              window.cancelAnimationFrame(iconDragFrame);
+              iconDragFrame = 0;
+            }
+            commitIconDrag();
+          };
+
+          const handleMove = (moveEvent) => {
+            scheduleIconDrag(moveEvent);
+          };
+
           const handleUp = (upEvent) => {
+            flushIconDrag();
             iconElement.releasePointerCapture?.(upEvent.pointerId);
             iconElement.removeEventListener("pointermove", handleMove);
             iconElement.removeEventListener("pointerup", handleUp);
@@ -1168,6 +1240,7 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
         resetButton.textContent = "恢复默认";
         resetButton.addEventListener("click", () => {
           applyViewSettings(DEFAULT_VIEW_SETTINGS, { persist: true, relayout: true, animate: true });
+          flushViewSettingsSave();
           updateDisplayControlOutputs();
         });
 
@@ -1199,6 +1272,7 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
           options.output.textContent = options.format(value);
           options.onInput(value);
         });
+        input.addEventListener("change", flushViewSettingsSave);
 
         row.append(header, input);
         return { row, input };
@@ -1329,7 +1403,7 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
         window.addEventListener("pointerup", endWindowGesture, { once: true });
       }
 
-      function handleWindowGestureMove(event) {
+      function applyWindowGestureMove(event) {
         if (!activeWindowGesture) return;
         const state = openWindows.get(activeWindowGesture.id);
         if (!state) return;
@@ -1351,7 +1425,32 @@ const desktopDataJson = JSON.stringify({ entries, storageKey }).replace(/</g, "\
         applyWindowFrame(state, clampWindowFrame(nextFrame, state.entry.window.minWidth, state.entry.window.minHeight));
       }
 
+      function commitWindowGestureMove() {
+        windowGestureFrame = 0;
+        const event = windowGestureEvent;
+        windowGestureEvent = null;
+        if (event) applyWindowGestureMove(event);
+      }
+
+      function handleWindowGestureMove(event) {
+        windowGestureEvent = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        };
+        if (windowGestureFrame) return;
+        windowGestureFrame = window.requestAnimationFrame(commitWindowGestureMove);
+      }
+
+      function flushWindowGestureMove() {
+        if (windowGestureFrame) {
+          window.cancelAnimationFrame(windowGestureFrame);
+          windowGestureFrame = 0;
+        }
+        commitWindowGestureMove();
+      }
+
       function endWindowGesture() {
+        flushWindowGestureMove();
         if (activeWindowGesture?.type === "resize") {
           saveWindowSize(openWindows.get(activeWindowGesture.id));
         }

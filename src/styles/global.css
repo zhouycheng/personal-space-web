@@ -117,7 +117,6 @@ a {
   box-shadow: -0.7rem 0 2rem rgba(38, 42, 55, 0.045);
   backdrop-filter: blur(1.5px) saturate(0.96);
   -webkit-backdrop-filter: blur(1.5px) saturate(0.96);
-  will-change: transform;
 }
 
 .home-route-reveal::after {
@@ -148,6 +147,7 @@ a {
   opacity: 0.52;
   visibility: visible;
   transform: translate3d(0, 0, 0) scaleX(1);
+  will-change: transform;
 }
 
 .app-shell.is-home-route-revealing.is-home-route-reveal-active .home-route-reveal {
@@ -553,7 +553,6 @@ a {
   transition:
     opacity 0.18s linear,
     visibility 0s linear 0.18s;
-  will-change: left, top, width, height, border-radius, opacity, filter;
 }
 
 .os-fullscreen-projection.is-transitioning,
@@ -563,6 +562,11 @@ a {
   transition:
     opacity 0.18s linear,
     visibility 0s linear 0s;
+}
+
+.os-fullscreen-projection.is-transitioning,
+.os-fullscreen-projection.is-moire-settling {
+  will-change: left, top, width, height, border-radius, opacity, filter;
 }
 
 .os-fullscreen-projection.is-settled {

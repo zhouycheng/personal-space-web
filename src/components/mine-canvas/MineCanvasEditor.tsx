@@ -265,6 +265,10 @@ function isBlobUrl(src?: string): src is string {
   return typeof src === "string" && src.startsWith("blob:");
 }
 
+function isMineCanvasRouteActive() {
+  return window.document.getElementById("page-os")?.classList.contains("is-active") ?? true;
+}
+
 function MineCanvasMiniMap({ onMapClick }: { onMapClick: (event: unknown, position: { x: number; y: number }) => void }) {
   const [portalRoot, setPortalRoot] = useState<Element | null>(null);
   useEffect(() => setPortalRoot(window.document.querySelector("[data-mine-canvas-minimap-slot]")), []);
@@ -325,6 +329,8 @@ export default function MineCanvasEditor() {
   const activeEditorNodeId = useRef("");
   const saveQueueRef = useRef<ReturnType<typeof createCanvasSaveQueue<MineCanvasDocument>> | null>(null);
   const saveTimerRef = useRef<number>(0);
+  const viewportFrameRef = useRef<number>(0);
+  const pendingViewportRef = useRef<typeof viewport | null>(null);
   const zoomPercent = Math.round(viewport.zoom * 100);
 
   // ---- Refs for immediate save (updated synchronously with every mutation) ----
@@ -489,6 +495,7 @@ export default function MineCanvasEditor() {
   // Cmd+S manual save
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!isMineCanvasRouteActive()) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         flushSave();
@@ -548,6 +555,7 @@ export default function MineCanvasEditor() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!isMineCanvasRouteActive()) return;
       if (!isAuthor) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -577,6 +585,7 @@ export default function MineCanvasEditor() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isMineCanvasRouteActive()) return;
       if (event.key === "Escape" && editingNodeId) finishEditing();
     };
     window.addEventListener("keydown", onKeyDown);
@@ -675,6 +684,7 @@ export default function MineCanvasEditor() {
   useEffect(() => {
     if (!isAuthor) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isMineCanvasRouteActive()) return;
       if (event.key !== "Delete" && event.key !== "Backspace") return;
       if (!selectedNodeId) return;
       const target = event.target as HTMLElement;
@@ -754,7 +764,22 @@ export default function MineCanvasEditor() {
 
   const handleMove: OnMove = useCallback((_, nextViewport) => {
     viewportRef.current = nextViewport;
-    setViewport(nextViewport);
+    pendingViewportRef.current = nextViewport;
+    if (viewportFrameRef.current) return;
+    viewportFrameRef.current = window.requestAnimationFrame(() => {
+      viewportFrameRef.current = 0;
+      const pendingViewport = pendingViewportRef.current;
+      pendingViewportRef.current = null;
+      if (pendingViewport) setViewport(pendingViewport);
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (viewportFrameRef.current) {
+      window.cancelAnimationFrame(viewportFrameRef.current);
+      viewportFrameRef.current = 0;
+    }
+    pendingViewportRef.current = null;
   }, []);
 
   const getViewportCenter = useCallback((size: { width: number; height: number }) => {

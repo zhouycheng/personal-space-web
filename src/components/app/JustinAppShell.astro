@@ -164,6 +164,8 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
       let homeRouteRevealTimer = 0;
       let routeTransitionToken = 0;
       let expandedBoundsFrame = 0;
+      let desktopWheelListenerActive = false;
+      let osClockTimer = 0;
       let activePage = "home";
       let homeExperienceInitialized = false;
 
@@ -324,6 +326,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         appShell.classList.toggle("is-home-suspended", !homeActive);
         appShell.classList.toggle("is-os-route-suspended", !homeActive && osProjectionIsPartOfHome);
         osFullscreen.setAttribute("aria-hidden", homeActive && osProjectionIsPartOfHome ? "false" : "true");
+        syncOsRuntimeLifecycle();
       }
 
       function clearHomeRouteReveal() {
@@ -367,6 +370,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         osDesktop?.setAttribute("aria-hidden", "false");
         setProjectionMode("is-settled");
         setProjectionFullscreenGeometry();
+        syncHomeLayerVisibility();
         return true;
       }
 
@@ -966,6 +970,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         clearHomeTransitionState();
         resetCollapseState();
         launchInProgress = false;
+        syncOsRuntimeLifecycle();
       }
 
       function showJustinOsDesktop(instant = false) {
@@ -983,6 +988,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         writeSessionFlag(BOOT_PLAYED_KEY);
         writeSessionFlag(OS_OPENED_KEY);
         resetCollapseState();
+        syncOsRuntimeLifecycle();
       }
 
       function isDesktopReadyForCollapse() {
@@ -1007,6 +1013,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         if (cameraIsFinishing) return;
         cameraIsFinishing = true;
         launchInProgress = true;
+        syncOsRuntimeLifecycle();
         if (cameraFrame) {
           window.cancelAnimationFrame(cameraFrame);
           cameraFrame = 0;
@@ -1039,6 +1046,7 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         await sleep(reduceMotion ? 20 : 560);
         terminalScreen.classList.remove("is-terminal-restoring");
         launchInProgress = false;
+        syncOsRuntimeLifecycle();
         void playTerminalBoot({ firstLine: restoredPrompt, initialDelay: reduceMotion ? 0 : 160 });
       }
 
@@ -1068,6 +1076,27 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         }
       }
 
+      function shouldListenForDesktopWheel() {
+        return isDesktopReadyForCollapse();
+      }
+
+      function syncDesktopWheelListener() {
+        const shouldListen = shouldListenForDesktopWheel();
+        if (shouldListen && !desktopWheelListenerActive) {
+          window.addEventListener("wheel", handleDesktopWheel, { passive: false });
+          desktopWheelListenerActive = true;
+          return;
+        }
+        if (!shouldListen && desktopWheelListenerActive) {
+          window.removeEventListener("wheel", handleDesktopWheel);
+          desktopWheelListenerActive = false;
+        }
+      }
+
+      function isOsClockVisible() {
+        return osFullscreen.getAttribute("aria-hidden") !== "true";
+      }
+
       function updateClock() {
         const timeText = new Intl.DateTimeFormat("en-US", {
           hour: "2-digit",
@@ -1077,6 +1106,26 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         osTimes.forEach((osTime) => {
           osTime.textContent = timeText;
         });
+      }
+
+      function syncOsClock() {
+        if (isOsClockVisible()) {
+          updateClock();
+          if (!osClockTimer) {
+            osClockTimer = window.setInterval(updateClock, 30_000);
+          }
+          return;
+        }
+
+        if (osClockTimer) {
+          window.clearInterval(osClockTimer);
+          osClockTimer = 0;
+        }
+      }
+
+      function syncOsRuntimeLifecycle() {
+        syncDesktopWheelListener();
+        syncOsClock();
       }
 
       function initializeHomeExperience() {
@@ -1233,16 +1282,14 @@ const macOsDesktopEntries = await getMacOsDesktopEntries();
         void openJustinOs();
       });
 
-      window.addEventListener("wheel", handleDesktopWheel, { passive: false });
       window.addEventListener("resize", scheduleExpandedBoundsUpdate);
       window.addEventListener("popstate", () => {
         switchPage(getPageFromLocation());
       });
 
-      updateClock();
-      window.setInterval(updateClock, 30_000);
       window.history.replaceState({ page: activePage }, "", window.location.href);
       commitPageSwitch(activePage);
+      syncOsRuntimeLifecycle();
     })();
   </script>
 </BaseLayout>

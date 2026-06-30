@@ -165,6 +165,7 @@ export function initSymbolDomeBackground(element: HTMLElement) {
   let lookY = 0;
   let frameId = 0;
   let resizeFrame = 0;
+  let projectionObserver: MutationObserver | null = null;
   const startupResizeTimers: number[] = [];
 
   function makePoints() {
@@ -270,6 +271,37 @@ export function initSymbolDomeBackground(element: HTMLElement) {
     pointerY = -9999;
   }
 
+  function isProjectionVisible() {
+    const projection = element.closest<HTMLElement>("[data-os-fullscreen]");
+    return !projection || projection.getAttribute("aria-hidden") !== "true";
+  }
+
+  function shouldAnimate() {
+    return document.visibilityState === "visible" && isProjectionVisible();
+  }
+
+  function stopFrameLoop() {
+    if (!frameId) return;
+    window.cancelAnimationFrame(frameId);
+    frameId = 0;
+  }
+
+  function startFrameLoop() {
+    if (frameId || !element.isConnected || !shouldAnimate()) return;
+    lastFrameAt = 0;
+    scheduleResize();
+    frameId = window.requestAnimationFrame(draw);
+  }
+
+  function syncFrameLoop() {
+    if (shouldAnimate()) {
+      startFrameLoop();
+      return;
+    }
+    stopFrameLoop();
+    lastFrameAt = 0;
+  }
+
   function draw(now: number) {
     frameId = 0;
 
@@ -278,10 +310,15 @@ export function initSymbolDomeBackground(element: HTMLElement) {
       return;
     }
 
+    if (!shouldAnimate()) {
+      lastFrameAt = 0;
+      return;
+    }
+
     syncCanvasSize();
 
-    if (document.visibilityState === "hidden" || width <= 0 || height <= 0) {
-      frameId = window.requestAnimationFrame(draw);
+    if (width <= 0 || height <= 0) {
+      startFrameLoop();
       return;
     }
 
@@ -355,12 +392,15 @@ export function initSymbolDomeBackground(element: HTMLElement) {
   };
 
   const handleVisibilityChange = () => {
-    if (document.visibilityState === "visible") {
-      scheduleResize();
-    }
+    syncFrameLoop();
   };
 
   const resizeObserver = new ResizeObserver(resize);
+  const projection = element.closest<HTMLElement>("[data-os-fullscreen]");
+  if (projection) {
+    projectionObserver = new MutationObserver(syncFrameLoop);
+    projectionObserver.observe(projection, { attributes: true, attributeFilter: ["aria-hidden"] });
+  }
   resizeObserver.observe(canvas);
   document.addEventListener("pointermove", updatePointer, { passive: true });
   document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -373,7 +413,7 @@ export function initSymbolDomeBackground(element: HTMLElement) {
   [0, 120, 480, 1000, 1600].forEach((delay) => {
     startupResizeTimers.push(window.setTimeout(scheduleResize, delay));
   });
-  frameId = window.requestAnimationFrame(draw);
+  startFrameLoop();
 
   function cleanup() {
     document.removeEventListener("pointermove", updatePointer);
@@ -385,6 +425,7 @@ export function initSymbolDomeBackground(element: HTMLElement) {
     reducedMotionQuery.removeEventListener("change", resize);
     startupResizeTimers.forEach((timer) => window.clearTimeout(timer));
     resizeObserver.disconnect();
+    projectionObserver?.disconnect();
 
     if (frameId) {
       window.cancelAnimationFrame(frameId);
