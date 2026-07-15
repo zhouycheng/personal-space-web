@@ -1,0 +1,377 @@
+---
+type DownloadPlatform = "macos" | "windows";
+
+type DownloadPackage = {
+  id: string;
+  platform: DownloadPlatform;
+  format: string;
+  label: string;
+  description: string;
+  href: string;
+  defaultForPlatform?: boolean;
+  recommended?: boolean;
+};
+
+type DownloadConfig = {
+  version: string;
+  releasePage: string;
+  packages: DownloadPackage[];
+};
+
+type Props = {
+  projectTitle: string;
+  downloads: DownloadConfig;
+};
+
+const { projectTitle, downloads } = Astro.props;
+const menuId = `project-download-menu-${projectTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+const downloadDataJson = JSON.stringify(downloads).replace(/</g, "\\u003c");
+---
+
+<div class="project-download" data-project-download>
+  <div class="project-download__control">
+    <button
+      class="project-download__primary"
+      type="button"
+      data-download-primary
+      aria-haspopup="true"
+      aria-expanded="false"
+      aria-controls={menuId}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"></path>
+      </svg>
+      <span data-download-label>选择下载</span>
+    </button>
+    <button
+      class="project-download__toggle"
+      type="button"
+      data-download-toggle
+      aria-label={`选择 ${projectTitle} 下载版本`}
+      aria-haspopup="true"
+      aria-expanded="false"
+      aria-controls={menuId}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"></path></svg>
+    </button>
+  </div>
+
+  <div class="project-download__menu" id={menuId} data-download-menu hidden>
+    <div class="project-download__heading">
+      <strong>FrameLean v{downloads.version}</strong>
+      <a href={downloads.releasePage} target="_blank" rel="noreferrer">发布说明</a>
+    </div>
+    <div class="project-download__packages">
+      {downloads.packages.map((downloadPackage) => (
+        <a
+          class="project-download__package"
+          href={downloadPackage.href}
+          data-download-package={downloadPackage.id}
+        >
+          <span class="project-download__package-copy">
+            <strong>{downloadPackage.label}</strong>
+            <small>{downloadPackage.description}</small>
+          </span>
+          <span class="project-download__package-meta">
+            {downloadPackage.recommended && <em>推荐</em>}
+            <span>{downloadPackage.format}</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+
+  <script type="application/json" data-download-data set:html={downloadDataJson}></script>
+</div>
+
+<script>
+  import { detectDownloadPlatform, selectDefaultDownload } from "./downloadPlatform.mjs";
+
+  document.querySelectorAll("[data-project-download]").forEach((root) => {
+    if (!(root instanceof HTMLElement) || root.dataset.downloadReady === "true") return;
+    root.dataset.downloadReady = "true";
+
+    const primary = root.querySelector("[data-download-primary]");
+    const toggle = root.querySelector("[data-download-toggle]");
+    const label = root.querySelector("[data-download-label]");
+    const menu = root.querySelector("[data-download-menu]");
+    const dataElement = root.querySelector("[data-download-data]");
+    if (!(primary instanceof HTMLButtonElement) || !(toggle instanceof HTMLButtonElement) || !(label instanceof HTMLElement) || !(menu instanceof HTMLElement) || !(dataElement instanceof HTMLScriptElement)) return;
+
+    let downloads;
+    try {
+      downloads = JSON.parse(dataElement.textContent || "{}");
+    } catch {
+      downloads = { packages: [] };
+    }
+
+    const platform = detectDownloadPlatform({
+      userAgentDataPlatform: navigator.userAgentData?.platform,
+      platform: navigator.platform,
+      userAgent: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints,
+    });
+    const defaultDownload = selectDefaultDownload(downloads.packages, platform);
+
+    if (defaultDownload) {
+      label.textContent = platform === "macos" ? "下载 macOS" : "下载 Windows";
+      primary.dataset.downloadHref = defaultDownload.href;
+      primary.setAttribute("aria-label", `${label.textContent}，FrameLean v${downloads.version}`);
+      primary.removeAttribute("aria-haspopup");
+      primary.removeAttribute("aria-expanded");
+      primary.removeAttribute("aria-controls");
+    } else {
+      label.textContent = "选择下载";
+      primary.setAttribute("aria-label", "选择 FrameLean 下载版本");
+    }
+
+    function setOpen(open) {
+      menu.hidden = !open;
+      root.classList.toggle("is-open", open);
+      if (!primary.dataset.downloadHref) primary.setAttribute("aria-expanded", String(open));
+      toggle.setAttribute("aria-expanded", String(open));
+    }
+
+    function toggleMenu() {
+      setOpen(menu.hidden);
+    }
+
+    primary.addEventListener("click", () => {
+      const href = primary.dataset.downloadHref;
+      if (href) {
+        window.location.assign(href);
+        return;
+      }
+      toggleMenu();
+    });
+
+    toggle.addEventListener("click", toggleMenu);
+    menu.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setOpen(false)));
+
+    document.addEventListener("click", (event) => {
+      if (!menu.hidden && event.target instanceof Node && !root.contains(event.target)) setOpen(false);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || menu.hidden) return;
+      setOpen(false);
+      toggle.focus();
+    });
+  });
+</script>
+
+<style>
+  .project-download {
+    position: relative;
+    z-index: 8;
+  }
+
+  .project-download__control {
+    display: inline-flex;
+    min-height: clamp(2rem, 3.8svh, 2.38rem);
+    overflow: hidden;
+    border-radius: 999px;
+    color: #ffffff;
+    background: var(--blue);
+    box-shadow: 0 0.4rem 1rem rgba(0, 47, 167, 0.14);
+    transition:
+      transform 0.18s cubic-bezier(0.2, 0.82, 0.18, 1),
+      box-shadow 0.18s ease;
+  }
+
+  .project-download__control:hover,
+  .project-download:focus-within .project-download__control,
+  .project-download.is-open .project-download__control {
+    transform: translateY(-0.12rem);
+    box-shadow: 0 0.55rem 1.4rem rgba(0, 47, 167, 0.22);
+  }
+
+  .project-download__primary,
+  .project-download__toggle {
+    border: 0;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .project-download__primary {
+    min-width: 8.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.48rem;
+    padding: 0.48rem 0.78rem 0.48rem 0.9rem;
+    font-size: clamp(0.72rem, 0.9vw, 0.86rem);
+    font-weight: 760;
+    white-space: nowrap;
+  }
+
+  .project-download__primary svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .project-download__toggle {
+    width: 2.18rem;
+    display: grid;
+    place-items: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.28);
+    padding: 0;
+  }
+
+  .project-download__toggle svg {
+    width: 0.86rem;
+    height: 0.86rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.18s ease;
+  }
+
+  .project-download.is-open .project-download__toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .project-download__primary:focus-visible,
+  .project-download__toggle:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.92);
+    outline-offset: -3px;
+  }
+
+  .project-download__menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 0.72rem);
+    width: min(20rem, calc(100vw - 2rem));
+    overflow: hidden;
+    border: 1px solid rgba(31, 41, 68, 0.12);
+    border-radius: 1rem;
+    padding: 0.42rem;
+    color: #171922;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow:
+      0 1.25rem 3.5rem rgba(31, 45, 83, 0.18),
+      0 0.12rem 0.4rem rgba(31, 45, 83, 0.08);
+    backdrop-filter: blur(18px);
+  }
+
+  .project-download__menu[hidden] {
+    display: none;
+  }
+
+  .project-download__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.72rem 0.78rem 0.58rem;
+  }
+
+  .project-download__heading strong {
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .project-download__heading a {
+    color: rgba(0, 47, 167, 0.78);
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .project-download__packages {
+    display: grid;
+    gap: 0.22rem;
+  }
+
+  .project-download__package {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-radius: 0.72rem;
+    padding: 0.7rem 0.78rem;
+    color: inherit;
+    transition:
+      color 0.16s ease,
+      background 0.16s ease;
+  }
+
+  .project-download__package:hover,
+  .project-download__package:focus-visible {
+    outline: 0;
+    color: var(--blue);
+    background: rgba(0, 47, 167, 0.07);
+  }
+
+  .project-download__package:focus-visible {
+    box-shadow: inset 0 0 0 2px rgba(0, 47, 167, 0.32);
+  }
+
+  .project-download__package-copy {
+    min-width: 0;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .project-download__package-copy strong {
+    font-size: 0.76rem;
+    font-weight: 780;
+  }
+
+  .project-download__package-copy small {
+    color: rgba(36, 38, 46, 0.56);
+    font-size: 0.67rem;
+    font-weight: 620;
+  }
+
+  .project-download__package-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: rgba(36, 38, 46, 0.48);
+    font-size: 0.65rem;
+    font-weight: 800;
+  }
+
+  .project-download__package-meta em {
+    border-radius: 999px;
+    padding: 0.22rem 0.4rem;
+    color: #ffffff;
+    background: var(--blue);
+    font-size: 0.58rem;
+    font-style: normal;
+  }
+
+  @media (max-width: 860px) {
+    .project-download__primary {
+      min-width: 7.4rem;
+      padding-right: 0.62rem;
+      padding-left: 0.72rem;
+      font-size: 0.72rem;
+    }
+
+    .project-download__toggle {
+      width: 2rem;
+    }
+
+    .project-download__menu {
+      bottom: calc(100% + 0.55rem);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .project-download__control,
+    .project-download__toggle svg,
+    .project-download__package {
+      transition-duration: 1ms;
+    }
+  }
+</style>

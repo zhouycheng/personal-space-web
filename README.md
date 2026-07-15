@@ -137,13 +137,40 @@ COMPOSE_PROFILES=backup docker compose up -d --build
 
 作品集页面通过 `src/data/projects.json` 管理。数组顺序即为顶部项目标签和全屏项目页的显示顺序。
 
-每条记录提供待显示的完整文案，因此更新日期有意存储为字符串而非运行时格式化。使用 `summary` 和 `highlights` 作为单屏作品视图，较长的项目文案保留在 `description` 中供未来详情视图使用。预览图路径应指向 `src/assets/projects/` 中的文件，例如：
+每条记录提供待显示的完整文案，因此更新日期有意存储为字符串而非运行时格式化。使用 `summary` 和 `highlights` 作为单屏作品视图，较长的项目文案保留在 `description` 中供未来详情视图使用。
+
+`preview` 是判别联合：普通图片使用 `kind: "image"` 并指向 `src/assets/projects/`，FrameLean 工作台使用组件预览。需要提供安装包的项目可增加 `downloads`，其中保存当前版本、发布页和各平台包；页面不在运行时请求 GitHub API。
 
 ```json
 {
   "preview": {
-    "src": "/src/assets/projects/framelean-preview.svg",
+    "kind": "image",
+    "src": "/src/assets/projects/exercises-eagles-preview.svg",
+    "alt": "QandA 软件预览图"
+  }
+}
+```
+
+```json
+{
+  "preview": {
+    "kind": "framelean-workbench",
     "alt": "FrameLean 软件预览图"
+  },
+  "downloads": {
+    "version": "1.2.1",
+    "releasePage": "https://github.com/zhouycheng/FrameLean/releases/tag/v1.2.1",
+    "packages": [
+      {
+        "id": "macos-universal-dmg",
+        "platform": "macos",
+        "format": "DMG",
+        "label": "macOS Universal 2",
+        "description": "Intel 与 Apple Silicon",
+        "href": "https://github.com/zhouycheng/FrameLean/releases/download/v1.2.1/FrameLean-v1.2.1.dmg",
+        "defaultForPlatform": true
+      }
+    ]
   }
 }
 ```
