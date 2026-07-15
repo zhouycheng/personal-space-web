@@ -2,6 +2,9 @@
 import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
 import projects from "/src/data/projects.json";
+import FrameLeanWorkbenchPreview from "./FrameLeanWorkbenchPreview.astro";
+import ProjectBrandIcon from "./ProjectBrandIcon.astro";
+import ProjectDownloadMenu from "./ProjectDownloadMenu.astro";
 
 type ProjectLinkKind = "github" | "gitee" | "website" | "docs";
 
@@ -10,6 +13,34 @@ type ProjectLink = {
   label: string;
   href: string;
 };
+
+type DownloadPackage = {
+  id: string;
+  platform: "macos" | "windows";
+  format: string;
+  label: string;
+  description: string;
+  href: string;
+  defaultForPlatform?: boolean;
+  recommended?: boolean;
+};
+
+type DownloadConfig = {
+  version: string;
+  releasePage: string;
+  packages: DownloadPackage[];
+};
+
+type ProjectPreview =
+  | {
+      kind: "image";
+      src: string;
+      alt: string;
+    }
+  | {
+      kind: "framelean-workbench";
+      alt: string;
+    };
 
 type ProjectRecord = {
   id: string;
@@ -21,11 +52,9 @@ type ProjectRecord = {
   description: string;
   lastUpdatedText: string;
   startedText: string;
-  preview: {
-    src: string;
-    alt: string;
-  };
+  preview: ProjectPreview;
   links: ProjectLink[];
+  downloads?: DownloadConfig;
 };
 
 type PreviewAsset = ImageMetadata | string;
@@ -50,18 +79,19 @@ function resolvePreviewAsset(path: string) {
   };
 }
 
-function linkGlyph(kind: ProjectLinkKind) {
-  if (kind === "github") return "GH";
-  if (kind === "gitee") return "G";
-  if (kind === "docs") return "Doc";
-  return "↗";
-}
+const portfolioProjects = projectRecords.map((project, index) => {
+  const previewAsset = project.preview.kind === "image"
+    ? resolvePreviewAsset(project.preview.src)
+    : null;
 
-const portfolioProjects = projectRecords.map((project, index) => ({
-  ...project,
-  index,
-  previewAsset: resolvePreviewAsset(project.preview.src),
-}));
+  return {
+    ...project,
+    index,
+    previewAsset,
+    primaryLinks: project.links.filter((link) => link.kind === "github"),
+    secondaryLinks: project.links.filter((link) => link.kind !== "github"),
+  };
+});
 ---
 
 <section class="works-portfolio" data-works-portfolio aria-label="作品集">
@@ -93,8 +123,10 @@ const portfolioProjects = projectRecords.map((project, index) => ({
           aria-hidden={project.index === 0 ? "false" : "true"}
         >
           <div class="works-project__preview">
-            <div class="works-project__preview-frame">
-              {project.previewAsset.isSvg ? (
+            <div class:list={["works-project__preview-frame", project.preview.kind === "framelean-workbench" && "works-project__preview-frame--component"]}>
+              {project.preview.kind === "framelean-workbench" ? (
+                <FrameLeanWorkbenchPreview alt={project.preview.alt} />
+              ) : project.previewAsset?.isSvg ? (
                 <img
                   class="works-project__image"
                   src={project.previewAsset.url}
@@ -138,21 +170,39 @@ const portfolioProjects = projectRecords.map((project, index) => ({
               <p>{project.startedText}</p>
             </div>
 
-            <div class="works-project__links" aria-label={`${project.title} 项目链接`}>
-              {project.links.map((link) => (
-                <a
-                  class:list={["works-project-link", `works-project-link--${link.kind}`]}
-                  href={link.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`${project.title} ${link.label}`}
-                  title={link.label}
-                >
-                  <span aria-hidden="true">{linkGlyph(link.kind)}</span>
-                  <span class="works-project-link__label">{link.label}</span>
-                </a>
-              ))}
-            </div>
+            {(project.links.length > 0 || project.downloads) && (
+              <div class="works-project__links" aria-label={`${project.title} 项目链接与下载`}>
+                {project.downloads && <ProjectDownloadMenu projectTitle={project.title} downloads={project.downloads} />}
+
+                {project.primaryLinks.map((link) => (
+                  <a
+                    class:list={["works-project-link", `works-project-link--${link.kind}`]}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${project.title} ${link.label}`}
+                    title={link.label}
+                  >
+                    {(link.kind === "github" || link.kind === "gitee") ? <ProjectBrandIcon kind={link.kind} /> : <span aria-hidden="true">↗</span>}
+                    <span class="works-project-link__label">{link.label}</span>
+                  </a>
+                ))}
+
+                {project.secondaryLinks.map((link) => (
+                  <a
+                    class:list={["works-project-link", `works-project-link--${link.kind}`]}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${project.title} ${link.label}`}
+                    title={link.label}
+                  >
+                    {(link.kind === "github" || link.kind === "gitee") ? <ProjectBrandIcon kind={link.kind} /> : <span aria-hidden="true">↗</span>}
+                    <span class="works-project-link__label">{link.label}</span>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </article>
       ))}
@@ -465,6 +515,15 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     background: #d8d8d8;
   }
 
+  .works-project__preview-frame--component {
+    width: min(100%, 58svh, 31.5rem);
+    height: auto;
+    aspect-ratio: 1;
+    overflow: visible;
+    border-radius: 0;
+    background: transparent;
+  }
+
   .works-project__image {
     width: 100%;
     height: 100%;
@@ -569,6 +628,8 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     align-items: center;
     justify-content: center;
     border-radius: 999px;
+    box-sizing: border-box;
+    padding: clamp(0.42rem, 0.8svh, 0.52rem);
     background: #151515;
     color: #ffffff;
     font: 850 clamp(0.62rem, 0.78vw, 0.72rem) / 1 var(--sans);
@@ -592,7 +653,6 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
   .works-project-link--gitee {
     background: #cf1f29;
-    font-size: clamp(1rem, 1.2vw, 1.14rem);
   }
 
   .works-project-link--website,
@@ -618,6 +678,11 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
     .works-project__preview-frame {
       height: min(100%, 52svh, 28rem);
+    }
+
+    .works-project__preview-frame--component {
+      width: min(100%, 52svh, 28rem);
+      height: auto;
     }
   }
 
@@ -665,6 +730,12 @@ const portfolioProjects = projectRecords.map((project, index) => ({
       width: 100%;
       height: min(26svh, 13.5rem);
       aspect-ratio: 1.18;
+    }
+
+    .works-project__preview-frame--component {
+      width: min(100%, 13.5rem);
+      height: auto;
+      aspect-ratio: 1;
     }
 
     .works-project__content {
@@ -720,11 +791,8 @@ const portfolioProjects = projectRecords.map((project, index) => ({
     .works-project-link {
       width: 2rem;
       height: 2rem;
+      padding: 0.43rem;
       font-size: 0.62rem;
-    }
-
-    .works-project-link--gitee {
-      font-size: 0.98rem;
     }
   }
 
@@ -735,6 +803,50 @@ const portfolioProjects = projectRecords.map((project, index) => ({
 
     .works-project__preview-frame {
       height: min(24svh, 12.6rem);
+    }
+
+    .works-project__preview-frame--component {
+      width: min(100%, 12.6rem);
+      height: auto;
+    }
+  }
+
+  @media (max-width: 860px) and (orientation: portrait) {
+    .works-portfolio__tabs {
+      width: min(30rem, calc(100vw - 1.6rem));
+      padding-right: 0;
+      padding-left: 0;
+    }
+
+    .works-project {
+      align-content: start;
+      gap: clamp(1.4rem, 3svh, 1.8rem);
+      padding-top: clamp(0.9rem, 2.4svh, 1.35rem);
+    }
+
+    .works-project__preview-frame--component {
+      width: 100%;
+      height: min(50svh, 27rem);
+      aspect-ratio: auto;
+    }
+
+    .works-project__highlights,
+    .works-project__meta {
+      display: none;
+    }
+
+    .works-project__links {
+      margin-top: 1rem;
+    }
+  }
+
+  @media (max-width: 430px) and (orientation: portrait) {
+    .works-portfolio__tabs {
+      width: min(100vw - 1.4rem, 27rem);
+    }
+
+    .works-project__preview-frame--component {
+      height: min(47svh, 23rem);
     }
   }
 

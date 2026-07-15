@@ -15,6 +15,22 @@ const entries = await getMacOsDesktopEntries();
 <MacOsDesktop entries={entries} />
 ```
 
+### 嵌入式窗体
+
+作品预览等静态内容可复用同一套窗体外观，而不启用桌面的拖动、缩放和持久化运行时：
+
+```astro
+---
+import MacOsWindowFrame from "/src/justin-kit/components/macos-desktop/MacOsWindowFrame.astro";
+---
+
+<MacOsWindowFrame ariaLabel="软件预览" title="预览窗口" kind="App">
+  <div>窗口内容</div>
+</MacOsWindowFrame>
+```
+
+省略 `title` 和 `kind` 时保留无文字标题栏。可通过 `titlebar-actions` 命名插槽添加纯展示的标题栏内容；三色控制点在嵌入式窗体中不进入键盘焦点。
+
 ## 桌面目录
 
 默认扫描器读取：

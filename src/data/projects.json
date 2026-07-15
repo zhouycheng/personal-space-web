@@ -11,55 +11,57 @@
       "面向桌面端反复使用场景，优先保证本地文件处理效率"
     ],
     "description": "是一个本地桌面媒体压缩与格式处理工具，基于 Flutter、FFmpeg / FFprobe、Riverpod 等技术构建。\n可以处理常用的视频、图片、音频等媒体任务，对齐进行压缩、格式转换，让用户不用手写 FFmpeg 命令也能处理本地媒体文件。\nFrameLean 当前仍以视频压缩链路最完整：导入视频，分析源文件信息，选择推荐方案或自定义目标体积，配置编码、分辨率和输出格式，然后执行 FFmpeg 任务。图片和音频已进入同一任务模型，支持导入、分析、分类型配置、基础输出处理和完成结果展示。",
-    "lastUpdatedText": "最近一次更新：26 年 6 月 25 日",
+    "lastUpdatedText": "最近一次更新：26 年 7 月 15 日",
     "startedText": "开发周期：从 26 年 5 月开始",
     "preview": {
-      "src": "/src/assets/projects/framelean-preview.svg",
+      "kind": "framelean-workbench",
       "alt": "FrameLean 软件预览图"
     },
     "links": [
       {
         "kind": "github",
         "label": "GitHub",
-        "href": "https://github.com/leftzhou/FrameLean"
+        "href": "https://github.com/zhouycheng/FrameLean"
       },
       {
         "kind": "gitee",
         "label": "Gitee",
-        "href": "https://gitee.com/leftzhou/framelean"
+        "href": "https://gitee.com/zhouycheng/FrameLean"
       }
-    ]
-  },
-  {
-    "id": "facileim",
-    "navLabel": "FacileIM",
-    "title": "FacileIM",
-    "tags": ["Flutter", "Rust", "全平台"],
-    "summary": "一款开发中的即时通信应用，使用 Flutter 与 Rust 后端构建，目标是提供多端统一的轻量聊天体验。",
-    "highlights": [
-      "Flutter 负责跨平台客户端体验",
-      "Rust + Axum + Tokio 提供服务端能力",
-      "当前重点是打通基础通讯和多端可用性"
     ],
-    "description": "是一款 IM 即时通信应用，目前处于开发阶段。\n使用 Flutter、Rust + Axum + Tokio 构建，目标是在多端提供轻量、顺手、可持续扩展的聊天体验。",
-    "lastUpdatedText": "最近一次更新：26 年 6 月 20 日",
-    "startedText": "开发周期：从 26 年 6 月开始",
-    "preview": {
-      "src": "/src/assets/projects/facileim-preview.svg",
-      "alt": "FacileIM 软件预览图"
-    },
-    "links": [
-      {
-        "kind": "github",
-        "label": "GitHub",
-        "href": "https://github.com/leftzhou/FacileIM"
-      },
-      {
-        "kind": "gitee",
-        "label": "Gitee",
-        "href": "https://gitee.com/leftzhou/facileim"
-      }
-    ]
+    "downloads": {
+      "version": "1.2.1",
+      "releasePage": "https://github.com/zhouycheng/FrameLean/releases/tag/v1.2.1",
+      "packages": [
+        {
+          "id": "macos-universal-dmg",
+          "platform": "macos",
+          "format": "DMG",
+          "label": "macOS Universal 2",
+          "description": "Intel 与 Apple Silicon",
+          "href": "https://github.com/zhouycheng/FrameLean/releases/download/v1.2.1/FrameLean-v1.2.1.dmg",
+          "defaultForPlatform": true
+        },
+        {
+          "id": "windows-x64-setup",
+          "platform": "windows",
+          "format": "EXE",
+          "label": "Windows x64 安装版",
+          "description": "当前用户安装器",
+          "href": "https://github.com/zhouycheng/FrameLean/releases/download/v1.2.1/FrameLean-v1.2.1-windows-x64-setup.exe",
+          "defaultForPlatform": true,
+          "recommended": true
+        },
+        {
+          "id": "windows-x64-portable",
+          "platform": "windows",
+          "format": "ZIP",
+          "label": "Windows x64 便携版",
+          "description": "解压后直接运行",
+          "href": "https://github.com/zhouycheng/FrameLean/releases/download/v1.2.1/FrameLean-v1.2.1-windows-x64.zip"
+        }
+      ]
+    }
   },
   {
     "id": "exercises-eagles",
@@ -76,20 +78,10 @@
     "lastUpdatedText": "最近一次更新：26 年 6 月 24 日",
     "startedText": "开发周期：从 26 年 6 月开始",
     "preview": {
+      "kind": "image",
       "src": "/src/assets/projects/exercises-eagles-preview.svg",
       "alt": "QandA 软件预览图"
     },
-    "links": [
-      {
-        "kind": "github",
-        "label": "GitHub",
-        "href": "https://github.com/leftzhou/ExercisesEagles"
-      },
-      {
-        "kind": "gitee",
-        "label": "Gitee",
-        "href": "https://gitee.com/leftzhou/exercises-eagles"
-      }
-    ]
+    "links": []
   }
 ]

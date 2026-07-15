@@ -1,3 +1,5 @@
+@import "./macos-window-frame.css";
+
 .macos-desktop {
   --macos-icon-art-size: 48px;
   --macos-icon-label-size: 8.5px;
@@ -223,114 +225,6 @@
   pointer-events: none;
 }
 
-.macos-window {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border: 1px solid rgba(35, 42, 58, 0.28);
-  border-radius: 18px;
-  background: #fffdf7;
-  box-shadow:
-    0 1.8rem 4.2rem rgba(0, 21, 76, 0.28),
-    0 0.12rem 0.35rem rgba(0, 20, 66, 0.16),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.82);
-  pointer-events: auto;
-  transform: translateZ(0);
-}
-
-.macos-window[hidden] {
-  display: none;
-}
-
-.macos-window.is-active {
-  box-shadow:
-    0 2.2rem 5.6rem rgba(0, 18, 68, 0.34),
-    0 0.18rem 0.46rem rgba(0, 20, 66, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.9);
-}
-
-.macos-window.is-fullscreen {
-  border-radius: 16px;
-}
-
-.macos-window-titlebar {
-  flex: 0 0 auto;
-  min-height: 51px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 1rem;
-  padding: 0 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 241, 230, 0.86)),
-    #fffdf7;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.macos-window-titlebar:active {
-  cursor: grabbing;
-}
-
-.macos-window-controls {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.macos-window-control {
-  width: 15px;
-  height: 15px;
-  border: 0;
-  border-radius: 50%;
-  padding: 0;
-  cursor: default;
-  box-shadow:
-    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
-    0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.macos-window-control--close {
-  background: #ff5f57;
-}
-
-.macos-window-control--minimize {
-  background: #ffbd2e;
-}
-
-.macos-window-control--fullscreen {
-  background: #28c840;
-}
-
-.macos-window-titlebar h2 {
-  min-width: 0;
-  margin: 0;
-  color: rgba(28, 29, 45, 0.78);
-  font: 800 0.86rem / 1 var(--sans);
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.macos-window-kind {
-  justify-self: end;
-  color: rgba(93, 95, 112, 0.6);
-  font: 800 0.66rem / 1 var(--mono);
-  text-transform: uppercase;
-}
-
-.macos-window-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  background: #fffdf7;
-}
-
 .macos-window-body--iframe {
   overflow: hidden;
 }
@@ -347,22 +241,6 @@
   margin: 2rem;
   color: #7b7e90;
   font: 700 0.88rem / 1.4 var(--mono);
-}
-
-.macos-window-resize-handle {
-  position: absolute;
-  right: 9px;
-  bottom: 9px;
-  width: 18px;
-  height: 18px;
-  border-right: 4px solid rgba(140, 141, 137, 0.55);
-  border-bottom: 4px solid rgba(140, 141, 137, 0.55);
-  border-radius: 0 0 4px 0;
-  cursor: nwse-resize;
-}
-
-.macos-window.is-fullscreen .macos-window-resize-handle {
-  display: none;
 }
 
 .macos-window-body--folder {

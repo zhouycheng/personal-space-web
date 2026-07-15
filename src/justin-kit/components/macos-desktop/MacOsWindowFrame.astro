@@ -1,0 +1,63 @@
+---
+import "./macos-window-frame.css";
+
+type Props = {
+  ariaLabel: string;
+  title?: string;
+  kind?: string;
+  showResizeHandle?: boolean;
+};
+
+const {
+  ariaLabel,
+  title,
+  kind,
+  showResizeHandle = false,
+} = Astro.props;
+
+const hasTitlebarActions = Astro.slots.has("titlebar-actions");
+---
+
+<section class="macos-window macos-window--embedded" aria-label={ariaLabel}>
+  <div class="macos-window-titlebar macos-window-titlebar--decorative">
+    <div class="macos-window-controls" aria-hidden="true">
+      <span class="macos-window-control macos-window-control--close"></span>
+      <span class="macos-window-control macos-window-control--minimize"></span>
+      <span class="macos-window-control macos-window-control--fullscreen"></span>
+    </div>
+
+    {title ? <h2>{title}</h2> : <span class="macos-window-titlebar-placeholder" aria-hidden="true"></span>}
+
+    {hasTitlebarActions ? (
+      <div class="macos-window-titlebar-end">
+        <slot name="titlebar-actions" />
+      </div>
+    ) : kind ? (
+      <span class="macos-window-kind">{kind}</span>
+    ) : (
+      <span class="macos-window-titlebar-placeholder" aria-hidden="true"></span>
+    )}
+  </div>
+
+  <div class="macos-window-body">
+    <slot />
+  </div>
+
+  {showResizeHandle && <span class="macos-window-resize-handle" aria-hidden="true"></span>}
+</section>
+
+<style>
+  .macos-window--embedded {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .macos-window-titlebar--decorative {
+    cursor: default;
+  }
+
+  .macos-window-titlebar--decorative:active {
+    cursor: default;
+  }
+</style>
