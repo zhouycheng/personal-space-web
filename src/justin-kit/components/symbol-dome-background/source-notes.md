@@ -2,7 +2,7 @@
 
 ## Adopted source
 
-- `.superpowers/brainstorm/71748-1782715167/content/terminal-symbol-dome-single-face-v3.html`
+- `src/playground/symbol-dome-background/adopted/terminal-symbol-dome-single-face-v3.html`
 
 ## Preserved decisions
 

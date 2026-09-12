@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前工作分支 `alpha/3d`：
+当前主分支为 `main`，`archive/v1.0.0` 保留发布前的归档基线：
 
 - 当前运行时为 Astro 7，使用 Node 独立适配器。
 - 活跃应用根目录即本仓库根目录。
@@ -37,6 +37,7 @@
 - `../src/justin-kit/components/local-activity-status/README.md`：本地活动组件、API、时序和监控设置。
 - `../src/justin-kit/components/symbol-dome-background/README.md`：符号半球背景的用法和行为。
 - `plans/2026-06-25-astro-justin-os-kit.md`：Astro 重建实现记录。
+- `archive/canvas-persistence/`：画布持久化方案的历史实现记录与设计稿。
 
 ## 更新规则
 

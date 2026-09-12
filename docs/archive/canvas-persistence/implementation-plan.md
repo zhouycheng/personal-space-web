@@ -6,8 +6,6 @@
 > HttpOnly author sessions, stable `data/canvas-assets`, and `/api/canvas`
 > revision envelopes.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add server-side persistence and PBKDF2+AES-GCM author identity to the mine-canvas editor, so the author's edits survive deploys and are visible to all visitors, while visitors never see edit UI.
 
 **Architecture:** Astro API route (`/api/canvas`) serves canvas data from a JSON file on disk. Author identity is established by decrypting an env-injected encrypted token using a passphrase stored only in the author's browser localStorage. The encrypted token + salt are public in client JS; the passphrase is never in the codebase.

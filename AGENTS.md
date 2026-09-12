@@ -61,7 +61,7 @@ rtk npm run monitor:activity
 
 ## Workspace and Documentation
 
-- Inspect the branch, working tree, and existing changes before starting. The current working branch is `alpha/3d`; continue in the user-designated branch and workspace.
+- Inspect the branch, working tree, and existing changes before starting. The current working branch is `main`; continue in the user-designated branch and workspace.
 - Implement the confirmed scope and preserve existing changes. Creating or switching branches or worktrees, committing, pushing, and releasing require explicit requests for those actions. Use Conventional Commits when authorized to commit.
 - Store temporary plans and validation artifacts in `.workspace/`; place durable documentation according to ownership.
 - Use `.agents/skills/README.md` to select relevant project skills. `docs/develop/workflow.md` owns the persistent workflow.

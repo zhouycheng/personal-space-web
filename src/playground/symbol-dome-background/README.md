@@ -4,8 +4,8 @@
 
 ## 已采纳方案
 
-- 来源草图：`.superpowers/brainstorm/71748-1782715167/content/terminal-symbol-dome-single-face-v3.html`
-- 归档副本：`adopted/terminal-symbol-dome-single-face-v3.html`
+- 采纳版本：`adopted/terminal-symbol-dome-single-face-v3.html`
+- 设计过程草图：`drafts/`
 - 正式组件：`src/justin-kit/components/symbol-dome-background/`
 - 正式挂载：`src/justin-kit/components/macos-desktop/MacOsDesktop.astro`
 
