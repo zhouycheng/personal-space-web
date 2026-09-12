@@ -53,7 +53,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   }
   const wood = material(0xac7d50);
   const charcoal = material(0x303b39), brass = material(0xab8a48, 0.4), paper = material(0xfff9e9);
-  const blue = material(0x002fa7), sage = material(0x697b57);
+  const furnitureFrame = material(0x28354a), upholstery = material(0xb9b1a2, 0.95);
+  const blue = material(0x002fa7);
   const mesh = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     geometries.add(geometry);
     const object = new THREE.Mesh(geometry, mat); object.position.set(x,y,z);
@@ -95,8 +96,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   // Work desk, drawers, keyboard, chair.
   rounded(room,[3.5,0.14,1.5],[0,1.36,-1.3],wood,0.025);
   for(const z of [-1.9,-0.7]) box(room,[0.09,1.3,0.09],[1.55,0.65,z],charcoal);
-  box(room,[0.72,1.28,1.2],[-1.25,0.65,-1.3],charcoal);
-  for(let i=0;i<3;i++) {box(room,[0.65,0.36,0.04],[-1.25,0.27+i*0.4,-0.68],sage);box(room,[0.22,0.025,0.035],[-1.25,0.36+i*0.4,-0.645],brass);}
+  box(room,[0.72,1.28,1.2],[-1.25,0.65,-1.3],furnitureFrame);
+  for(let i=0;i<3;i++) {box(room,[0.65,0.36,0.04],[-1.25,0.27+i*0.4,-0.68],upholstery);box(room,[0.22,0.025,0.035],[-1.25,0.36+i*0.4,-0.645],brass);}
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
   // Stylized at room scale; the lid, keyboard and trackpad belong to one hotspot.
   const computer = hotspot("computer");
@@ -132,28 +133,28 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const seat=new THREE.Group();chair.add(seat);
   const casters: { group: THREE.Group; startAngle: number }[]=[];
   const chairWheels: { group: THREE.Group; pathRadius: number }[]=[];
-  cylinder(chair,0.09,0.28,[0,0.36,0],charcoal);
+  cylinder(chair,0.09,0.28,[0,0.36,0],furnitureFrame);
   cylinder(chair,0.044,0.3,[0,0.6,0],chrome);
-  rounded(seat,[0.56,0.08,0.5],[0,0.75,0],charcoal,0.03);
-  rounded(seat,[0.87,0.16,0.84],[0,0.87,0],sage,0.07);
+  rounded(seat,[0.56,0.08,0.5],[0,0.75,0],furnitureFrame,0.03);
+  rounded(seat,[0.87,0.16,0.84],[0,0.87,0],upholstery,0.07);
   const back=new THREE.Group();seat.add(back);back.position.set(0,0.96,0.36);back.rotation.x=0.12;
-  rounded(back,[0.82,0.87,0.13],[0,0.38,0.055],charcoal,0.06);
-  rounded(back,[0.75,0.78,0.12],[0,0.39,-0.015],sage,0.055);
-  rounded(back,[0.6,0.15,0.075],[0,0.12,-0.08],sage,0.035);
+  rounded(back,[0.82,0.87,0.13],[0,0.38,0.055],furnitureFrame,0.06);
+  rounded(back,[0.75,0.78,0.12],[0,0.39,-0.015],upholstery,0.055);
+  rounded(back,[0.6,0.15,0.075],[0,0.12,-0.08],upholstery,0.035);
   for(const x of [-0.5,0.5]) {
-    rounded(seat,[0.047,0.34,0.09],[x,1.0,0.09],charcoal,0.02);
-    rounded(seat,[0.15,0.07,0.53],[x,1.19,0.015],charcoal,0.03);
+    rounded(seat,[0.047,0.34,0.09],[x,1.0,0.09],furnitureFrame,0.02);
+    rounded(seat,[0.15,0.07,0.53],[x,1.19,0.015],furnitureFrame,0.03);
   }
   const lever=cylinder(seat,0.014,0.3,[0.31,0.75,0.19],chrome);lever.rotation.z=Math.PI/2;
   rounded(seat,[0.13,0.04,0.07],[0.48,0.75,0.19],charcoal,0.015);
   for(let i=0;i<5;i++) {
     const a=i*Math.PI*2/5;
     const spoke=new THREE.Group();chair.add(spoke);spoke.rotation.y=a;
-    const leg=rounded(spoke,[0.1,0.075,0.65],[0,0.24,0.31],charcoal,0.035);leg.rotation.x=0.12;
+    const leg=rounded(spoke,[0.1,0.075,0.65],[0,0.24,0.31],furnitureFrame,0.035);leg.rotation.x=0.12;
     const caster=new THREE.Group();spoke.add(caster);caster.position.set(0,0,0.63);caster.rotation.y=0.25;
     casters.push({group:caster,startAngle:caster.rotation.y});
     cylinder(caster,0.025,0.1,[0,0.205,0],chrome);
-    rounded(caster,[0.09,0.08,0.12],[0,0.17,0.025],charcoal,0.02);
+    rounded(caster,[0.09,0.08,0.12],[0,0.17,0.025],furnitureFrame,0.02);
     for(const x of [-0.065,0.065]) {
       const rolling=new THREE.Group();caster.add(rolling);rolling.position.set(x,0.14,0.043);
       chairWheels.push({group:rolling,pathRadius:Math.hypot(0.63-x,0.043)});
