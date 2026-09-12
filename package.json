@@ -30,11 +30,13 @@
     "better-sqlite3": "^12.11.1",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.19.25",
+    "@types/three": "^0.186.0",
     "typescript": "^5.9.3"
   }
 }
