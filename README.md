@@ -6,7 +6,7 @@
   <a href="#核心能力"><img src="https://img.shields.io/badge/editor-ReactFlow-FF007A" alt="ReactFlow"></a>
   <a href="#数据与安全"><img src="https://img.shields.io/badge/data-SQLite-003B57" alt="SQLite"></a>
   <br>
-  <a href="https://github.com/zhouycheng/justin-web">GitHub</a> ·
+  <a href="https://github.com/zhouycheng/personal-space-web">GitHub</a> ·
   <a href="#快速开始">本地开发</a> ·
   <a href="#docker-部署">Docker 部署</a> ·
   <a href="docs/README.md">项目文档</a> ·
