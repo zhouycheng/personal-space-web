@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { clockText, studioLighting } from '../src/components/studio/studioTime.ts';
 import { chairTurn, CHAIR_TURN_MS } from '../src/components/studio/chairMotion.ts';
-import { surfaceDistance, surfaceOpacity, surfacePhases, galleryStep } from '../src/components/studio/studioMotion.ts';
+import { surfaceDistance, surfaceOpacity, surfacePhases, galleryStep, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/components/studio/studioMotion.ts';
 import { ACTION_LABELS } from '../src/components/studio/studioState.ts';
 
 test('room surface labels identify the canvas and portfolio', () => {
@@ -38,6 +38,63 @@ test('gallery motion is capped, settles and never overshoots', () => {
   let x=0;
   for(let i=0;i<400;i++){x=galleryStep(x,300,16);assert.ok(x>=0&&x<=300);}
   assert.ok(Math.abs(x-300)<0.01);
+});
+
+test('room zoom normalizes wheel units, clamps extremes and reverses immediately at either limit', () => {
+  assert.equal(wheelZoom(1, -1e9, 0, 800), 2.2);
+  assert.equal(wheelZoom(1, 1e9, 0, 800), 0.85);
+  assert.ok(wheelZoom(2.2, 1, 0, 800) < 2.2);
+  assert.ok(wheelZoom(0.85, -1, 0, 800) > 0.85);
+  assert.equal(wheelZoom(1, -32, 0, 800), wheelZoom(1, -2, 1, 800));
+  assert.equal(wheelZoom(1, -80, 0, 800), wheelZoom(1, -0.1, 2, 800));
+  assert.ok(Math.abs(wheelZoom(wheelZoom(1, -100, 0, 800), 100, 0, 800)-1)<1e-12);
+  assert.equal(wheelZoom(1, 0, 0, 800), 1);
+  assert.equal(clampRoomZoom(2.4), 2.2);
+  assert.equal(clampRoomZoom(0.5), 0.85);
+  assert.deepEqual(DEFAULT_ROOM_VIEW, { zoom: 1, angle: -0.48, elevation: 0.55 });
+});
+
+test('room angles keep the camera in front of the desk at every zoom and viewport', () => {
+  assert.equal(clampRoomAngle(-100),-1.22);
+  assert.equal(clampRoomAngle(100),1.22);
+  assert.equal(clampRoomElevation(-100),0.2);
+  assert.equal(clampRoomElevation(100),1);
+  assert.ok(clampRoomAngle(1.22-0.01)<1.22);
+  for(const aspect of [0.3,0.46,1,16/9,3]) for(const zoom of [0.85,1,2.2]) for(const angle of [-1.22,0,1.22]) {
+    const distance=Math.max(8.5,8.5/aspect)/zoom;
+    assert.ok(-1.25+Math.cos(angle)*distance>-0.55, 'camera remains ahead of the front desk edge');
+  }
+});
+
+test('explore controls share zoom and angle limits, reverse immediately and reset every axis', () => {
+  let view={...DEFAULT_ROOM_VIEW};
+  for(let i=0;i<100;i++) for(const action of ['zoom-in','view-right','view-up'])view=stepRoomView(view,action);
+  assert.deepEqual(view,{zoom:2.2,angle:1.22,elevation:1});
+  for(const [action,key] of [['zoom-out','zoom'],['view-left','angle'],['view-down','elevation']])assert.ok(stepRoomView(view,action)[key]<view[key]);
+  for(let i=0;i<100;i++) for(const action of ['zoom-out','view-left','view-down'])view=stepRoomView(view,action);
+  assert.deepEqual(view,{zoom:0.85,angle:-1.22,elevation:0.2});
+  for(const [action,key] of [['zoom-in','zoom'],['view-right','angle'],['view-up','elevation']])assert.ok(stepRoomView(view,action)[key]>view[key]);
+  assert.deepEqual(stepRoomView(view,'reset-view'),DEFAULT_ROOM_VIEW);
+  assert.deepEqual(view,{zoom:0.85,angle:-1.22,elevation:0.2},'does not mutate the input');
+  assert.equal(stepRoomView(DEFAULT_ROOM_VIEW,'zoom-in').zoom,1.2);
+  assert.ok(Math.abs(stepRoomView(DEFAULT_ROOM_VIEW,'view-right').angle-DEFAULT_ROOM_VIEW.angle-0.12)<1e-12);
+  assert.ok(Math.abs(stepRoomView(DEFAULT_ROOM_VIEW,'view-up').elevation-DEFAULT_ROOM_VIEW.elevation-0.08)<1e-12);
+});
+
+test('camera damping is continuous across input changes and independent of frame rate', () => {
+  const run=(step,count)=>{let value=1;for(let i=0;i<count;i++)value=roomCameraStep(value,2.2,step);return value;};
+  assert.ok(Math.abs(run(16,12)-run(8,24))<1e-12);
+  assert.ok(run(16,12)>2.2-(2.2-1)*0.04);
+  let value=1;
+  for(let i=0;i<30;i++) {
+    const target=Math.min(2.2,1+(i+1)*0.05),next=roomCameraStep(value,target,16);
+    assert.ok(next>value&&next<=target);value=next;
+  }
+  assert.ok(roomCameraStep(value,0.85,16)<value);
+  assert.equal(roomCameraStep(1,2.2,0),1);
+  assert.equal(roomCameraStep(1,2.2,-10),1);
+  assert.equal(roomCameraStep(1,2.2,10000),roomCameraStep(1,2.2,64));
+  assert.equal(run(16,100),2.2);
 });
 
 test('chair turns exactly once with acceleration, a longer coast and no overshoot', () => {
