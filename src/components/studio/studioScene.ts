@@ -12,7 +12,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.setClearColor(0xeee9de, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.3;
@@ -82,7 +82,13 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   }
 
   // Transparent shadow receiver: no visible floor slab or room enclosure.
-  const shadowMaterial=new THREE.ShadowMaterial({color:0x060910,opacity:0.55});materials.add(shadowMaterial);
+  const shadowMaterial=new THREE.ShadowMaterial({color:0x060910,opacity:0.34});materials.add(shadowMaterial);
+  // The ground receives the broad overhead light only. A spot shadow mask
+  // includes unlit space outside the lamp cone, even where its light cannot reach.
+  shadowMaterial.onBeforeCompile=shader=>{
+    shader.fragmentShader=shader.fragmentShader.replace("#include <shadowmask_pars_fragment>",
+      THREE.ShaderChunk.shadowmask_pars_fragment.replace("#if NUM_SPOT_LIGHT_SHADOWS > 0", "#if 0"));
+  };
   const shadow=mesh(scene,new THREE.PlaneGeometry(200,200),shadowMaterial,0,0.01,0);
   shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
 
@@ -207,7 +213,9 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   lamp.castShadow=true;lamp.shadow.mapSize.set(1024,1024);lamp.shadow.camera.near=0.05;lamp.shadow.camera.far=5;
   lamp.shadow.bias=-0.0002;lamp.shadow.normalBias=0.008;scene.add(lamp);
   const ambient=new THREE.HemisphereLight(0xfff6e5,0x746b51,2.6);scene.add(ambient);
-  const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,5);sun.castShadow=true;
+  const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,2.5);sun.castShadow=true;
+  sun.target.position.set(0,0,-0.8);scene.add(sun.target);
+  sun.shadow.radius=12;
   sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-3.8;sun.shadow.camera.right=3.8;sun.shadow.camera.top=3.8;sun.shadow.camera.bottom=-3.8;
   sun.shadow.camera.near=0.5;sun.shadow.camera.far=16;sun.shadow.normalBias=0.012;sun.shadow.bias=-0.0001;scene.add(sun);
 
