@@ -11,10 +11,13 @@
 - Astro 7 服务端项目，使用 `@astrojs/node` 独立模式运行。
 - `Justin OS` 启动页路由 `/` 和 `/home`；`/` 保留为首页别名，底部 Dock 使用 `/home` 作为首页规范链接。
 - 共享 Justin 应用外壳，服务于 Dock 路由 `/home`、`/works` 和 `/os`，通过 History API 导航确保刷新、后退和前进保留当前激活路由，而不是回退到首页。
-- 全屏终端/笔记本视觉外壳，带相机式打开和滚轮回退动效。
-- 终端启动序列：可跳过的逐字打字、`echo "I need some tokens and coffee"` 的随机错字/退格修正，以及 OS 启动前纯文本 `launchd [....] 00-100%` 进度条。终端打字、停顿、退格、输出等待和启动进度统一 20% 加速。
-- OS 内滚轮交互：向下滚动将笔记本推离相机视野，向上滚动恢复全屏并重放菜单栏入场动画。中途折叠的 `推拉状态` 进度保存在同标签页 `sessionStorage` 中，路由切换和刷新恢复到同一过渡点，而不是重播全屏动画。
-- 启动 Dock 带视觉导航链接：`首页`、`作品集`和`我的`。
+- Three.js 低多边形三维工作室：暖白墙、木地板、书桌、电脑、书架和阅读角；支持有限拖动视角。场景居中，底部仅保留 `JUSTIN / PERSONAL SPACE` 署名，首页不显示 Dock。
+- 五个物件入口：电脑进入现有 Justin OS，作品墙进入 `/works`，桌面文件展示个人介绍，书架展示人生系统，名片展示已公开的项目链接；HTML 替代入口仅在键盘聚焦或 WebGL 失败时显示。
+- 背景、窗外颜色、日光与室内灯随访客设备本地时间自动变化，每 30 秒更新，返回标签页立即校时；采用固定时段插值，不请求位置、不计算当地日出日落。
+- 桌上电脑为 2023 款 16 英寸 MacBook Pro（M2 Pro）深空灰低多边形模型，依据 Apple 官方外观及机身宽深比例，宽度约占桌面 27%。转椅具备气压杆、五爪底座与双轮脚轮；点击后整椅用 2 秒完成一圈加速/减速旋转，万向轮逐渐对齐切向，轮子按路径长度滚动，重复点击不叠加。减少动态效果模式不播放转椅动画。
+- 点击电脑拉近并进入全屏 OS，菜单按钮返回房间。同标签页仅恢复稳定的 `room` 或 `desktop` 状态，过渡中刷新回退到来源状态。OS 内滚动不再触发首页折叠。
+- Three.js 按首页需要动态加载；房间采用按需绘制，在其他路由、桌面、面板或后台停止绘制，页面销毁时释放资源。
+- 作品集与个人画布页面的 Dock 提供 `首页`、`作品集`和`我的`导航。
 - JSON 驱动的 `作品集` 路由（`/works`）：
   - 项目排序、标签页名称、标题、描述、标签、更新文本、开始文本、预览图路径和外部链接来自 `src/data/projects.json`；
   - 预览资源位于 `src/assets/projects/`；
@@ -31,10 +34,7 @@
 - 活动监控系统双端点推送和心跳间隔 5 秒。
 - 纯克莱因蓝主题：所有品牌蓝色界面和控件使用 `#002FA7` / `rgb(0, 47, 167)`，包括终端屏幕、OS 桌面投影和激活 Dock 项。屏幕背景必须为纯色，不使用渐变。
 - 基于 ReactFlow 的白板/画布节点编辑系统，支持七种卡片类型、内联文本编辑和完善的工具栏。
-- 首页状态词汇：
-  - `全显状态`：完整的笔记本/终端外壳在浅色背景上可见。
-  - `推拉状态`：笔记本离开过渡和电脑靠近过渡的统称。
-  - `Justin OS 状态`：启动交互后的全屏蓝色 OS 投影。
+- 首页状态词汇：`room`（房间）、`entering`（进入电脑）、`desktop`（Justin OS）、`returning`（返回房间）。
 - Justin Kit 源文件夹和类型化目录。
 - 已提取 `Cursor Reveal Hero` Astro 组件。
 - 已提取 `Local Activity Status` Astro 组件。
@@ -90,7 +90,8 @@ JustinWeb/
   src/pages/works.astro                         `/works` 作品集路由
   src/pages/os.astro                            `/os` 个人路由
   src/components/app/JustinAppShell.astro       共享 Dock 路由外壳
-  src/components/app/homeRuntimeState.mjs       首页过渡和终端时序辅助
+  src/components/app/studioAppRuntime.ts        路由、面板和房间/OS 状态协调
+  src/components/studio/                       Three.js 房间、状态辅助与 HTML 入口
   src/pages/api/activity/update.ts              POST 活动更新
   src/pages/api/activity/stream.ts              SSE 活动流
   src/pages/api/canvas.ts                       画布持久化 API
