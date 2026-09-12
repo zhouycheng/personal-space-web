@@ -5,12 +5,12 @@
 | 日期 | 决策 | 状态 | 来源 |
 | --- | --- | --- | --- |
 | 2026-06-25 | 仓库根目录的 Astro 7 是当前运行时。 | Active | README.md |
-| 2026-09-11 | 工作室首页使用 `room`、`entering`、`desktop`、`returning` 四个状态。 | Active | CONTEXT.md |
+| 2026-09-11 | 工作室首页区分房间、OS 和个人画布稳定态及对应进入/返回过渡；电脑与画板固定，由摄像机靠近和后退，末尾淡入页面；书架连接新卡片作品集。 | Active | src/components/studio/studioScene.ts |
 | 2026-06-25 | Justin Kit 组件以源文件优先形式存在于 `src/justin-kit/components/` 下。 | Active | src/justin-kit/README.md |
 | 2026-06-26 | 桌面文件来自 `public/os-desktop/`，由 macOS 桌面组件渲染。 | Active | src/justin-kit/components/macos-desktop/README.md |
 | 2026-06-26 | 项目工作流技能使用 `justinweb-` 前缀，位于 `.agents/skills/` 下。 | Active | .agents/skills/README.md |
-| 2026-06-26 | Dock 导航使用真实路由 `/home`、`/works` 和 `/os`；`/` 保留为首页别名，客户端导航保留共享应用外壳。 | Active | src/components/app/JustinAppShell.astro |
-| 2026-09-11 | 当前标签页仅恢复房间或桌面稳定态；相机过渡中断回到来源状态，OS 内不使用滚轮折叠。 | Active | src/components/studio/studioState.ts |
+| 2026-09-11 | 界面使用 `/home`、`/works`、`/canvas`、`/os` 独立路由；`/os` 专用于 Justin OS，画布使用 `/canvas`。 | Active | src/app/navigation.ts |
+| 2026-09-11 | URL 决定界面，过渡中刷新按地址恢复；返回工作室复用已知首页历史，不追加重复首页。 | Active | src/components/app/studioAppRuntime.ts |
 | 2026-06-27 | 画布/白板使用 ReactFlow 节点编辑器，通过 better-sqlite3 进行 SQLite 持久化。 | Active | src/components/mine-canvas/MineCanvasEditor.tsx |
 | 2026-06-28 | 画布保存使用 append-only revision 和 expectedRevision 乐观锁，旧版本不可变。 | Active | src/server/canvas/canvas-store.ts |
 | 2026-06-28 | Docker 全屏桌面从 `dist/client/os-desktop` 扫描，空目录由 `/api/health` 报告失败。 | Active | src/pages/api/health.ts |

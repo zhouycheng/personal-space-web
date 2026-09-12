@@ -17,7 +17,7 @@
 
 ## 架构边界
 
-- `src/pages/index.astro`、`src/pages/home.astro`、`src/pages/works.astro` 和 `src/pages/os.astro` 仅拥有路由入口。
+- `src/pages/index.astro`、`src/pages/home.astro`、`src/pages/works.astro`、`src/pages/canvas.astro` 和 `src/pages/os.astro` 仅拥有路由入口。
 - `src/components/app/JustinAppShell.astro` 拥有共享 Dock 路由外壳和 OS 投影挂载点；`studioAppRuntime.ts` 协调导航、面板、房间与桌面状态。
 - `src/components/studio/` 拥有房间几何、相机、物件点击与 HTML 替代入口，不读取画布私有数据。
 - `src/styles/global.css` 拥有共享布局和动效样式。
@@ -48,7 +48,7 @@ Node 必须满足 `.node-version` 和 `package.json` engines 要求：`>=22.12.0
 - 基线：`rtk npm run build`。
 - App 外壳辅助逻辑：`rtk node --test tests/*.test.mjs`。
 - UI 和动效变更需要在桌面和窄屏幕上进行浏览器预览。
-- 路由外壳变更需要对 `/`、`/home`、`/works` 和 `/os` 进行直接加载、刷新和浏览器后退/前进检查。
+- 路由外壳变更需要对 `/`、`/home`、`/works`、`/canvas` 和 `/os` 进行直接加载、刷新、动画中途导航和浏览器后退/前进检查。
 - 桌面扫描器变更需要 `public/os-desktop/` 文件列表验证。
 - Docker 桌面变更需要验证 `dist/client/os-desktop/`，并确认 `/api/health` 返回非空桌面计数。
 - 画布存储变更需要验证旧 revision 可读取、冲突写入返回 `409`、SQLite 完整性和恢复到临时目录。

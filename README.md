@@ -9,20 +9,21 @@
 已实现：
 
 - Astro 7 服务端项目，使用 `@astrojs/node` 独立模式运行。
-- `Justin OS` 启动页路由 `/` 和 `/home`；`/` 保留为首页别名，底部 Dock 使用 `/home` 作为首页规范链接。
-- 共享 Justin 应用外壳，服务于 Dock 路由 `/home`、`/works` 和 `/os`，通过 History API 导航确保刷新、后退和前进保留当前激活路由，而不是回退到首页。
-- Three.js 低多边形三维工作室：暖白墙、木地板、书桌、电脑、书架和阅读角；支持有限拖动视角。场景居中，底部仅保留 `JUSTIN / PERSONAL SPACE` 署名，首页不显示 Dock。
-- 五个物件入口：电脑进入现有 Justin OS，作品墙进入 `/works`，桌面文件展示个人介绍，书架展示人生系统，名片展示已公开的项目链接；HTML 替代入口仅在键盘聚焦或 WebGL 失败时显示。
+- 界面地址：`/home` 工作室、`/works` 作品集、`/canvas` 我的画布、`/os` Justin OS；`/` 为首页别名，客户端规范化为 `/home`。
+- URL 是界面状态的唯一来源。首页进入子页追加历史；返回工作室优先退回已知首页记录，直达子页则替换当前记录为首页，不追加重复首页。
+- Three.js 低多边形三维工作室：暖白墙、木地板、书桌、电脑、书架、嵌入式双扇窗与落地灯；墙上画板连接个人画布。支持有限拖动视角。场景居中，底部仅保留 `JUSTIN / PERSONAL SPACE` 署名，首页不显示 Dock。
+- 五个物件入口：电脑进入现有 Justin OS，墙上画板放大为“我的画布”，书架打开悬浮卡片作品集，桌面文件展示个人介绍，名片展示已公开的项目链接；HTML 替代入口仅在键盘聚焦或 WebGL 失败时显示。
 - 背景、窗外颜色、日光与室内灯随访客设备本地时间自动变化，每 30 秒更新，返回标签页立即校时；采用固定时段插值，不请求位置、不计算当地日出日落。
 - 桌上电脑为 2023 款 16 英寸 MacBook Pro（M2 Pro）深空灰低多边形模型，依据 Apple 官方外观及机身宽深比例，宽度约占桌面 27%。转椅具备气压杆、五爪底座与双轮脚轮；点击后整椅用 2 秒完成一圈加速/减速旋转，万向轮逐渐对齐切向，轮子按路径长度滚动，重复点击不叠加。减少动态效果模式不播放转椅动画。
-- 点击电脑拉近并进入全屏 OS，菜单按钮返回房间。同标签页仅恢复稳定的 `room` 或 `desktop` 状态，过渡中刷新回退到来源状态。OS 内滚动不再触发首页折叠。
+- 电脑和画板共用约 1.45 秒的空间过渡：真实 HTML 界面贴合模型表面四角，随相机靠近逐步显现并扩展为全屏，返回时反向收回；电脑进入 `/os`，画板进入 `/canvas`，复用原组件和数据。减少动态效果模式直接进入。
+- 导航开始即更新 URL；过渡中刷新打开地址对应的稳定界面，不再读取旧 sessionStorage 界面标志。OS 内滚动不触发首页折叠。
 - Three.js 按首页需要动态加载；房间采用按需绘制，在其他路由、桌面、面板或后台停止绘制，页面销毁时释放资源。
-- 作品集与个人画布页面的 Dock 提供 `首页`、`作品集`和`我的`导航。
-- JSON 驱动的 `作品集` 路由（`/works`）：
+- 各子界面提供返回工作室入口；当前空间界面不显示 Dock。
+- JSON 驱动的悬浮卡片 `作品集`（`/works`，书架入口）：
   - 项目排序、标签页名称、标题、描述、标签、更新文本、开始文本、预览图路径和外部链接来自 `src/data/projects.json`；
-  - 预览资源位于 `src/assets/projects/`；
-  - 滚轮、触控板、键盘和顶部标签导航逐一切换全屏锁定轮播中的产品。
-- `/os` 路由：可平移的无限画布个人页面。
+  - 复用 FrameLean 工作台预览，QandA 使用文字封面；卡片详情保留现有项目描述、链接和下载；
+  - 在房间背景前横向浏览卡片，鼠标位置连续控制有界位移，保留小数精度，缓动速度不超过 420 CSS px/s；触屏原生横滑，支持方向键。左上角为无框返回入口，底部仅显示作品数量。旧全屏纵向作品页不再挂载。
+- `/canvas` 路由：可平移的无限画布个人页面；`/os` 专用于 Justin OS 桌面。
 - 全屏投影中的 macOS 风格 Justin OS 桌面：
   - 桌面文件从 `public/os-desktop/` 递归扫描；
   - `.html` 文件在 iframe 窗口内打开；
@@ -34,7 +35,7 @@
 - 活动监控系统双端点推送和心跳间隔 5 秒。
 - 纯克莱因蓝主题：所有品牌蓝色界面和控件使用 `#002FA7` / `rgb(0, 47, 167)`，包括终端屏幕、OS 桌面投影和激活 Dock 项。屏幕背景必须为纯色，不使用渐变。
 - 基于 ReactFlow 的白板/画布节点编辑系统，支持七种卡片类型、内联文本编辑和完善的工具栏。
-- 首页状态词汇：`room`（房间）、`entering`（进入电脑）、`desktop`（Justin OS）、`returning`（返回房间）。
+- 首页状态词汇：`room`（房间）、`entering` / `desktop` / `returning`（OS 进出），以及 `entering-canvas` / `canvas` / `returning-canvas`（画布进出）。
 - Justin Kit 源文件夹和类型化目录。
 - 已提取 `Cursor Reveal Hero` Astro 组件。
 - 已提取 `Local Activity Status` Astro 组件。
@@ -88,7 +89,8 @@ JustinWeb/
   src/pages/index.astro                         `/` 首页别名
   src/pages/home.astro                          `/home` 首页路由
   src/pages/works.astro                         `/works` 作品集路由
-  src/pages/os.astro                            `/os` 个人路由
+  src/pages/os.astro                            `/os` Justin OS 桌面
+  src/pages/canvas.astro                        `/canvas` 个人画布
   src/components/app/JustinAppShell.astro       共享 Dock 路由外壳
   src/components/app/studioAppRuntime.ts        路由、面板和房间/OS 状态协调
   src/components/studio/                       Three.js 房间、状态辅助与 HTML 入口
@@ -103,7 +105,7 @@ JustinWeb/
   src/styles/global.css                         路由外壳、启动、Dock 和 OS 样式
   src/data/kit.ts                               Justin Kit 目录
   src/data/projects.json                        作品集数据
-  src/components/works/WorksPortfolio.astro     作品集 UI
+  src/components/studio/StudioPortfolio.astro   悬浮卡片作品集
   src/assets/projects/                          作品集预览资源
   public/os-desktop/                            Justin OS 桌面文件
   src/justin-kit/                               组件库源文件

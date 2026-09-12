@@ -10,10 +10,13 @@
 - `entering`：点击电脑后，相机拉近电脑的短暂过渡。
 - `desktop`：全屏 Justin OS 桌面，房间暂停绘制。
 - `returning`：点击返回工作室后，相机回到房间的短暂过渡。
+- `entering-canvas`：墙上画板向全屏个人画布展开。
+- `canvas`：全屏个人画布，复用既有 ReactFlow 编辑器，房间暂停绘制。
+- `returning-canvas`：个人画布收回墙上画板。
 
-只持久化 `room` 和 `desktop`。`entering` 中断回到 `room`，`returning` 中断回到 `desktop`。旧终端与滚动推拉状态不参与当前恢复逻辑；`homeRuntimeState.mjs` 仅保留为历史辅助代码。
+URL 是唯一界面状态来源：`/home` 对应房间，`/os` 对应桌面，`/canvas` 对应个人画布，`/works` 对应作品集。导航开始即更新地址，动画只负责视觉过渡；中途刷新按 URL 打开稳定界面。旧 sessionStorage 标志不再参与恢复。返回工作室复用已知首页历史记录，无法确定来源时替换当前记录，不猜测上一页。
 
-这些术语描述的是首页状态，而非独立路由。后续 README、计划、测试笔记、issue 标题和实现注释中引用启动页时，请与此词汇保持一致。
+这些术语描述空间动画状态，稳定界面与独立路由对应。旧终端辅助 `homeRuntimeState.mjs` 不参与当前路由。
 
 ## 文档入口
 
