@@ -23,6 +23,7 @@ Read `.agents/skills/README.md` first and follow its shared pre-read protocol.
 | Current-fact calibration and commit or PR handoff | `justinweb-delivery` |
 | User-specified version release document | `justinweb-release` |
 | Project-local skill maintenance | `justinweb-skill-create` |
+| Tailscale server deployment or update | `justinweb-tailscale-deploy` |
 
 ## Full Workflow
 

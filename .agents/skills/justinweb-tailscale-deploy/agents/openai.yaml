@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinWeb Tailscale Deploy"
+  short_description: "Deploy JustinWeb to a private server through Tailscale."
+  default_prompt: "Use $justinweb-tailscale-deploy to deploy the current JustinWeb revision through Tailscale and verify its public domain."

@@ -65,6 +65,7 @@ Read Git status, branch, diffs, and recent log for validation, delivery, release
 | Calibrate docs and prepare commit or PR handoff | `justinweb-delivery` | Commit information and PR description |
 | Write a formal release document for a specified version | `justinweb-release` | Release document draft or file |
 | Maintain this project-local skill matrix | `justinweb-skill-create` | Updated skills and routing docs |
+| Deploy or update JustinWeb on a server through Tailscale | `justinweb-tailscale-deploy` | Verified production deployment and rollback state |
 
 ## Recommended Flows
 
@@ -72,6 +73,7 @@ Read Git status, branch, diffs, and recent log for validation, delivery, release
 - New feature: `justinweb-requirement-pool` -> `justinweb-feature-analysis` -> `justinweb-feature-plan` -> `justinweb-implementation` -> `justinweb-validation` -> `justinweb-delivery`.
 - Documentation-only calibration: `justinweb-feature-analysis` -> `justinweb-implementation` -> `justinweb-validation`.
 - Skill system maintenance: `justinweb-skill-create` -> `justinweb-validation` -> `justinweb-delivery`.
+- Tailscale server deployment: `justinweb-tailscale-deploy`.
 
 ## Common Gates
 
