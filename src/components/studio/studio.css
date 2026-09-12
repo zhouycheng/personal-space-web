@@ -1,0 +1,25 @@
+.studio {position:relative;height:100%;background:#eee9de;color:#45453e}
+.studio-eyebrow {font:11px var(--mono);letter-spacing:2px;color:#696b62;margin:0 0 12px}
+.studio button {cursor:pointer;font-family:inherit}
+.studio-scene {position:absolute;inset:0 0 60px;touch-action:none}
+.studio-scene canvas {display:block;width:100%;height:100%;outline:none}
+.studio-scene canvas[hidden] {display:none}
+.studio-loading {position:absolute;top:48%;width:100%;text-align:center;color:inherit;font-size:14px}
+.studio-tooltip {position:absolute;pointer-events:none;z-index:3;padding:9px 14px;background:#002fa7;color:white;border-radius:6px;font-size:12px;white-space:nowrap}
+.studio-signature {position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:0;right:0;margin:0;text-align:center;font:12px var(--mono);letter-spacing:3px;pointer-events:none}
+/* Keep keyboard and failure access without adding controls to the normal scene. */
+.studio-access {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.studio-access:focus-within,.is-fallback .studio-access {width:auto;height:auto;clip-path:none;left:16px;right:16px;bottom:70px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;z-index:3}
+.studio-access button {min-height:44px;padding:10px 16px;border:1px solid #d6d5c9;border-radius:6px;background:#faf8f0;color:#30372d}
+.alpha-shell .app-dock[hidden] {display:none}
+.studio button:focus-visible,.alpha-shell button:focus-visible,.studio-dialog a:focus-visible {outline:3px solid #577ded;outline-offset:4px}
+.studio-dialog {width:min(540px,calc(100vw - 32px));max-height:80svh;overflow:auto;border:1px solid #d2cebe;border-radius:16px;padding:40px;background:#faf8f0;color:#30372d;box-shadow:0 25px 90px #151b2940}
+.studio-dialog::backdrop {background:#17212b66;backdrop-filter:blur(7px)}
+.studio-dialog h2 {font-size:30px;font-weight:500;margin:20px 0 28px}.studio-dialog h3 {margin-top:26px;font-size:17px}.studio-dialog p {font-size:14px;line-height:1.8}.studio-dialog .studio-eyebrow {font-size:10px}
+.studio-close {position:absolute;right:16px;top:14px;border:0;background:transparent;font-size:18px;cursor:pointer;padding:8px}.studio-muted {color:#73776c}
+.studio-public-link {display:flex;justify-content:space-between;border-bottom:1px solid #d8d7cc;padding:18px 0;color:#002fa7}
+.alpha-shell [data-os-fullscreen].is-settled {--projection-opacity:1}
+.alpha-shell #page-home {overflow:hidden;transform:none;filter:none}
+.alpha-shell .os-menu-bar {min-height:42px}.alpha-shell .os-menu-item {min-height:36px;cursor:pointer}
+@media(max-width:640px) {.studio-signature {font-size:10px;letter-spacing:2px}.studio-dialog {padding:30px 24px}.alpha-shell .os-menu-group {gap:10px}.alpha-shell .os-menu-bar {padding:0 12px}.alpha-shell [data-os-time] {display:none}}
+@media(prefers-reduced-motion:reduce) {.alpha-shell .app-page,.alpha-shell [data-os-fullscreen] {transition:none}}
