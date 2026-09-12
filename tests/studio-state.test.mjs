@@ -52,8 +52,11 @@ test('chair turns exactly once with acceleration, a longer coast and no overshoo
 });
 
 test('local time lighting interpolates dawn and dusk and wraps midnight continuously', () => {
-  assert.equal(clockText(new Date(2026,8,11,0,4,9)), '00:04:09');
-  assert.equal(clockText(new Date(2026,8,11,23,59,59)), '23:59:59');
+  assert.equal(clockText(new Date(2026,8,11,0,4,9)), '00:04');
+  assert.equal(clockText(new Date(2026,8,11,23,59,59)), '23:59');
+  assert.equal(clockText(new Date(2026,0,2), true), '01.02');
+  assert.equal(clockText(new Date(2026,11,31), true), '12.31');
+  assert.equal(clockText(new Date(2028,1,29), true), '02.29');
   const at = (hour, minute = 0, second = 0) => studioLighting(new Date(2026, 8, 11, hour, minute, second));
   assert.equal(at(0).daylight, 0);
   assert.equal(at(12).daylight, 1);
