@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { clockText, studioLighting } from '../src/components/studio/studioTime.ts';
 import { chairTurn, CHAIR_TURN_MS } from '../src/components/studio/chairMotion.ts';
-import { surfaceDistance, surfaceOpacity, galleryStep } from '../src/components/studio/studioMotion.ts';
+import { surfaceDistance, surfaceOpacity, surfacePhases, galleryStep } from '../src/components/studio/studioMotion.ts';
 import { ACTION_LABELS } from '../src/components/studio/studioState.ts';
 
 test('room surface labels identify the canvas and portfolio', () => {
@@ -12,8 +12,8 @@ test('room surface labels identify the canvas and portfolio', () => {
   assert.equal(ACTION_LABELS.works, '作品集');
 });
 
-test('camera approaches a fixed surface until it covers the view; UI appears only at the end', () => {
-  for (const [width,height] of [[0.886,0.548],[2.54,1.34]]) {
+test('camera faces the fixed screen before approaching; live UI fades in during approach', () => {
+  for (const [width,height] of [[0.886,0.548],[0.69,0.49]]) {
     for (const aspect of [0.5,1,16/9,2.4]) {
       const distance=surfaceDistance(width,height,aspect,38);
       const viewHeight=2*distance*Math.tan(38*Math.PI/360);
@@ -22,8 +22,11 @@ test('camera approaches a fixed surface until it covers the view; UI appears onl
     }
   }
   assert.equal(surfaceOpacity(0),0);
-  assert.equal(surfaceOpacity(0.88),0);
-  assert.ok(Math.abs(surfaceOpacity(0.94)-0.5)<1e-12);
+  assert.deepEqual(surfacePhases(0),{align:0,approach:0});
+  assert.deepEqual(surfacePhases(0.45),{align:1,approach:0});
+  assert.deepEqual(surfacePhases(1),{align:1,approach:1});
+  assert.equal(surfaceOpacity(0.48),0);
+  assert.ok(Math.abs(surfaceOpacity(0.69)-0.5)<1e-12);
   assert.equal(surfaceOpacity(1),1);
 });
 
