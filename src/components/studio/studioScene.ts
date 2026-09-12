@@ -97,8 +97,34 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   // Work desk, drawers, keyboard, chair.
   rounded(room,[3.5,0.14,1.5],[0,1.36,-1.3],wood,0.025);
   for(const z of [-1.9,-0.7]) box(room,[0.09,1.3,0.09],[1.55,0.65,z],charcoal);
-  box(room,[0.72,1.28,1.2],[-1.25,0.65,-1.3],furnitureFrame);
-  for(let i=0;i<3;i++) {box(room,[0.65,0.36,0.04],[-1.25,0.27+i*0.4,-0.68],upholstery);box(room,[0.22,0.025,0.035],[-1.25,0.36+i*0.4,-0.645],brass);}
+  // Hollow cabinet: the drawer boxes can actually leave their compartments.
+  for(const x of [-1.59,-0.91]) box(room,[0.04,1.28,1.2],[x,0.65,-1.3],furnitureFrame);
+  box(room,[0.64,1.28,0.04],[-1.25,0.65,-1.88],furnitureFrame);
+  for(const y of [0.03,0.47,0.87,1.27]) box(room,[0.64,0.025,1.16],[-1.25,y,-1.28],furnitureFrame);
+  const drawerActions = ["drawer-top","drawer-middle","drawer-bottom"] as const;
+  const drawers = drawerActions.map((action,index) => {
+    const group=hotspot(action);group.position.set(-1.25,1.07-index*0.4,-0.68);
+    rounded(group,[0.65,0.36,0.045],[0,0,0],upholstery,0.012);
+    box(group,[0.59,0.025,1.02],[0,-0.16,-0.53],wood);
+    for(const x of [-0.285,0.285]) {
+      box(group,[0.025,0.27,1.02],[x,-0.025,-0.53],wood);
+      box(group,[0.012,0.028,0.9],[x*1.06,-0.07,-0.51],brass);
+    }
+    box(group,[0.59,0.27,0.025],[0,-0.025,-1.03],wood);
+    for(const x of [-0.09,0.09]) box(group,[0.025,0.025,0.055],[x,0.07,0.046],brass);
+    rounded(group,[0.24,0.027,0.025],[0,0.07,0.073],brass,0.01);
+    return {action,group,open:false,from:0,to:0,elapsed:0,frameTime:undefined as number|undefined,moving:false};
+  });
+  const diary=new THREE.Group();drawers[0].group.add(diary);diary.userData.action="diary";
+  diary.position.set(0,-0.105,-0.33);diary.rotation.y=-0.08;
+  const leather=material(0x70432d,0.93);
+  rounded(diary,[0.39,0.038,0.47],[0,0,0],paper,0.008);
+  for(const y of [-0.026,0.026]) rounded(diary,[0.41,0.016,0.49],[0,y,0],leather,0.008);
+  rounded(diary,[0.03,0.065,0.49],[-0.2,0,0],leather,0.008);
+  for(const y of [-0.01,0,0.01]) box(diary,[0.375,0.002,0.002],[0.01,y,0.236],upholstery);
+  box(diary,[0.018,0.003,0.53],[0.14,0.036,0.01],charcoal);
+  const diaryTitle=label(diary,"JOURNAL",0.28,0.1,[-0.02,0.035,-0.065],"#70432d","#e7c88d",0.3);diaryTitle.rotation.x=-Math.PI/2;
+  box(diary,[0.03,0.004,0.055],[0.06,-0.012,0.263],brass);
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
   // Stylized at room scale; the lid, keyboard and trackpad belong to one hotspot.
   const computer = hotspot("computer");
@@ -176,42 +202,75 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const pencil=cylinder(tablet,0.014,0.48,[0.43,0.005,0],paper);pencil.rotation.x=Math.PI/2;
   box(tablet,[0.004,0.012,0.055],[0.391,0,0],keycap);
 
-  // Desktop document rack retains the portfolio hotspot.
+  // Open metal trays with thin folder covers, paper edges and index tabs.
   const library=hotspot("works");
-  for(const x of [-1.57,-0.93]) box(library,[0.035,0.52,0.42],[x,1.69,-1.65],charcoal);
+  for(const x of [-1.57,-0.93]) for(const z of [-1.84,-1.48]) cylinder(library,0.012,0.55,[x,1.705,z],charcoal);
   for(let row=0;row<3;row++) {
-    box(library,[0.69,0.035,0.46],[-1.25,1.46+row*0.19,-1.65],charcoal);
-    box(library,[0.55,0.055,0.36],[-1.25,1.51+row*0.19,-1.65],row===1?blue:paper);
+    const y=1.46+row*0.18;
+    rounded(library,[0.69,0.018,0.46],[-1.25,y,-1.65],charcoal,0.008);
+    for(const x of [-1.58,-0.92]) box(library,[0.018,0.065,0.46],[x,y+0.032,-1.65],charcoal);
+    box(library,[0.66,0.065,0.018],[-1.25,y+0.032,-1.872],charcoal);
+    const folder=new THREE.Group();library.add(folder);folder.position.set(-1.25,y+0.026,-1.63);folder.rotation.y=(row-1)*0.045;
+    const cover=row===1?blue:material(row===0?0xc8ab7b:0xb8bdc7);
+    rounded(folder,[0.58,0.009,0.37],[0,0,0],cover,0.004);
+    for(let page=0;page<4;page++) box(folder,[0.54,0.004,0.338],[page%2*0.003,0.008+page*0.005,0],paper);
+    const topCover=rounded(folder,[0.58,0.009,0.37],[0,0.032,0],cover,0.004);topCover.rotation.z=-0.025;
+    box(folder,[0.014,0.034,0.37],[-0.283,0.016,0],cover);
+    rounded(folder,[0.145,0.01,0.045],[-0.16+row*0.14,0.032,0.197],cover,0.004);
+    const tabLabel=label(folder,["PROJECTS","SELECTED","ARCHIVE"][row],0.32,0.065,[0.035,0.043,0.09],row===1?"#002fa7":row===0?"#c8ab7b":"#b8bdc7",row===1?"#fff9e9":"#303b39",0.4);tabLabel.rotation.x=-Math.PI/2;
   }
-  cylinder(room,0.095,0.17,[-0.78,1.52,-0.85],paper);
-  const handle=mesh(room,new THREE.TorusGeometry(0.065,0.018,6,12),paper,-0.68,1.54,-0.85);handle.rotation.y=Math.PI/2;
+  const mug=new THREE.Group();room.add(mug);mug.position.set(-0.78,1.448,-0.88);mug.userData.label="一杯咖啡";
+  const ceramic=material(0xeee4d1,0.24),coffee=material(0x382015,0.25);
+  cylinder(room,0.15,0.014,[-0.78,1.437,-0.88],material(0x98714b));
+  const cupProfile=[[0,0],[0.066,0],[0.079,0.014],[0.097,0.18],[0.096,0.195],[0.089,0.198],[0.083,0.183],[0.068,0.032],[0,0.032]].map(([x,y])=>new THREE.Vector2(x,y));
+  mesh(mug,new THREE.LatheGeometry(cupProfile,40),ceramic,0,0,0);
+  const handle=mesh(mug,new THREE.TorusGeometry(0.058,0.015,12,32),ceramic,0.105,0.113,0);handle.scale.x=0.83;
+  cylinder(mug,0.082,0.003,[0,0.164,0],coffee);
+  const crema=mesh(mug,new THREE.TorusGeometry(0.077,0.002,6,40),material(0xaf7b45),0,0.167,0);crema.rotation.x=Math.PI/2;
 
   // Angled desktop clock: one reusable texture, sourced from the visitor's clock.
-  const deskClock=new THREE.Group();room.add(deskClock);deskClock.position.set(-1.3,1.58,-0.83);deskClock.rotation.y=0.25;deskClock.userData.label="电子钟 · 本地时间";
+  const deskClock=hotspot("clock");deskClock.position.set(0.67,1.572,-1.83);deskClock.rotation.y=-0.12;
   rounded(deskClock,[0.61,0.27,0.15],[0,0,0],charcoal,0.025);
   const clockFace=label(deskClock,"",0.55,0.21,[0,0,0.079],"#101d1d","#b5edc7",0.63);
   const clockTexture=(clockFace.material as THREE.MeshBasicMaterial).map!;
   const clockImage=clockTexture.image as HTMLCanvasElement;
   let displayedTime="";
+  let clockDate=new Date(),showDate=false;
 
   // Articulated task lamp with an open shade and a downward, shadow-casting cone.
-  const lampModel=new THREE.Group();room.add(lampModel);lampModel.userData.label="关节台灯";
-  const base=new THREE.Vector3(1.32,1.48,-1.79),elbow=new THREE.Vector3(1.48,1.97,-1.82),head=new THREE.Vector3(0.99,2.29,-1.56);
-  cylinder(lampModel,0.19,0.055,[base.x,base.y-0.02,base.z],charcoal);
+  const lampModel=hotspot("lamp");lampModel.userData.label="关闭台灯";
+  const base=new THREE.Vector3(1.4,1.49,-1.84),elbow=new THREE.Vector3(1.53,2.02,-1.86),head=new THREE.Vector3(1.09,2.35,-1.64);
+  cylinder(lampModel,0.18,0.065,[base.x,1.467,base.z],charcoal);
+  cylinder(lampModel,0.155,0.013,[base.x,1.506,base.z],charcoal);
+  cylinder(lampModel,0.025,0.014,[base.x-0.065,1.52,base.z+0.07],brass);
   for(const [a,b] of [[base,elbow],[elbow,head]]) {
-    const arm=cylinder(lampModel,0.024,a.distanceTo(b),a.clone().add(b).multiplyScalar(0.5).toArray(),charcoal);
-    arm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());
+    for(const offset of [-0.034,0.034]) {
+      const arm=cylinder(lampModel,0.014,a.distanceTo(b),a.clone().add(b).multiplyScalar(0.5).add(new THREE.Vector3(0,0,offset)).toArray(),charcoal);
+      arm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());
+    }
   }
-  for(const point of [base,elbow,head]) mesh(lampModel,new THREE.SphereGeometry(0.047,12,8),brass,...point.toArray() as [number,number,number]);
+  for(const point of [base,elbow,head]) {
+    const joint=cylinder(lampModel,0.047,0.11,point.toArray(),charcoal);joint.rotation.x=Math.PI/2;
+    for(const side of [-1,1]) {
+      const bolt=cylinder(lampModel,0.023,0.009,[point.x,point.y,point.z+side*0.06],brass);bolt.rotation.x=Math.PI/2;
+      box(lampModel,[0.024,0.004,0.002],[point.x,point.y,point.z+side*0.065],charcoal);
+    }
+  }
+  const cord=new THREE.CatmullRomCurve3([new THREE.Vector3(1.45,1.515,-1.93),new THREE.Vector3(1.56,1.447,-1.97),new THREE.Vector3(1.68,1.443,-1.9)]);
+  mesh(lampModel,new THREE.TubeGeometry(cord,16,0.008,6,false),charcoal,0,0,0);
   const lampTarget=new THREE.Object3D();lampTarget.position.set(0.65,1.43,-1.02);scene.add(lampTarget);
   const shade=new THREE.Group();lampModel.add(shade);shade.position.copy(head);
   shade.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),lampTarget.position.clone().sub(head).normalize());
-  const shadeMaterial=material(0x59645c,0.45);shadeMaterial.side=THREE.DoubleSide;
-  mesh(shade,new THREE.CylinderGeometry(0.09,0.22,0.2,32,1,true),shadeMaterial,0,0,0);
-  const diffuserMaterial=new THREE.MeshBasicMaterial({color:0xffe3aa});materials.add(diffuserMaterial);
-  const diffuser=mesh(shade,new THREE.CircleGeometry(0.19,32),diffuserMaterial,0,-0.087,0);diffuser.rotation.x=Math.PI/2;diffuser.castShadow=false;
+  // Closed lathed shell includes the top, thick rolled lip and inner wall.
+  const shadeMaterial=material(0x59645c,0.38);
+  const shadeProfile=[[0,-0.045],[0.055,-0.045],[0.075,-0.065],[0.19,-0.22],[0.203,-0.244],[0.218,-0.244],[0.22,-0.229],[0.09,-0.04],[0.063,-0.018],[0.063,0.005],[0,0.005]].map(([x,y])=>new THREE.Vector2(x,y));
+  mesh(shade,new THREE.LatheGeometry(shadeProfile,48),shadeMaterial,0,-0.065,0);
+  cylinder(shade,0.025,0.07,[0,-0.03,0],brass);
+  const diffuserMaterial=material(0xffe3aa,0.5);diffuserMaterial.emissive.setHex(0xffce87);diffuserMaterial.emissiveIntensity=1.5;
+  const diffuser=mesh(shade,new THREE.CircleGeometry(0.182,40),diffuserMaterial,0,-0.286,0);diffuser.rotation.x=Math.PI/2;diffuser.castShadow=false;
+  let lampOn=true,lampPower=2;
   const lamp=new THREE.SpotLight(0xffdfb0,0,5,Math.PI/3.5,0.72,2);
-  lamp.position.copy(new THREE.Vector3(0,-0.12,0).applyQuaternion(shade.quaternion).add(head));lamp.target=lampTarget;
+  lamp.position.copy(new THREE.Vector3(0,-0.315,0).applyQuaternion(shade.quaternion).add(head));lamp.target=lampTarget;
   lamp.castShadow=true;lamp.shadow.mapSize.set(1024,1024);lamp.shadow.camera.near=0.05;lamp.shadow.camera.far=5;
   lamp.shadow.bias=-0.0002;lamp.shadow.normalBias=0.008;scene.add(lamp);
   const ambient=new THREE.HemisphereLight(0xfff6e5,0x746b51,2.6);scene.add(ambient);
@@ -230,6 +289,13 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function draw(now:number) {
     frame=0;
     if(!active||destroyed||failed) return;
+    for(const drawer of drawers) {
+      if(!drawer.moving) continue;
+      drawer.elapsed+=drawer.frameTime===undefined?0:now-drawer.frameTime;drawer.frameTime=now;
+      const t=reducedMotion.matches?1:Math.min(1,drawer.elapsed/420);
+      drawer.group.position.z=-0.68+THREE.MathUtils.lerp(drawer.from,drawer.to,smooth(t));
+      if(t===1) {drawer.moving=false;drawer.frameTime=undefined;}
+    }
     if(chairElapsed!==undefined) {
       chairElapsed += chairFrameTime===undefined ? 0 : now-chairFrameTime;
       chairFrameTime=now;
@@ -252,9 +318,17 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(t===1) {const done=motion.resolve;motion=undefined;done();}
     }
     renderer.render(scene,camera);
-    if(motion||hoverMotion||chairElapsed!==undefined) frame=requestAnimationFrame(draw);
+    if(motion||hoverMotion||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving)) frame=requestAnimationFrame(draw);
   }
   function requestDraw() {if(active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
+  function updateClock() {
+    const text=clockText(clockDate,showDate);if(text===displayedTime)return;displayedTime=text;
+    const ctx=clockImage.getContext("2d")!;
+    ctx.fillStyle="#101d1d";ctx.fillRect(0,0,clockImage.width,clockImage.height);ctx.fillStyle="#b5edc7";
+    ctx.fillText(text,clockImage.width/2,clockImage.height/2,clockImage.width*0.92);clockTexture.needsUpdate=true;
+    deskClock.userData.label=`${text} · 点击显示${showDate?"时间":"日期"}`;
+    canvas.setAttribute("aria-label",`工作室场景，电子钟${showDate?"日期":"时间"} ${text}；拖动改变视角，Tab 键可访问内容入口`);requestDraw();
+  }
   function surfaceView(surface: THREE.Mesh) {
     surface.updateWorldMatrix(true,false);
     const {width,height}=(surface.geometry as THREE.PlaneGeometry).parameters;
@@ -329,14 +403,28 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       const rect=mount.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(rect.width-tooltip.offsetWidth-8,event.clientX-rect.left+16))}px`;tooltip.style.top=`${Math.max(8,event.clientY-rect.top-34)}px`;canvas.style.cursor=hovering.userData.action?"pointer":"help";
     }
   },{signal:events.signal});
-  canvas.addEventListener("pointerup",event=>{const click=down&&!down.moved;down=undefined;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);if(event.pointerType!=="mouse")clearHover();if(click) {const hit=pick(event);if(hit?.userData.action)onAction(hit.userData.action);}},{signal:events.signal});
+  canvas.addEventListener("pointerup",event=>{const click=down&&!down.moved;down=undefined;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);if(event.pointerType!=="mouse")clearHover();if(click) {const hit=pick(event);if(hit?.userData.action) {clearHover();onAction(hit.userData.action);}}},{signal:events.signal});
   canvas.addEventListener("pointercancel",()=>{down=undefined;clearHover();},{signal:events.signal});
   canvas.addEventListener("pointerleave",()=>clearHover(),{signal:events.signal});
   reducedMotion.addEventListener("change",()=>{clearHover(false);if(!motion&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
   canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();failed=true;clearHover(false);mount.dataset.renderActive="false";cancelAnimationFrame(frame);frame=0;motion?.resolve();motion=undefined;canvas.hidden=true;onFailure();},{signal:events.signal});
   setRoomCamera();resize();
   return {
-    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;clearHover(false);down=undefined;if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)renderer.render(scene,camera);}else requestDraw();},
+    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;drawers.forEach(drawer=>drawer.frameTime=undefined);clearHover(false);down=undefined;if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)renderer.render(scene,camera);}else requestDraw();},
+    toggleDrawer(action:typeof drawerActions[number]) {
+      const drawer=drawers.find(drawer=>drawer.action===action)!;
+      clearHover();drawer.open=!drawer.open;drawer.from=drawer.group.position.z+0.68;drawer.to=drawer.open?0.85:0;
+      drawer.elapsed=0;drawer.frameTime=undefined;drawer.moving=!reducedMotion.matches;
+      if(!drawer.moving)drawer.group.position.z=-0.68+drawer.to;
+      drawer.group.userData.label=ACTION_LABELS[action].replace("打开",drawer.open?"关闭":"打开");
+      requestDraw();return drawer.open;
+    },
+    toggleLamp() {
+      clearHover();lampOn=!lampOn;lamp.intensity=lampOn?lampPower:0;
+      diffuserMaterial.emissiveIntensity=lampOn?1.5:0;diffuserMaterial.color.setHex(lampOn?0xffe3aa:0xc7c1b3);
+      lampModel.userData.label=lampOn?"关闭台灯":"开启台灯";requestDraw();return lampOn;
+    },
+    toggleClock() {clearHover();showDate=!showDate;clockDate=new Date();updateClock();return showDate;},
     spinChair(reducedMotion=false) {
       if(failed||destroyed||chairElapsed!==undefined)return;
       if(reducedMotion) {chair.rotation.y=0;requestDraw();return;}
@@ -345,15 +433,11 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     },
     setLighting(light:ReturnType<typeof studioLighting>) {
       sun.intensity=1.1+2.1*light.daylight;sun.color.setHex(light.sun);
-      ambient.intensity=1.15+1.05*light.daylight;lamp.intensity=2.8*(1-light.daylight)+0.25;
+      ambient.intensity=1.15+1.05*light.daylight;lampPower=2.8*(1-light.daylight)+1.2;lamp.intensity=lampOn?lampPower:0;
       requestDraw();
     },
     setTime(date:Date) {
-      const time=clockText(date);if(time===displayedTime)return;displayedTime=time;
-      const ctx=clockImage.getContext("2d")!;
-      ctx.fillStyle="#101d1d";ctx.fillRect(0,0,clockImage.width,clockImage.height);ctx.fillStyle="#b5edc7";
-      ctx.fillText(time,clockImage.width/2,clockImage.height/2,clockImage.width*0.92);clockTexture.needsUpdate=true;
-      canvas.setAttribute("aria-label",`工作室场景，桌角时钟 ${time}；拖动改变视角，Tab 键可访问内容入口`);requestDraw();
+      clockDate=date;updateClock();
     },
     moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number,rect:{left:number;top:number;width:number;height:number})=>void) {
       motion?.resolve();zoomed=enter;
