@@ -266,7 +266,7 @@ function isBlobUrl(src?: string): src is string {
 }
 
 function isMineCanvasRouteActive() {
-  return window.document.getElementById("page-os")?.classList.contains("is-active") ?? true;
+  return window.document.getElementById("page-canvas")?.classList.contains("is-active") ?? true;
 }
 
 function MineCanvasMiniMap({ onMapClick }: { onMapClick: (event: unknown, position: { x: number; y: number }) => void }) {

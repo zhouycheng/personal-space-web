@@ -1,6 +1,5 @@
 ---
 import projects from "../../data/projects.json";
-import life from "../../../public/os-desktop/人生系统.md?raw";
 import { ACTION_LABELS } from "./studioState";
 import "./studio.css";
 const links = projects.flatMap(project => project.links.map(link => ({ ...link, title: project.title })));
@@ -23,9 +22,6 @@ const links = projects.flatMap(project => project.links.map(link => ({ ...link, 
     <p>这里是 Justin 的个人工作室，用来展示正在制作的工具与项目。</p>
     {projects.map(project => <article><h3>{project.title}</h3><p>{project.summary}</p></article>)}
     <p class="studio-muted">完整简历尚未提供。</p>
-  </section>
-  <section data-studio-panel="library" hidden>
-    {life.split("\n").filter(line => line.trim()).map(line => line.startsWith("# ") ? null : line.startsWith("## ") ? <h3>{line.slice(3)}</h3> : <p>{line.startsWith("- ") ? `• ${line.slice(2)}` : line}</p>)}
   </section>
   <section data-studio-panel="contact" hidden>
     <p>可以从这些公开项目继续了解我的工作。</p>

@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { chairTurn } from "./chairMotion";
 import { ACTION_LABELS, type StudioAction } from "./studioState";
 import type { studioLighting } from "./studioTime";
+import { surfaceDistance } from "./studioMotion";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
@@ -22,8 +23,6 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const room = new THREE.Group(); scene.add(room);
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
   const focus = new THREE.Vector3(0, 1.2, -0.2);
-  const computerFocus = new THREE.Vector3();
-  const computerView = new THREE.Vector3();
   const events = new AbortController();
   const materials = new Set<THREE.Material>();
   const geometries = new Set<THREE.BufferGeometry>();
@@ -41,7 +40,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let zoomed = false;
   let hovering: THREE.Group | undefined;
   let down: { x: number; y: number; angle: number; elevation: number; moved: boolean } | undefined;
-  let motion: { start: number; duration: number; from: THREE.Vector3; to: THREE.Vector3; lookFrom: THREE.Vector3; lookTo: THREE.Vector3; resolve: () => void } | undefined;
+  let motion: { start: number; duration: number; from: THREE.Vector3; to: THREE.Vector3; lookFrom: THREE.Vector3; lookTo: THREE.Vector3; enter: boolean; update: (progress: number) => void; resolve: () => void } | undefined;
   let chairElapsed: number | undefined;
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
@@ -69,12 +68,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function hotspot(action: StudioAction) {
     const group = new THREE.Group(); group.userData.action = action; room.add(group); return group;
   }
-  function label(parent: THREE.Object3D, text: string, width: number, height: number, at: number[], background = "#002fa7", color = "#fff9e9") {
-    const image = document.createElement("canvas"); image.width=512;image.height=256;
+  function label(parent: THREE.Object3D, text: string, width: number, height: number, at: number[], background = "#002fa7", color = "#fff9e9", fontScale = 0.156) {
+    const image = document.createElement("canvas"); image.width=1024;image.height=Math.round(1024*height/width);
     const ctx = image.getContext("2d")!;
-    ctx.fillStyle=background;ctx.fillRect(0,0,512,256);ctx.fillStyle=color;
-    ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="500 40px monospace";ctx.fillText(text,256,128,460);
-    const texture = new THREE.CanvasTexture(image);texture.colorSpace=THREE.SRGBColorSpace;textures.add(texture);
+    ctx.fillStyle=background;ctx.fillRect(0,0,image.width,image.height);ctx.fillStyle=color;
+    ctx.textAlign="center";ctx.textBaseline="middle";ctx.font=`600 ${Math.round(image.height*fontScale)}px monospace`;ctx.fillText(text,image.width/2,image.height/2,image.width*0.9);
+    const texture = new THREE.CanvasTexture(image);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=renderer.capabilities.getMaxAnisotropy();textures.add(texture);
     const m = new THREE.MeshBasicMaterial({map:texture});materials.add(m);
     return mesh(parent,new THREE.PlaneGeometry(width,height),m,...at as [number,number,number]);
   }
@@ -86,11 +85,13 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     box(room,[1.985,0.06,0.39],[-3+col*2,0,row*0.4-2.8],planks[(row+col*3)%4]);
   }
   box(room,[8.2,3.5,0.14],[0,1.73,-3.06],cream);
-  box(room,[0.14,3.5,6.15],[-4.06,1.73,0],cream);
+  // Leave a real window opening: z -1.0..1.3, y 1.18..3.12.
+  box(room,[0.14,1.2,6.15],[-4.06,0.58,0],cream);
+  box(room,[0.14,0.36,6.15],[-4.06,3.3,0],cream);
+  box(room,[0.14,1.94,2.075],[-4.06,2.15,-2.0375],cream);
+  box(room,[0.14,1.94,1.775],[-4.06,2.15,2.1875],cream);
   box(room,[8.1,0.12,0.1],[0,0.11,-2.94],paper);
   box(room,[0.1,0.12,6],[-3.94,0.11,0],paper);
-  box(room,[4.7,0.025,3.1],[0,0.05,0.8],material(0xdad5c5));
-  box(room,[4.45,0.03,2.84],[0,0.055,0.8],material(0xe9e2d1));
 
   // Work desk, drawers, keyboard, chair.
   box(room,[3.5,0.14,1.35],[0,1.36,-1.3]);
@@ -117,7 +118,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const lid=new THREE.Group();computer.add(lid);lid.position.set(-0.2,1.505,-1.84);lid.rotation.x=-0.23;lid.scale.set(1.127,1.127,1);
   rounded(lid,[1.42,0.91,0.035],[0,0.455,0],aluminum,0.017);
   rounded(lid,[1.38,0.873,0.011],[0,0.455,0.022],keycap,0.005);
-  label(lid,"Justin OS",1.31,0.81,[0,0.457,0.029]);
+  const computerSurface=label(lid,"Justin OS",1.31,0.81,[0,0.457,0.029]);
   rounded(lid,[0.18,0.041,0.007],[0,0.851,0.033],keycap,0.003);
   mesh(lid,new THREE.SphereGeometry(0.006,8,6),chrome,0,0.851,0.038);
   const hinge=cylinder(computer,0.027,1.32,[-0.2,1.5,-1.84],keycap);hinge.rotation.z=Math.PI/2;
@@ -126,8 +127,6 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   computer.scale.setScalar(laptopScale);
   computer.position.set(-0.2,1.43,-1.3).multiplyScalar(1-laptopScale);
   computer.updateWorldMatrix(true,true);
-  computerFocus.copy(lid.localToWorld(new THREE.Vector3(0,0.457,0.029)));
-  computerView.copy(new THREE.Vector3(0,0,1).transformDirection(lid.matrixWorld).multiplyScalar(0.75).add(computerFocus));
 
   // Whole-chair turn: casters align to the circular path and wheels roll along it.
   const chair=hotspot("chair");chair.position.z=0.4;
@@ -166,16 +165,17 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     }
   }
 
-  // Portfolio board and pinned prints.
-  const works = hotspot("works");
+  // Personal canvas stays on the wall while the camera approaches its surface.
+  const works = hotspot("canvas");
   box(works,[2.7,1.5,0.1],[0.25,2.49,-2.92],edge);
   box(works,[2.54,1.34,0.045],[0.25,2.49,-2.85],charcoal);
-  label(works,"SELECTED WORK",1.45,0.24,[0.25,3.0,-2.816],"#303b39");
-  for(let i=0;i<4;i++) {
-    const x=-0.69+i*0.63;
-    box(works,[0.51,0.73,0.024],[x,2.43,-2.81],paper);
-    label(works,i%2===0?"FrameLean":"QandA",0.46,0.23,[x,2.58,-2.793],i%2===0?"#002fa7":"#ac7d50");
-    for(let j=0;j<3;j++) box(works,[0.33-j*0.04,0.018,0.005],[x,2.35-j*0.07,-2.79],sage);
+  const canvasSurface=mesh(works,new THREE.PlaneGeometry(2.54,1.34),paper,0.25,2.49,-2.816);
+  label(works,"MY CANVAS",2.15,0.3,[0.25,2.97,-2.79],"#fff9e9","#303b39",0.48);
+  for(let i=0;i<2;i++) {
+    const x=-0.35+i*1.2;
+    box(works,[1.08,0.83,0.024],[x,2.36,-2.81],paper);
+    label(works,i===0?"IDEAS":"NOTES",1.0,0.35,[x,2.49,-2.793],i===0?"#002fa7":"#ac7d50","#fff9e9",0.48);
+    for(let j=0;j<2;j++) box(works,[0.78-j*0.18,0.025,0.005],[x,2.19-j*0.1,-2.79],sage);
     mesh(works,new THREE.SphereGeometry(0.025,8,8),brass,x,2.76,-2.78);
   }
   const about = hotspot("about");
@@ -185,7 +185,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const contact=hotspot("contact");box(contact,[0.36,0.22,0.06],[1.44,1.57,-1.77],brass);label(contact,"HELLO",0.32,0.17,[1.44,1.58,-1.73],"#fff9e9","#002fa7");
 
   // Bookshelf: books have varying heights but a deterministic arrangement.
-  const library=hotspot("library");
+  const library=hotspot("works");
   for(const x of [-3.6,-2.35]) box(library,[0.055,2.8,0.48],[x,1.44,-2.36],charcoal);
   const bookColors=[blue,terracotta,sage,paper,brass];
   for(let row=0;row<4;row++) {
@@ -199,12 +199,17 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   // Window lighting follows the visitor's local clock.
   const windowGroup=new THREE.Group();room.add(windowGroup);
   const skyMaterial=material(0x9ebcb5);skyMaterial.emissive.setHex(0x93b6b2);skyMaterial.emissiveIntensity=0.18;
-  box(windowGroup,[0.08,1.85,2.15],[-3.95,2.15,0.15],edge);
-  box(windowGroup,[0.035,1.69,1.99],[-3.89,2.15,0.15],skyMaterial);
-  for(const z of [-0.91,0.15,1.21]) box(windowGroup,[0.12,1.85,0.045],[-3.84,2.15,z],paper);
-  for(const y of [1.23,2.15,3.07]) box(windowGroup,[0.12,0.045,2.15],[-3.84,y,0.15],paper);
-  box(windowGroup,[0.42,0.085,2.37],[-3.74,1.2,0.15],paper);
-  for(let i=0;i<5;i++) box(windowGroup,[0.25,0.035,2.28],[-3.76,3.07-i*0.09,0.15],cream);
+  // Recessed double casement: casing, two glazed sashes, sill and handles.
+  box(windowGroup,[0.035,1.94,2.3],[-4.13,2.15,0.15],skyMaterial);
+  for(const z of [-1,1.3]) box(windowGroup,[0.24,2.08,0.12],[-4.01,2.15,z],paper);
+  for(const y of [1.18,3.12]) box(windowGroup,[0.24,0.12,2.42],[-4.01,y,0.15],paper);
+  for(const z of [-0.9,0.15,1.2]) box(windowGroup,[0.12,1.82,0.06],[-4.0,2.15,z],cream);
+  for(const y of [1.28,3.02]) box(windowGroup,[0.12,0.06,2.1],[-4.0,y,0.15],cream);
+  box(windowGroup,[0.46,0.09,2.54],[-3.88,1.14,0.15],paper);
+  for(const z of [0.04,0.26]) {
+    box(windowGroup,[0.055,0.2,0.045],[-3.9,2.03,z],brass);
+    box(windowGroup,[0.08,0.035,0.045],[-3.87,2.11,z],brass);
+  }
 
   function plant(x:number,z:number,scale=1) {
     const group=new THREE.Group();room.add(group);group.position.set(x,0.08,z);group.scale.setScalar(scale);
@@ -217,17 +222,11 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       leaf.scale.set(0.19,0.34,0.09);leaf.rotation.set(0,a,Math.sin(a)*0.65);
     }
   }
-  plant(-3.22,1.55,1.05);plant(3.15,-2.18,1.25);
+  plant(3.15,-2.18,1.25);
   cylinder(room,0.095,0.17,[-1.18,1.52,-0.95],paper);
   const handle=mesh(room,new THREE.TorusGeometry(0.065,0.018,6,12),paper,-1.08,1.54,-0.95);handle.rotation.y=Math.PI/2;
 
-  // Reading corner and standing lamp.
-  box(room,[1.16,0.28,1.04],[2.78,0.54,0.87],terracotta);
-  box(room,[1.16,0.78,0.22],[2.78,1.0,1.3],terracotta);
-  for(const x of [2.18,3.38]) box(room,[0.17,0.36,1.04],[x,0.81,0.87],terracotta);
-  for(const x of [2.35,3.21]) for(const z of [0.53,1.2]) cylinder(room,0.035,0.43,[x,0.24,z],edge);
-  cylinder(room,0.49,0.055,[2.57,0.73,2.16],paper);cylinder(room,0.05,0.68,[2.57,0.36,2.16],edge);
-  box(room,[0.29,0.025,0.36],[2.58,0.775,2.15],blue);
+  // Standing lamp.
   cylinder(room,0.28,0.065,[2.18,0.08,-1.68],charcoal);cylinder(room,0.027,2.6,[2.18,1.39,-1.68],brass);
   cylinder(room,0.37,0.3,[2.18,2.66,-1.68],cream,0.2);
   const lamp=new THREE.PointLight(0xffcf83,0,4,2);lamp.position.set(2.18,2.4,-1.68);scene.add(lamp);
@@ -259,12 +258,23 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     if(motion) {
       const t=Math.min(1,(now-motion.start)/Math.max(1,motion.duration));const eased=t*t*(3-2*t);
       camera.position.lerpVectors(motion.from,motion.to,eased);currentLook.lerpVectors(motion.lookFrom,motion.lookTo,eased);camera.lookAt(currentLook);
+      camera.updateMatrixWorld();
+      motion.update(motion.enter?t:1-t);
       if(t===1) {const done=motion.resolve;motion=undefined;done();}
     }
     renderer.render(scene,camera);
     if(motion||chairElapsed!==undefined) frame=requestAnimationFrame(draw);
   }
   function requestDraw() {if(active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
+  function surfaceView(surface: THREE.Mesh) {
+    surface.updateWorldMatrix(true,false);
+    const {width,height}=(surface.geometry as THREE.PlaneGeometry).parameters;
+    const scale=surface.getWorldScale(new THREE.Vector3());
+    const look=surface.getWorldPosition(new THREE.Vector3());
+    const distance=surfaceDistance(width*scale.x,height*scale.y,camera.aspect,camera.fov);
+    const position=new THREE.Vector3(0,0,1).transformDirection(surface.matrixWorld).multiplyScalar(distance).add(look);
+    return {position,look};
+  }
   function resize() {
     const w=mount.clientWidth,h=mount.clientHeight;if(!w||!h)return;
     renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
@@ -304,7 +314,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();failed=true;mount.dataset.renderActive="false";cancelAnimationFrame(frame);frame=0;motion?.resolve();motion=undefined;canvas.hidden=true;onFailure();},{signal:events.signal});
   setRoomCamera();resize();
   return {
-    setActive(value:boolean) {active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;clearHover();down=undefined;}else requestDraw();},
+    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;clearHover();down=undefined;if(wasActive&&!failed&&!destroyed)renderer.render(scene,camera);}else requestDraw();},
     spinChair(reducedMotion=false) {
       if(failed||destroyed||chairElapsed!==undefined)return;
       if(reducedMotion) {chair.rotation.y=0;requestDraw();return;}
@@ -316,14 +326,18 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       ambient.intensity=0.75+1.85*light.daylight;lamp.intensity=7*(1-light.daylight);
       skyMaterial.color.setHex(light.sky);skyMaterial.emissive.setHex(light.sky);requestDraw();
     },
-    moveToComputer(enter:boolean,duration:number) {
+    moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number)=>void) {
       motion?.resolve();zoomed=enter;
-      if(!enter) {camera.position.copy(computerView);currentLook.copy(computerFocus);}
-      const to=enter?computerView:roomPosition(),lookTo=enter?computerFocus:focus;
+      clearHover();
+      const surface=target==="computer"?computerSurface:canvasSurface;
+      const view=surfaceView(surface);
+      if(!enter) {camera.position.copy(view.position);currentLook.copy(view.look);}
+      const to=enter?view.position:roomPosition(),lookTo=enter?view.look:focus;
       if(!duration||failed) {camera.position.copy(to);currentLook.copy(lookTo);camera.lookAt(currentLook);requestDraw();return Promise.resolve();}
-      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,from:camera.position.clone(),to:to.clone(),lookFrom:currentLook.clone(),lookTo:lookTo.clone(),resolve};requestDraw();});
+      camera.lookAt(currentLook);camera.updateMatrixWorld();update(enter?0:1);
+      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,from:camera.position.clone(),to:to.clone(),lookFrom:currentLook.clone(),lookTo:lookTo.clone(),enter,update,resolve};requestDraw();});
     },
-    cancelTransition(desktop:boolean) {motion?.resolve();motion=undefined;zoomed=desktop;if(desktop){camera.position.copy(computerView);currentLook.copy(computerFocus);camera.lookAt(currentLook);}else setRoomCamera();requestDraw();},
+    cancelTransition() {motion?.resolve();motion=undefined;zoomed=false;setRoomCamera();requestDraw();},
     dispose() {destroyed=true;cancelAnimationFrame(frame);motion?.resolve();events.abort();resizeObserver.disconnect();outline.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer.dispose();canvas.remove();},
   };
 }

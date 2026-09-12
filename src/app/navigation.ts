@@ -1,9 +1,10 @@
-export type AppPage = "home" | "works" | "os";
+export type AppPage = "home" | "works" | "os" | "canvas";
 
 export const NAV_ITEMS = [
   { page: "home", path: "/home", number: "01", label: "首页" },
   { page: "works", path: "/works", number: "02", label: "作品集" },
-  { page: "os", path: "/os", number: "03", label: "我的" },
+  { page: "canvas", path: "/canvas", number: "03", label: "我的画布" },
+  { page: "os", path: "/os", number: "04", label: "Justin OS" },
 ] as const satisfies ReadonlyArray<{
   page: AppPage;
   path: string;
@@ -14,7 +15,8 @@ export const NAV_ITEMS = [
 export const PAGE_TITLES: Record<AppPage, string> = {
   home: "Justin OS",
   works: "Justin OS - 作品集",
-  os: "Justin OS - 我的",
+  os: "Justin OS",
+  canvas: "Justin OS - 我的画布",
 };
 
 export function normalizeAppPath(pathname: string) {
@@ -23,7 +25,19 @@ export function normalizeAppPath(pathname: string) {
 }
 
 export function isAppPage(value: unknown): value is AppPage {
-  return value === "home" || value === "works" || value === "os";
+  return value === "home" || value === "works" || value === "os" || value === "canvas";
+}
+
+export function studioStateForPage(page: AppPage) {
+  return page === "os" ? "desktop" : page === "canvas" ? "canvas" : "room";
+}
+
+// Return through an entry created by this router; never guess the previous URL.
+export function historyAction(current: AppPage, next: AppPage, entry: unknown): "none" | "back" | "replace" | "push" {
+  if (current === next) return "none";
+  if (next !== "home") return "push";
+  if (entry && typeof entry === "object" && "justinPage" in entry && "from" in entry && entry.justinPage === current && entry.from === "home") return "back";
+  return "replace";
 }
 
 export function pageForPath(pathname: string): AppPage {

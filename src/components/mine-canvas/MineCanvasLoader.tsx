@@ -3,14 +3,14 @@ import { lazy, Suspense, useEffect, useState } from "react";
 const MineCanvasEditor = lazy(() => import("./MineCanvasEditor"));
 
 function isCanvasRouteActive() {
-  return window.document.getElementById("page-os")?.classList.contains("is-active") ?? false;
+  return window.document.getElementById("page-canvas")?.classList.contains("is-active") ?? false;
 }
 
 export default function MineCanvasLoader() {
   const [shouldLoad, setShouldLoad] = useState(false);
 
   useEffect(() => {
-    const page = window.document.getElementById("page-os");
+    const page = window.document.getElementById("page-canvas");
     if (!page) return;
     const update = () => {
       if (isCanvasRouteActive()) setShouldLoad(true);

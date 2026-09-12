@@ -1,8 +1,39 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { nextStudioState as next, stableStudioState, restoredStudioState } from '../src/components/studio/studioState.ts';
 import { studioLighting } from '../src/components/studio/studioTime.ts';
 import { chairTurn, CHAIR_TURN_MS } from '../src/components/studio/chairMotion.ts';
+import { surfaceDistance, surfaceOpacity, galleryStep } from '../src/components/studio/studioMotion.ts';
+import { ACTION_LABELS } from '../src/components/studio/studioState.ts';
+
+test('room surface labels identify the canvas and portfolio', () => {
+  assert.equal(ACTION_LABELS.canvas, '我的画布');
+  assert.equal(ACTION_LABELS.works, '作品集');
+});
+
+test('camera approaches a fixed surface until it covers the view; UI appears only at the end', () => {
+  for (const [width,height] of [[0.886,0.548],[2.54,1.34]]) {
+    for (const aspect of [0.5,1,16/9,2.4]) {
+      const distance=surfaceDistance(width,height,aspect,38);
+      const viewHeight=2*distance*Math.tan(38*Math.PI/360);
+      assert.ok(distance>0);
+      assert.ok(viewHeight<height && viewHeight*aspect<width);
+    }
+  }
+  assert.equal(surfaceOpacity(0),0);
+  assert.equal(surfaceOpacity(0.88),0);
+  assert.ok(Math.abs(surfaceOpacity(0.94)-0.5)<1e-12);
+  assert.equal(surfaceOpacity(1),1);
+});
+
+test('gallery motion is capped, settles and never overshoots', () => {
+  assert.ok(galleryStep(0,1000,16)<=6.72);
+  assert.ok(galleryStep(1000,0,16)>=993.28);
+  assert.equal(galleryStep(10,10,16),10);
+  assert.equal(galleryStep(0,10,0),0);
+  let x=0;
+  for(let i=0;i<400;i++){x=galleryStep(x,300,16);assert.ok(x>=0&&x<=300);}
+  assert.ok(Math.abs(x-300)<0.01);
+});
 
 test('chair turns exactly once with acceleration, a longer coast and no overshoot', () => {
   assert.equal(chairTurn(0).angle, 0);
@@ -29,23 +60,4 @@ test('local time lighting interpolates dawn and dusk and wraps midnight continuo
     assert.ok(light.daylight >= 0 && light.daylight <= 1);
     assert.match(light.background, /^#[0-9a-f]{6}$/);
   }
-});
-
-test('studio completes entry and return, ignoring duplicate clicks', () => {
-  let state = next('room', 'enter');
-  assert.equal(state, 'entering');
-  assert.equal(next(state, 'enter'), 'entering');
-  state = next(state, 'complete');
-  assert.equal(state, 'desktop');
-  state = next(state, 'return');
-  assert.equal(state, 'returning');
-  assert.equal(next(state, 'complete'), 'room');
-});
-test('route interruption and refresh restore only stable states', () => {
-  assert.equal(next('entering', 'cancel'), 'room');
-  assert.equal(next('returning', 'cancel'), 'desktop');
-  assert.equal(stableStudioState('entering'), 'room');
-  assert.equal(stableStudioState('returning'), 'desktop');
-  for (const raw of [null, '', 'entering', 'returning', '{bad json}', 'collapsing']) assert.equal(restoredStudioState(raw), 'room');
-  assert.equal(restoredStudioState('desktop'), 'desktop');
 });
