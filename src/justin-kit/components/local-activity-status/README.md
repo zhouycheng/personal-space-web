@@ -2,9 +2,9 @@
 
 分类：`JS Motion`
 
-状态：Astro 提取完成。Astro API 路由已在此项目中接入；徽章组件已可用，但尚未挂载到当前启动页。
+状态：Astro 组件和 API 路由已接入，可由启动页或画布卡片按需消费。
 
-此组件保留了旧首页的本地前台应用监控功能，并将整个运行时保留在此 Justin Kit 文件夹内。
+此组件提供 macOS 前台应用监控能力，并将展示层、API、SSE 和监控运行时集中在此 Justin Kit 文件夹内。
 
 ## 文件
 
@@ -17,7 +17,7 @@
 - `runtime/astro-update.ts` 导出 Astro `POST` 路由。
 - `runtime/astro-stream.ts` 导出 Astro SSE `GET` 路由。
 - `scripts/activity-monitor.mjs` 使用 `osascript` 轮询 macOS 前台应用。
-- `source-notes.md` 记录提取时参考的旧 Next 源文件。
+- `source-notes.md` 记录提取时参考的原始实现。
 
 ## Astro 路由
 

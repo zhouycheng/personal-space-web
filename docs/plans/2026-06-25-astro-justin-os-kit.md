@@ -1,7 +1,8 @@
 # Astro Justin OS Kit Implementation Record
 
-This started as the implementation plan for the Astro rebuild. It now records
-what is actually present in the working tree as of 2026-06-25.
+This document records the Astro rebuild sequence and the implementation state
+captured at its original checkpoint. The current runtime and active follow-up
+items live in `docs/README.md` and `docs/work/`.
 
 **Goal:** Rebuild the site as an Astro-based Justin OS experience with two Justin Kit entry points and preserved reusable homepage/local-activity components.
 
@@ -9,18 +10,19 @@ what is actually present in the working tree as of 2026-06-25.
 
 **Tech Stack:** Astro, TypeScript, Astro Node adapter, CSS-first interaction.
 
-**Current Status:** Astro runtime and component extraction are in place. The
-homepage currently implements the Justin OS launch screen only; Justin Kit data
-and components exist as reusable source but are not rendered on the homepage or
-on a dedicated `/kit` route yet.
+**Checkpoint Status:** The Astro runtime and component extraction were in place
+at this checkpoint. The current application has since grown into a routed
+Three.js studio with Justin OS, works, and canvas surfaces; consult the current
+documentation index for the authoritative state.
 
-**Homepage State Vocabulary:** Future implementation, QA, and planning notes
-should use the shared names in `../../CONTEXT.md`: `全显状态` for the fully
-visible laptop/terminal composition, `推拉状态` for the scroll-driven departure
-and approach transition, and `Justin OS 状态` for the fullscreen blue OS
-projection.
+**Homepage State Vocabulary:** Current implementation and QA notes use the
+shared route states in `../../CONTEXT.md`: `room`, `entering`, `desktop`,
+`returning`, `entering-canvas`, `canvas`, and `returning-canvas`.
 
 ---
+
+The task sections below preserve the original implementation checkpoint. Use
+`docs/README.md` and `docs/work/` for current product state and follow-up work.
 
 ### Task 1: Project Runtime
 
@@ -56,7 +58,7 @@ Status: partial.
 - Responsive CSS for desktop and mobile.
 - `Enter` key animation that marks the dock as launched.
 
-**Still Missing:**
+**Follow-up Items At This Checkpoint:**
 - OS top bar.
 - Work-with-me, skills, works, agent chat, and footer terminal sections.
 - Real Justin Kit entry points.
@@ -80,7 +82,7 @@ Status: partial.
 - Items include title, category, summary, status, tags, source path, and preview
   metadata.
 
-**Still Missing:**
+**Follow-up Items At This Checkpoint:**
 - `index.astro` does not import or render the catalog yet.
 - There is no `/kit` route yet.
 
@@ -127,7 +129,7 @@ Status: complete for documentation and ignore rules.
 - Verified locally with
   `/Users/leftzhou/.hermes/node/bin/node node_modules/astro/bin/astro.mjs build`.
 
-## Next Implementation Pass
+## Follow-up Items At This Checkpoint
 
 1. Add real sections after the launch screen: OS top bar, works, local tools,
    agent collaboration, and footer terminal.

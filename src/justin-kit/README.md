@@ -4,15 +4,17 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 
 此首个 Astro 版本以源文件优先的方式保留组件库。类型化目录位于 `src/data/kit.ts`，完整的已提取组件源码位于 `src/justin-kit/components`。
 
-目录已为未来的首页区域或 `/kit` 路由做好准备，但当前首页尚未渲染它。
+目录为首页区域和未来的 `/kit` 路由提供可复用源码；当前页面通过正式业务组件按需接入。
 
 ## 首页状态词汇
 
 首页启动状态应使用 `../../CONTEXT.md` 中定义的共享名称：
 
-- `全显状态`：完整的笔记本/终端外壳在浅色背景上可见。
-- `推拉状态`：笔记本离开过渡和电脑靠近过渡。
-- `Justin OS 状态`：启动后的全屏蓝色 OS 投影。
+- `room`：三维桌椅工作室和可交互物件。
+- `entering` / `returning`：镜头转向电脑屏幕正面并沿屏幕法线进出。
+- `entering-canvas` / `returning-canvas`：镜头转向 iPad 屏幕正面并沿屏幕法线进出。
+- `desktop`：全屏 Justin OS 投影。
+- `canvas`：全屏个人画布。
 
 ## 分类
 
@@ -23,28 +25,28 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 
 ## 当前已提取组件
 
-- `cursor-reveal-hero`：旧首页遮罩/揭示英雄效果，现为独立 Astro 组件，带本地 CSS 和指针脚本。
+- `cursor-reveal-hero`：首页圆形揭示英雄效果，现为独立 Astro 组件，带本地 CSS 和指针脚本。
 - `local-activity-status`：macOS 前台应用监控、Astro API 运行时、SSE 徽章、应用目录、TTL 存储和监听脚本。
 - `macos-desktop`：Justin OS 桌面图标层、递归桌面文件扫描器、macOS 风格窗口、图标拖拽、碰撞避免和显示控件。
 - `symbol-dome-background`：Justin OS 桌面背景的 Canvas 符号半球，替代原星星层，带单面右转、海洋闪动和轻微鼠标朝向。
 
-## 计划中的目录条目
+## 目录条目
 
-- `justin-brand-dna`：设计令牌、布局规则和视觉 QA 规则。
-- `flutter-status-chip`：可复制的 Dart 状态徽章，用于 Flutter 项目。
+- `justin-brand-dna`：设计令牌、布局规则和视觉 QA 规则，作为目录规划条目。
+- `flutter-status-chip`：可复制的 Dart 状态徽章，作为目录规划条目。
 
-这些计划中的条目已存在于 `src/data/kit.ts` 中，以便在文件创建之前设计 UI 契约。
+以上规划条目已存在于 `src/data/kit.ts` 中，用于维护目录契约和后续接入边界。
 
 ## 组件边界
 
-每个已提取组件应拥有：
+每个已提取组件包含：
 
 - 其 Astro 组件文件，
 - 本地 CSS，
 - 如需浏览器脚本，
 - 如需运行时/服务端文件，
 - 含可复制用法的 README，
-- `source-notes.md`，说明从旧应用中提取了什么。
+- `source-notes.md`，说明来源实现和提取范围。
 
 活跃的 Astro 页面可以导入组件，但组件不应依赖首页专属的 CSS 或数据。
 

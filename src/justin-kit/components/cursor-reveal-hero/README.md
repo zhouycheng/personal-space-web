@@ -2,16 +2,16 @@
 
 分类：`HTML`
 
-状态：Astro 提取完成。该组件尚未挂载到当前 Justin OS 启动页。
+状态：Astro 组件已提取，可按需嵌入页面或作为独立预览。
 
-这是从旧 Next/React 首页提取的圆形遮罩效果，已改造为轻依赖的 Astro 组件。
+这是从原首页视觉方案提取的圆形揭示效果，已改造为轻依赖的 Astro 组件。
 
 ## 文件
 
 - `CursorRevealHero.astro` 渲染双层英雄区域。
 - `cursor-reveal-hero.css` 包含遮罩、点阵、排版和回退样式。
 - `cursor-reveal-hero.ts` 跟踪指针移动并动画化 CSS 变量。
-- `source-notes.md` 记录提取时参考的旧 Next 源文件。
+- `source-notes.md` 记录提取时参考的原始实现。
 
 ## 用法
 
