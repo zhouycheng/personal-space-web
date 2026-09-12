@@ -11,9 +11,9 @@
 /* Keep keyboard and failure access without adding controls to the normal scene. */
 .studio-access {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .studio-access:focus-within,.is-fallback .studio-access {width:auto;height:auto;clip-path:none;left:16px;right:16px;bottom:70px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;z-index:3}
-.studio-access button {min-height:44px;padding:10px 16px;border:1px solid #d6d5c9;border-radius:6px;background:#faf8f0;color:#30372d}
+.studio-access button,.studio-access a {min-height:44px;padding:10px 16px;border:1px solid #d6d5c9;border-radius:6px;background:#faf8f0;color:#30372d;text-decoration:none}
 .alpha-shell .app-dock[hidden] {display:none}
-.studio button:focus-visible,.alpha-shell button:focus-visible {outline:3px solid #577ded;outline-offset:4px}
+.studio button:focus-visible,.studio-access a:focus-visible,.alpha-shell button:focus-visible {outline:3px solid #577ded;outline-offset:4px}
 .alpha-shell [data-os-fullscreen].is-settled {--projection-opacity:1}
 .alpha-shell #page-home {overflow:hidden;transform:none;filter:none;background:transparent}
 .alpha-shell.is-gallery-active {background:#171f23}

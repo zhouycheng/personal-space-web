@@ -1,5 +1,5 @@
 import { NAV_ITEMS, PAGE_TITLES, pageForPath, studioStateForPage, historyAction, type AppPage } from "../../app/navigation";
-import { ACTION_LABELS, type StudioState, type StudioAction } from "../studio/studioState";
+import { ACTION_LABELS, DIARY_URL, type StudioState, type StudioAction } from "../studio/studioState";
 import type { StudioScene } from "../studio/studioScene";
 import { studioLighting } from "../studio/studioTime";
 import { smooth, surfaceOpacity } from "../studio/studioMotion";
@@ -154,6 +154,20 @@ function init(shell: HTMLElement) {
     if (action === "canvas") { navigate("canvas"); return; }
     if (action === "works") { navigate("works"); return; }
     if (action === "chair") { scene?.spinChair(reduce.matches); return; }
+    if (action === "diary") { location.assign(DIARY_URL); return; }
+    if (!scene) return;
+    const button = studio.querySelector<HTMLButtonElement>(`[data-studio-action="${action}"]`);
+    if (action === "lamp") button?.setAttribute("aria-pressed", String(scene.toggleLamp()));
+    if (action === "clock") {
+      const showDate = scene.toggleClock();
+      button?.setAttribute("aria-pressed", String(showDate));
+      if (button) button.textContent = showDate ? "显示时间" : "显示日期";
+    }
+    if (action === "drawer-top" || action === "drawer-middle" || action === "drawer-bottom") {
+      const open = scene.toggleDrawer(action);
+      button?.setAttribute("aria-expanded", String(open));
+      if (button) button.textContent = ACTION_LABELS[action].replace("打开", open ? "关闭" : "打开");
+    }
   }
   shell.addEventListener("click", event => {
     if (!(event.target instanceof Element)) return;

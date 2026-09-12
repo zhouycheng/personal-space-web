@@ -1,5 +1,5 @@
 ---
-import { ACTION_LABELS } from "./studioState";
+import { ACTION_LABELS, DIARY_URL } from "./studioState";
 import "./studio.css";
 ---
 <div class="studio" data-studio data-state="room">
@@ -9,6 +9,8 @@ import "./studio.css";
   </div>
   <p class="studio-signature">JUSTIN / PERSONAL SPACE</p>
   <nav class="studio-access" aria-label="工作室无障碍入口">
-    {Object.entries(ACTION_LABELS).map(([action, label]) => <button data-studio-action={action}>{label}</button>)}
+    {Object.entries(ACTION_LABELS).map(([action, label]) => action === "diary"
+      ? <a href={DIARY_URL}>{label}</a>
+      : <button data-studio-action={action} aria-pressed={action === "lamp" ? "true" : action === "clock" ? "false" : undefined} aria-expanded={action.startsWith("drawer-") ? "false" : undefined}>{label}</button>)}
   </nav>
 </div>
