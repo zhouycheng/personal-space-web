@@ -1,6 +1,6 @@
 ---
 name: justinweb-implementation
-description: "Implement confirmed JustinWeb tasks across Astro pages, CSS, Justin Kit components, desktop files, local activity scripts, docs, or project-local skills while preserving scope, architecture, repository style, and unrelated user changes. Use only inside the JustinWeb repository."
+description: "Implement confirmed JustinWeb code, styles, scripts, and documentation while preserving architecture boundaries and unrelated user changes. Use only inside the JustinWeb repository; route project-skill maintenance to justinweb-skill-create."
 ---
 
 # JustinWeb Implementation
@@ -12,10 +12,10 @@ Read `.agents/skills/README.md`, the accepted plan when one exists, and relevant
 ## Rules
 
 - Implement only confirmed scope.
-- Keep Astro pages, Justin Kit components, and `public/os-desktop/` responsibilities separate.
+- Follow the ownership map in `AGENTS.md` and trace affected callers before editing shared behavior.
 - Use `apply_patch` for manual edits.
 - Prefix shell commands with `rtk`.
-- Add validation proportional to risk; `rtk npm run build` is the baseline check.
+- Add validation proportional to risk and hand shared-flow changes to `justinweb-validation` for full checks.
 - Avoid unrelated refactors, formatting churn, generated artifacts, and user-change reversions.
 - Update docs only when current facts changed.
 - Stop and explain when the accepted plan becomes unsafe or impossible.

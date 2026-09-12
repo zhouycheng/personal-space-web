@@ -7,78 +7,39 @@ These skills serve this repository only.
 - Project-local skills live in `.agents/skills/`.
 - Skill names use the `justinweb-` prefix.
 - Individual skill folders contain only `SKILL.md` and `agents/openai.yaml`.
-- Add, remove, merge, or rename a skill only with matching updates to this index and `justinweb-workflow`.
-- Temporary plans, release drafts, and worktrees use `.workspace/`.
+- Keep this index and affected `agents/openai.yaml` metadata aligned with skill changes.
+- Temporary plans, release drafts, and validation artifacts use `.workspace/`.
 - Confirmed durable facts live in `CONTEXT.md`, `CHANGELOG.md`, `README.md`, `docs/`, and component README files.
 
-## Shared Pre-read Protocol
+## Shared Context
 
-### Level 1: Project Facts
-
-Read these before routing or changing workflow-sensitive files:
-
-- `AGENTS.md`
-- `CONTEXT.md`
-- `README.md`
-- `docs/README.md`
-- `docs/work/active.md`
-- `docs/work/backlog.md`
-- `docs/work/decisions.md`
-- `docs/develop/workflow.md`
-
-### Level 2: Relevant Domain Facts
-
-Read only the files tied to the request:
-
-- `src/justin-kit/README.md`
-- `src/justin-kit/components/*/README.md`
-- `docs/plans/`
-- `docs/lessons.md`
-- `src/data/kit.ts`
-
-### Level 3: Relevant Source And Tests
-
-Use targeted search before opening files. Common source surfaces:
-
-- `src/pages/index.astro`
-- `src/styles/global.css`
-- `src/pages/api/activity/`
-- `src/justin-kit/components/`
-- `public/os-desktop/`
-
-There is no separate test suite yet. Use `rtk npm run build` as the baseline automated check and add focused validation when behavior changes.
-
-### Level 4: Git Facts
-
-Read Git status, branch, diffs, and recent log for validation, delivery, release work, or explicit Git requests. Preserve unrelated user changes.
+- Read `AGENTS.md` and this index before using a project skill.
+- Follow the ownership map in `AGENTS.md`; use targeted search to select only the relevant docs, source, tests, and component guidance.
+- Inspect Git state for validation, delivery, release, skill maintenance, or explicit Git requests. Preserve unrelated user changes.
+- Use the Node version recorded in `.node-version` and prefix project commands with `rtk`.
 
 ## Skill Router
 
 | User intent | Skill | Main output |
 | --- | --- | --- |
-| Unsure which project skill applies or asks for full workflow | `justinweb-workflow` | Ordered route |
-| Discuss candidate requirements or update backlog after confirmation | `justinweb-requirement-pool` | Backlog row or duplicate analysis |
-| Analyze current behavior, state flow, dependencies, or boundaries | `justinweb-feature-analysis` | Evidence-backed analysis |
-| Compare options and define tasks before implementation | `justinweb-feature-plan` | Scoped plan and validation boundary |
-| Implement accepted code, docs, scripts, or project-local skills | `justinweb-implementation` | Working-tree changes |
+| Implement confirmed code, docs, or scripts | `justinweb-implementation` | Working-tree changes |
 | Validate, review, run checks, diagnose failures, and re-check | `justinweb-validation` | Validation report |
-| Calibrate docs and prepare commit or PR handoff | `justinweb-delivery` | Commit information and PR description |
+| Calibrate docs and prepare a requested commit or PR handoff | `justinweb-delivery` | Delivery notes, commit information, or PR description |
 | Write a formal release document for a specified version | `justinweb-release` | Release document draft or file |
 | Maintain this project-local skill matrix | `justinweb-skill-create` | Updated skills and routing docs |
 | Deploy or update JustinWeb on a server through Tailscale | `justinweb-tailscale-deploy` | Verified production deployment and rollback state |
 
 ## Recommended Flows
 
-- Small fix: `justinweb-implementation` -> `justinweb-validation`.
-- New feature: `justinweb-requirement-pool` -> `justinweb-feature-analysis` -> `justinweb-feature-plan` -> `justinweb-implementation` -> `justinweb-validation` -> `justinweb-delivery`.
-- Documentation-only calibration: `justinweb-feature-analysis` -> `justinweb-implementation` -> `justinweb-validation`.
-- Skill system maintenance: `justinweb-skill-create` -> `justinweb-validation` -> `justinweb-delivery`.
+- Confirmed implementation: `justinweb-implementation` -> `justinweb-validation`.
+- Skill system maintenance: `justinweb-skill-create` -> `justinweb-validation`.
+- Commit or PR preparation after validation: `justinweb-delivery`.
+- Version release documentation: `justinweb-release`.
 - Tailscale server deployment: `justinweb-tailscale-deploy`.
 
 ## Common Gates
 
-- Confirm before adding or changing backlog rows.
 - Require accepted scope before implementation unless the user asks for end-to-end execution.
 - Do not stage, commit, push, tag, publish, or delete branches without explicit instruction.
 - Keep `.workspace/` temporary and uncommitted.
-- If docs and source disagree, trust the source and update docs during delivery.
+- If docs and source disagree, verify the runtime behavior and update the owning documentation when the task changes current facts.

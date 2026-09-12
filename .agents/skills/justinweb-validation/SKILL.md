@@ -17,10 +17,12 @@ Read `.agents/skills/README.md`. For post-implementation work, inspect Git state
 
 ## Checks
 
-- Baseline build: `rtk npm run build`.
-- Dev preview when needed: `rtk npm run dev` and browser or curl checks.
-- Local activity changes: verify environment variables and API route behavior.
-- Desktop changes: verify scanner output, window behavior, icon interaction, and responsive layout.
+- Run relevant Node tests; use `rtk node --test tests/*.test.mjs` for shared flows.
+- Run `rtk npm run build` as the baseline and report `rtk npx tsc --noEmit` separately when type checking applies.
+- For UI or animation changes, inspect desktop and narrow viewports, intermediate frames, reduced motion, keyboard access, and the affected interactions.
+- For routing or shell changes, check direct loads, refresh, back/forward, and interrupted transitions across `/`, `/home`, `/works`, `/canvas`, and `/os`.
+- For canvas changes, check authentication, immutable revisions, `409` conflicts, assets, SQLite integrity, and temporary restore behavior as applicable.
+- For desktop, activity, health, backup, or Docker changes, follow the domain checks in `AGENTS.md` and verify the actual runtime boundary.
 
 ## Output
 
@@ -29,5 +31,7 @@ Read `.agents/skills/README.md`. For post-implementation work, inspect Git state
 - Findings ordered by severity.
 - Fix and re-run results.
 - Residual risks.
+
+Separate automated results, browser observations, and device-dependent behavior that was not exercised.
 
 Do not prepare commit, PR, or release copy.

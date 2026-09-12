@@ -1,4 +1,4 @@
 interface:
-  display_name: JustinWeb Skill Create
-  short_description: Maintain JustinWeb project-local skills and routing metadata.
-  default_prompt: Use $justinweb-skill-create to create or update JustinWeb project-local skills and routing docs.
+  display_name: "JustinWeb Skill Create"
+  short_description: "Maintain JustinWeb project-local skills and index metadata."
+  default_prompt: "Use $justinweb-skill-create to create or update JustinWeb project-local skills and their shared index."
