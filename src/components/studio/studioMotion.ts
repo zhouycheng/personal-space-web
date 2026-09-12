@@ -3,7 +3,13 @@ export const smooth = (t: number) => { const x = Math.max(0, Math.min(1, t)); re
 // Move close enough for the fixed surface to cover the view, with a small overscan.
 export const surfaceDistance = (width: number, height: number, aspect: number, fov: number) =>
   Math.min(height, width/aspect)/(2*Math.tan(fov*Math.PI/360)*1.15);
-export const surfaceOpacity = (progress: number) => smooth((progress-0.88)/0.12);
+export const surfaceOpacity = (progress: number) => smooth((progress-0.48)/0.42);
+
+// Finish facing the screen before travelling along its normal.
+export const surfacePhases = (progress: number) => ({
+  align: smooth(progress/0.45),
+  approach: smooth((progress-0.45)/0.55),
+});
 
 // A pointer selects a position, never an unbounded velocity; cap travel at 420px/s.
 export function galleryStep(current: number, target: number, elapsed: number) {

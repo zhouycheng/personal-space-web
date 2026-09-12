@@ -2,7 +2,7 @@ import { NAV_ITEMS, PAGE_TITLES, pageForPath, studioStateForPage, historyAction,
 import { ACTION_LABELS, type StudioState, type StudioAction } from "../studio/studioState";
 import type { StudioScene } from "../studio/studioScene";
 import { studioLighting } from "../studio/studioTime";
-import { surfaceOpacity } from "../studio/studioMotion";
+import { smooth, surfaceOpacity } from "../studio/studioMotion";
 
 const shell = document.querySelector<HTMLElement>(".alpha-shell");
 if (shell) init(shell);
@@ -127,7 +127,15 @@ function init(shell: HTMLElement) {
     sync();
     await loadScene();
     if (token !== transition || disposed) return;
-    await scene?.moveToSurface(target, enter, reduce.matches ? 0 : 1450, progress=>{surface.style.opacity=String(surfaceOpacity(progress));});
+    await scene?.moveToSurface(target, enter, reduce.matches ? 0 : 1800, (progress,rect)=>{
+      surface.style.opacity=String(surfaceOpacity(progress));
+      // Once the camera is square to the screen, the live UI follows its bounds.
+      // Ease the final crop into the viewport so fullscreen has no layout jump.
+      const settle=smooth((progress-0.8)/0.2);
+      const width=rect.width+(surface.clientWidth-rect.width)*settle;
+      const height=rect.height+(surface.clientHeight-rect.height)*settle;
+      surface.style.transform=`translate(${rect.left*(1-settle)}px,${rect.top*(1-settle)}px) scale(${Math.max(0.001,width/surface.clientWidth)},${Math.max(0.001,height/surface.clientHeight)})`;
+    });
     if (token !== transition || disposed) return;
     state = studioStateForPage(page);
     clearProjection();

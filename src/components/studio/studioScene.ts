@@ -3,7 +3,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { chairTurn } from "./chairMotion";
 import { ACTION_LABELS, type StudioAction } from "./studioState";
 import type { studioLighting } from "./studioTime";
-import { smooth, surfaceDistance } from "./studioMotion";
+import { smooth, surfaceDistance, surfacePhases } from "./studioMotion";
 import { clockText } from "./studioTime";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
@@ -43,7 +43,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let zoomed = false;
   let hovering: THREE.Group | undefined;
   let down: { x: number; y: number; angle: number; elevation: number; moved: boolean } | undefined;
-  let motion: { start: number; duration: number; from: THREE.Vector3; to: THREE.Vector3; lookFrom: THREE.Vector3; lookTo: THREE.Vector3; enter: boolean; update: (progress: number) => void; resolve: () => void } | undefined;
+  let motion: { start: number; duration: number; sample: (progress:number) => void; enter: boolean; resolve: () => void } | undefined;
+  const highlighted: { mesh:THREE.Mesh; original:THREE.Material|THREE.Material[]; glow:THREE.Material|THREE.Material[] }[]=[];
   let chairElapsed: number | undefined;
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
@@ -246,10 +247,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(t===1)hoverMotion=undefined;
     }
     if(motion) {
-      const t=Math.min(1,(now-motion.start)/Math.max(1,motion.duration));const eased=t*t*(3-2*t);
-      camera.position.lerpVectors(motion.from,motion.to,eased);currentLook.lerpVectors(motion.lookFrom,motion.lookTo,eased);camera.lookAt(currentLook);
-      camera.updateMatrixWorld();
-      motion.update(motion.enter?t:1-t);
+      const t=Math.min(1,(now-motion.start)/Math.max(1,motion.duration));
+      motion.sample(motion.enter?t:1-t);
       if(t===1) {const done=motion.resolve;motion=undefined;done();}
     }
     renderer.render(scene,camera);
@@ -263,7 +262,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     const look=surface.getWorldPosition(new THREE.Vector3());
     const distance=surfaceDistance(width*scale.x,height*scale.y,camera.aspect,camera.fov);
     const position=new THREE.Vector3(0,0,1).transformDirection(surface.matrixWorld).multiplyScalar(distance).add(look);
-    return {position,look};
+    return {position,look,rotation:surface.getWorldQuaternion(new THREE.Quaternion())};
   }
   function resize() {
     const w=mount.clientWidth,h=mount.clientHeight;if(!w||!h)return;
@@ -272,12 +271,33 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   }
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mount);
   function clearHover(restore=true) {
+    for(const item of highlighted) {
+      item.mesh.material=item.original;
+      for(const m of [item.glow].flat())m.dispose();
+    }
+    if(highlighted.length)requestDraw();
+    highlighted.length=0;
     clearTimeout(hoverTimer);hoverTimer=0;
     if(hoverFocused&&restore&&active&&!motion&&!zoomed&&!reducedMotion.matches) {
       hoverMotion={start:performance.now(),from:camera.position.clone(),to:roomPosition(),lookFrom:currentLook.clone(),lookTo:focus.clone()};requestDraw();
     } else if(!restore||!active||reducedMotion.matches) hoverMotion=undefined;
     hoverFocused=false;
     hovering=undefined;tooltip.hidden=true;canvas.style.cursor="grab";
+  }
+  function highlight(group:THREE.Group|undefined) {
+    hovering=group;
+    group?.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      const original=object.material;
+      const glowMaterial=(m:THREE.Material)=>{
+        const glow=m.clone();
+        if(glow instanceof THREE.MeshStandardMaterial) {glow.emissive.setHex(0xe9f1ff);glow.emissiveIntensity=0.12;}
+        return glow;
+      };
+      const glow=Array.isArray(original)?original.map(glowMaterial):glowMaterial(original);
+      highlighted.push({mesh:object,original,glow});object.material=glow;
+    });
+    requestDraw();
   }
   // Delayed, reversible framing only; hovering never opens a route.
   function focusHovered() {
@@ -294,22 +314,22 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     while(object && !object.userData.action&&!object.userData.label)object=object.parent;
     return (object??undefined) as THREE.Group | undefined;
   }
-  canvas.addEventListener("pointerdown",event=>{if(!active||motion||event.button!==0)return;clearTimeout(hoverTimer);down={x:event.clientX,y:event.clientY,angle,elevation,moved:false};canvas.setPointerCapture(event.pointerId);}, {signal:events.signal});
+  canvas.addEventListener("pointerdown",event=>{if(!active||motion||event.button!==0)return;clearHover(false);highlight(pick(event));down={x:event.clientX,y:event.clientY,angle,elevation,moved:false};canvas.setPointerCapture(event.pointerId);}, {signal:events.signal});
   canvas.addEventListener("pointermove",event=>{
     if(!active||motion)return;
     if(down) {
       if(Math.hypot(event.clientX-down.x,event.clientY-down.y)>6)down.moved=true;
-      if(down.moved) {angle=THREE.MathUtils.clamp(down.angle-(event.clientX-down.x)*0.002,-0.9,0.12);elevation=THREE.MathUtils.clamp(down.elevation+(event.clientY-down.y)*0.001,0.28,0.7);clearHover(false);setRoomCamera();requestDraw();}
+      if(down.moved) {angle=THREE.MathUtils.clamp(down.angle-(event.clientX-down.x)*0.003,-2.1,1.3);elevation=THREE.MathUtils.clamp(down.elevation+(event.clientY-down.y)*0.002,0.16,1.15);clearHover(false);setRoomCamera();requestDraw();}
       return;
     }
     const hit=pick(event);
-    if(hit!==hovering) {clearHover();hovering=hit;if(hit&&event.pointerType==="mouse")hoverTimer=window.setTimeout(focusHovered,1000);}
+    if(hit!==hovering) {clearHover();highlight(hit);if(hit&&event.pointerType==="mouse")hoverTimer=window.setTimeout(focusHovered,1000);}
     if(hovering) {
       tooltip.textContent=hovering.userData.label??ACTION_LABELS[hovering.userData.action as StudioAction];tooltip.hidden=false;
-      const rect=mount.getBoundingClientRect();tooltip.style.left=`${Math.max(4,Math.min(rect.width-155,event.clientX-rect.left+14))}px`;tooltip.style.top=`${Math.max(4,event.clientY-rect.top-42)}px`;canvas.style.cursor=hovering.userData.action?"pointer":"help";
+      const rect=mount.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(rect.width-tooltip.offsetWidth-8,event.clientX-rect.left+16))}px`;tooltip.style.top=`${Math.max(8,event.clientY-rect.top-34)}px`;canvas.style.cursor=hovering.userData.action?"pointer":"help";
     }
   },{signal:events.signal});
-  canvas.addEventListener("pointerup",event=>{const click=down&&!down.moved;down=undefined;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);if(click) {const hit=pick(event);if(hit?.userData.action)onAction(hit.userData.action);}},{signal:events.signal});
+  canvas.addEventListener("pointerup",event=>{const click=down&&!down.moved;down=undefined;if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);if(event.pointerType!=="mouse")clearHover();if(click) {const hit=pick(event);if(hit?.userData.action)onAction(hit.userData.action);}},{signal:events.signal});
   canvas.addEventListener("pointercancel",()=>{down=undefined;clearHover();},{signal:events.signal});
   canvas.addEventListener("pointerleave",()=>clearHover(),{signal:events.signal});
   reducedMotion.addEventListener("change",()=>{clearHover(false);if(!motion&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
@@ -335,16 +355,30 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       ctx.fillText(time,clockImage.width/2,clockImage.height/2,clockImage.width*0.92);clockTexture.needsUpdate=true;
       canvas.setAttribute("aria-label",`工作室场景，桌角时钟 ${time}；拖动改变视角，Tab 键可访问内容入口`);requestDraw();
     },
-    moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number)=>void) {
+    moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number,rect:{left:number;top:number;width:number;height:number})=>void) {
       motion?.resolve();zoomed=enter;
       clearHover(false);
       const surface=target==="computer"?computerSurface:canvasSurface;
       const view=surfaceView(surface);
-      if(!enter) {camera.position.copy(view.position);currentLook.copy(view.look);}
-      const to=enter?view.position:roomPosition(),lookTo=enter?view.look:focus;
-      if(!duration||failed) {camera.position.copy(to);currentLook.copy(lookTo);camera.lookAt(currentLook);requestDraw();return Promise.resolve();}
-      camera.lookAt(currentLook);camera.updateMatrixWorld();update(enter?0:1);
-      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,from:camera.position.clone(),to:to.clone(),lookFrom:currentLook.clone(),lookTo:lookTo.clone(),enter,update,resolve};requestDraw();});
+      const from=enter?camera.position.clone():roomPosition();
+      const roomCamera=camera.clone();roomCamera.position.copy(from);roomCamera.lookAt(enter?currentLook:focus);
+      const via=new THREE.Vector3(0,0,1).applyQuaternion(view.rotation).multiplyScalar(Math.max(2.5,from.distanceTo(view.look)*0.65)).add(view.look);
+      const {width,height}=(surface.geometry as THREE.PlaneGeometry).parameters;
+      const sample=(progress:number)=>{
+        // A resize during return must land on the new viewport's room framing.
+        if(!enter) {from.copy(roomPosition());roomCamera.position.copy(from);roomCamera.lookAt(focus);}
+        const {align,approach}=surfacePhases(progress);
+        camera.position.lerpVectors(from,via,align).lerp(view.position,approach);
+        camera.quaternion.slerpQuaternions(roomCamera.quaternion,view.rotation,align);
+        currentLook.copy(view.look);camera.updateMatrixWorld();
+        const a=new THREE.Vector3(-width/2,height/2,0).applyMatrix4(surface.matrixWorld).project(camera);
+        const b=new THREE.Vector3(width/2,-height/2,0).applyMatrix4(surface.matrixWorld).project(camera);
+        const bounds=mount.getBoundingClientRect();
+        update(progress,{left:bounds.left+(a.x+1)*bounds.width/2,top:bounds.top+(1-a.y)*bounds.height/2,width:(b.x-a.x)*bounds.width/2,height:(a.y-b.y)*bounds.height/2});
+      };
+      if(!duration||failed) {sample(enter?1:0);requestDraw();return Promise.resolve();}
+      sample(enter?0:1);
+      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve};requestDraw();});
     },
     cancelTransition() {clearHover(false);motion?.resolve();motion=undefined;zoomed=false;setRoomCamera();requestDraw();},
     dispose() {destroyed=true;clearHover(false);cancelAnimationFrame(frame);motion?.resolve();events.abort();resizeObserver.disconnect();sun.shadow.map?.dispose();lamp.shadow.map?.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer.dispose();canvas.remove();},
