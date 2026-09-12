@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { studioLighting } from '../src/components/studio/studioTime.ts';
+import { clockText, studioLighting } from '../src/components/studio/studioTime.ts';
 import { chairTurn, CHAIR_TURN_MS } from '../src/components/studio/chairMotion.ts';
 import { surfaceDistance, surfaceOpacity, galleryStep } from '../src/components/studio/studioMotion.ts';
 import { ACTION_LABELS } from '../src/components/studio/studioState.ts';
 
 test('room surface labels identify the canvas and portfolio', () => {
   assert.equal(ACTION_LABELS.canvas, '我的画布');
+  assert.equal(Object.hasOwn(ACTION_LABELS, 'about'), false);
+  assert.equal(Object.hasOwn(ACTION_LABELS, 'contact'), false);
   assert.equal(ACTION_LABELS.works, '作品集');
 });
 
@@ -47,6 +49,8 @@ test('chair turns exactly once with acceleration, a longer coast and no overshoo
 });
 
 test('local time lighting interpolates dawn and dusk and wraps midnight continuously', () => {
+  assert.equal(clockText(new Date(2026,8,11,0,4,9)), '00:04:09');
+  assert.equal(clockText(new Date(2026,8,11,23,59,59)), '23:59:59');
   const at = (hour, minute = 0, second = 0) => studioLighting(new Date(2026, 8, 11, hour, minute, second));
   assert.equal(at(0).daylight, 0);
   assert.equal(at(12).daylight, 1);
