@@ -13,7 +13,6 @@ function init(shell: HTMLElement) {
   const status = studio.querySelector<HTMLElement>("[data-studio-status]")!;
   const desktop = shell.querySelector<HTMLElement>("[data-os-fullscreen]")!;
   const personalCanvas = shell.querySelector<HTMLElement>("#page-canvas")!;
-  const dialog = shell.querySelector<HTMLDialogElement>("[data-studio-dialog]")!;
   const returnButton = shell.querySelector<HTMLButtonElement>("[data-studio-return]")!;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const events = new AbortController();
@@ -25,7 +24,6 @@ function init(shell: HTMLElement) {
   let disposed = false;
   let transition = 0;
   let clock = 0;
-  let panelTrigger: HTMLElement | null = null;
   const isOpen = () => state === "desktop" || state === "canvas";
   const isMoving = () => state.startsWith("entering") || state.startsWith("returning");
   function clearProjection() {
@@ -36,10 +34,12 @@ function init(shell: HTMLElement) {
   }
 
   function updateLighting() {
-    const light = studioLighting();
+    const now = new Date();
+    const light = studioLighting(now);
     studio.style.backgroundColor = light.background;
     studio.style.color = light.foreground;
     scene?.setLighting(light);
+    scene?.setTime(now);
   }
   function sceneFailed() {
     studio.classList.add("is-fallback");
@@ -74,15 +74,15 @@ function init(shell: HTMLElement) {
       else link.removeAttribute("aria-current");
     });
     document.title = PAGE_TITLES[page];
-    scene?.setActive((home || isMoving()) && !document.hidden && !dialog.open);
+    scene?.setActive((home || isMoving()) && !document.hidden);
     if (home || isMoving() || page === "works") void loadScene();
     clearInterval(clock);
-    if (page !== "works" && !document.hidden) {
+    if ((home || isMoving() || osOpen) && !document.hidden) {
       const tick = () => {
         if (!osOpen) updateLighting();
         else shell.querySelector("[data-os-time]")!.textContent = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date());
       };
-      tick(); clock = window.setInterval(tick, 30_000);
+      tick(); clock = window.setInterval(tick, 1000);
     }
   }
   function loadScene() {
@@ -94,7 +94,7 @@ function init(shell: HTMLElement) {
       status.hidden = true;
       // Paint once for a directly loaded gallery's room backdrop, then suspend.
       if (page === "works") requestAnimationFrame(()=>scene?.setActive(false));
-      else scene.setActive((page === "home" || isMoving()) && !document.hidden && !dialog.open);
+      else scene.setActive((page === "home" || isMoving()) && !document.hidden);
     }).catch(sceneFailed);
     return sceneLoading;
   }
@@ -115,7 +115,6 @@ function init(shell: HTMLElement) {
     const token = ++transition;
     scene?.cancelTransition();
     clearProjection();
-    dialog.close();
     page = next;
     state = studioStateForPage(next);
     if (!animate) {sync();focusRoute();return;}
@@ -147,12 +146,6 @@ function init(shell: HTMLElement) {
     if (action === "canvas") { navigate("canvas"); return; }
     if (action === "works") { navigate("works"); return; }
     if (action === "chair") { scene?.spinChair(reduce.matches); return; }
-    panelTrigger = document.activeElement instanceof HTMLElement && studio.contains(document.activeElement)
-      ? document.activeElement : mount.querySelector<HTMLCanvasElement>("canvas");
-    dialog.querySelector("h2")!.textContent = ACTION_LABELS[action];
-    dialog.querySelectorAll<HTMLElement>("[data-studio-panel]").forEach(panel => { panel.hidden = panel.dataset.studioPanel !== action; });
-    dialog.showModal();
-    sync();
   }
   shell.addEventListener("click", event => {
     if (!(event.target instanceof Element)) return;
@@ -166,11 +159,9 @@ function init(shell: HTMLElement) {
     if (action && Object.hasOwn(ACTION_LABELS, action)) void act(action as StudioAction);
     if (target === returnButton || target.matches("[data-canvas-return]")) navigate("home");
     if (target.matches("[data-gallery-return]")) navigate("home");
-    if (target.matches(".studio-close")) dialog.close();
     const command = target.dataset.desktopCommand;
     if (command === "open-display-controls" || command === "arrange-icons") window.dispatchEvent(new CustomEvent(`justin-os-desktop:${command}`));
   }, { signal: events.signal });
-  dialog.addEventListener("close", () => { sync(); if (page === "home" && state === "room") panelTrigger?.focus(); }, { signal: events.signal });
   window.addEventListener("popstate", () => { historyPending = false; void applyRoute(pageForPath(location.pathname)); }, { signal: events.signal });
   document.addEventListener("visibilitychange", sync, { signal: events.signal });
   window.addEventListener("pagehide", event => {

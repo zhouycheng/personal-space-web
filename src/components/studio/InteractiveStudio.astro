@@ -1,8 +1,6 @@
 ---
-import projects from "../../data/projects.json";
 import { ACTION_LABELS } from "./studioState";
 import "./studio.css";
-const links = projects.flatMap(project => project.links.map(link => ({ ...link, title: project.title })));
 ---
 <div class="studio" data-studio data-state="room">
   <div class="studio-scene" data-studio-scene aria-label="可交互的三维工作室">
@@ -14,18 +12,3 @@ const links = projects.flatMap(project => project.links.map(link => ({ ...link, 
     {Object.entries(ACTION_LABELS).map(([action, label]) => <button data-studio-action={action}>{label}</button>)}
   </nav>
 </div>
-<dialog class="studio-dialog" data-studio-dialog aria-labelledby="studio-panel-title">
-  <button class="studio-close" aria-label="关闭面板" autofocus>✕</button>
-  <p class="studio-eyebrow">A LITTLE ABOUT MY WORLD</p>
-  <h2 id="studio-panel-title"></h2>
-  <section data-studio-panel="about" hidden>
-    <p>这里是 Justin 的个人工作室，用来展示正在制作的工具与项目。</p>
-    {projects.map(project => <article><h3>{project.title}</h3><p>{project.summary}</p></article>)}
-    <p class="studio-muted">完整简历尚未提供。</p>
-  </section>
-  <section data-studio-panel="contact" hidden>
-    <p>可以从这些公开项目继续了解我的工作。</p>
-    {links.map(link => <a class="studio-public-link" href={link.href} target="_blank" rel="noreferrer">{link.title} · {link.label}<span>↗</span></a>)}
-    <p class="studio-muted">邮箱与其他联系方式尚未公开。</p>
-  </section>
-</dialog>

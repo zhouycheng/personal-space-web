@@ -1,3 +1,5 @@
+export const clockText = (date:Date) => [date.getHours(),date.getMinutes(),date.getSeconds()].map(value=>String(value).padStart(2,"0")).join(":");
+
 // Local clock art direction, not a geolocation-based sunrise calculation.
 const periods = [
   { hour: 0, daylight: 0, background: 0x151d2b, sky: 0x172e59, sun: 0xa6bbeb },
