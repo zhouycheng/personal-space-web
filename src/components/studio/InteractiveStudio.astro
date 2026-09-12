@@ -1,6 +1,12 @@
 ---
 import { ACTION_LABELS, DIARY_URL } from "./studioState";
 import "./studio.css";
+const destinations = [
+  {action:"computer",href:"/os",title:"Justin OS",hint:"打开电脑",icon:"M4 3h16v13H4z M2 20h20l-2-4H4z"},
+  {action:"works",href:"/works",title:"作品集",hint:"看看我的作品",icon:"M3 7V4h7l2 3h9v13H3z"},
+  {action:"canvas",href:"/canvas",title:"我的画布",hint:"想法与记录",icon:"M4 3h16v18H4z M8 8h8 M8 12h6 M8 16h4"},
+  {action:"diary",href:DIARY_URL,title:"日记 ↗",hint:"前往日志站",icon:"M14 3h7v7 M21 3l-9 9 M10 4H4v17h17v-6"},
+];
 ---
 <div class="studio" data-studio data-state="room">
   <div class="studio-scene" data-studio-scene aria-label="可交互的三维工作室">
@@ -8,9 +14,65 @@ import "./studio.css";
     <span class="studio-tooltip" data-studio-tooltip hidden></span>
   </div>
   <p class="studio-signature">JUSTIN / PERSONAL SPACE</p>
-  <nav class="studio-access" aria-label="工作室无障碍入口">
-    {Object.entries(ACTION_LABELS).map(([action, label]) => action === "diary"
-      ? <a href={DIARY_URL}>{label}</a>
-      : <button data-studio-action={action} aria-pressed={action === "lamp" ? "true" : action === "clock" ? "false" : undefined} aria-expanded={action.startsWith("drawer-") ? "false" : undefined}>{label}</button>)}
-  </nav>
+  <div class="studio-explore">
+    <p class="studio-hint" data-studio-hint>拖动转动 · 点击物件探索</p>
+    <button class="studio-explore-trigger" data-studio-explore aria-haspopup="dialog" aria-controls="studio-explore-panel" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6z"/></svg>
+      <span>探索</span><span aria-hidden="true">↑</span>
+    </button>
+  </div>
+  <dialog class="studio-panel" id="studio-explore-panel" aria-labelledby="studio-panel-title">
+    <header class="studio-panel-header">
+      <h2 id="studio-panel-title" tabindex="-1">探索工作室</h2>
+      <button class="studio-panel-close" data-studio-close aria-label="关闭探索面板">×</button>
+    </header>
+    <div class="studio-panel-tabs" role="tablist" aria-label="探索分组">
+      {[["places","去逛逛"],["view","视角"],["objects","摆件"]].map(([id,label]) =>
+        <button id={`studio-tab-${id}`} role="tab" aria-controls={`studio-pane-${id}`} aria-selected={id==="places"?"true":"false"} tabindex={id==="places"?0:-1} data-studio-tab={id} hidden={id!=="places"}>{label}</button>)}
+    </div>
+    <div class="studio-panel-content">
+      <section id="studio-pane-places" role="tabpanel" aria-labelledby="studio-tab-places">
+        <p class="studio-panel-status" data-studio-panel-status role="status">正在布置工作室…</p>
+        <nav class="studio-destinations" aria-label="内容入口">
+          {destinations.map(item => <a href={item.href} data-studio-action={item.action}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={item.icon}/></svg>
+            <span><strong>{item.title}</strong><small>{item.hint}</small></span><span class="studio-chevron" aria-hidden="true">›</span>
+          </a>)}
+        </nav>
+      </section>
+      <section id="studio-pane-view" role="tabpanel" aria-labelledby="studio-tab-view" hidden>
+        <div class="studio-zoom">
+          <h3>缩放</h3>
+          <div class="studio-zoom-stepper">
+            <button data-studio-action="zoom-out" aria-label={ACTION_LABELS["zoom-out"]}>−</button>
+            <output data-studio-zoom tabindex="-1" aria-live="polite" aria-label="场景倍率">1.00×</output>
+            <button data-studio-action="zoom-in" aria-label={ACTION_LABELS["zoom-in"]}>+</button>
+          </div>
+          <p>0.85× — 2.2×</p>
+        </div>
+        <button class="studio-reset" data-studio-action="reset-view">重置视角</button>
+        <details class="studio-panel-details">
+          <summary>转动视角 <span aria-hidden="true">›</span></summary>
+          <div class="studio-directions">
+            {[["left","←","左"],["right","→","右"],["up","↑","上"],["down","↓","下"]].map(([direction,arrow,label]) =>
+              <button data-studio-action={`view-${direction}`} aria-label={ACTION_LABELS[`view-${direction}` as keyof typeof ACTION_LABELS]}><span aria-hidden="true">{arrow}</span>{label}</button>)}
+          </div>
+        </details>
+      </section>
+      <section id="studio-pane-objects" role="tabpanel" aria-labelledby="studio-tab-objects" hidden>
+        <div class="studio-object-row"><span>台灯</span><button class="studio-switch" data-studio-action="lamp" role="switch" aria-checked="true" aria-label="台灯开关"><span></span></button></div>
+        <div class="studio-object-row"><span>电子钟</span><div class="studio-clock-options" role="group" aria-label="电子钟显示">
+          <button data-studio-clock="time" aria-pressed="true">时间</button><button data-studio-clock="date" aria-pressed="false">日期</button>
+        </div></div>
+        <details class="studio-panel-details studio-drawers">
+          <summary>抽屉 <span aria-hidden="true">›</span></summary>
+          {["top","middle","bottom"].map((layer,index) => <div class="studio-drawer-row">
+            <span>{["第一层","第二层","第三层"][index]}</span><span class="studio-drawer-status" data-drawer-status={layer}>已关闭</span>
+            <button data-studio-action={`drawer-${layer}`} aria-label={`打开${["第一层","第二层","第三层"][index]}抽屉`} aria-expanded="false">打开</button>
+          </div>)}
+        </details>
+        <div class="studio-object-row"><span>座椅</span><button class="studio-chair-button" data-studio-action="chair">转一下</button></div>
+      </section>
+    </div>
+  </dialog>
 </div>
