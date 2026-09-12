@@ -31,6 +31,8 @@ dist
 .playwright-cli/
 
 # local agent/workbench state
+.superpowers/
+.claude/
 .workbuddy/
 .workspace/
 
@@ -50,6 +52,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editor settings
+.vscode/
 
 # canvas persistence data
 /data/canvas.json
