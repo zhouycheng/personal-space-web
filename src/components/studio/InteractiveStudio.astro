@@ -33,12 +33,18 @@ const destinations = [
     <div class="studio-panel-content">
       <section id="studio-pane-places" role="tabpanel" aria-labelledby="studio-tab-places">
         <p class="studio-panel-status" data-studio-panel-status role="status">正在布置工作室…</p>
+        <button type="button" data-studio-retry hidden>重试三维场景</button>
         <nav class="studio-destinations" aria-label="内容入口">
           {destinations.map(item => <a href={item.href} data-studio-action={item.action}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={item.icon}/></svg>
             <span><strong>{item.title}</strong><small>{item.hint}</small></span><span class="studio-chevron" aria-hidden="true">›</span>
           </a>)}
         </nav>
+        <details class="studio-panel-details studio-diagnostics" data-studio-diagnostics hidden>
+          <summary>场景诊断 <span aria-hidden="true">›</span></summary>
+          <textarea readonly aria-label="场景诊断详情" rows="8"></textarea>
+          <button type="button">复制诊断信息</button>
+        </details>
       </section>
       <section id="studio-pane-view" role="tabpanel" aria-labelledby="studio-tab-view" hidden>
         <div class="studio-zoom">

@@ -6,20 +6,32 @@ import type { studioLighting } from "./studioTime";
 import { smooth, surfaceDistance, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX } from "./studioMotion";
 import { clockText } from "./studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "./studioMotion";
+import { StudioFailure, studioFailure } from "./studioFailure";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
-export function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: () => void, onViewChange: (view:RoomView)=>void = ()=>{}) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-  renderer.shadowMap.enabled = true;
+export function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false) {
+  const cleanup: (()=>void)[] = [];
+  const canvas = document.createElement("canvas");
+  let creationError="";
+  canvas.addEventListener("webglcontextcreationerror",event=>{creationError=(event as WebGLContextEvent).statusMessage;});
+  let renderer:THREE.WebGLRenderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: !lightweight, alpha: true });
+  } catch(error) {
+    canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext();
+    throw new StudioFailure("context", creationError || error);
+  }
+  cleanup.push(()=>{renderer.dispose();if(!renderer.getContext().isContextLost())renderer.forceContextLoss();canvas.remove();});
+  try {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, lightweight?1:1.5));
+  renderer.shadowMap.enabled = !lightweight;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
   renderer.setClearColor(0xeee9de, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.3;
-  const canvas = renderer.domElement;
   canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口");
   canvas.tabIndex = -1;
   mount.append(canvas);
@@ -28,9 +40,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
   const focus = new THREE.Vector3(-0.3, 1.05, -0.65);
   const events = new AbortController();
+  cleanup.push(()=>events.abort());
   const materials = new Set<THREE.Material>();
   const geometries = new Set<THREE.BufferGeometry>();
   const textures = new Set<THREE.Texture>();
+  const releaseResources=()=>{geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());};
+  cleanup.push(releaseResources);
   const tooltip = mount.querySelector<HTMLElement>("[data-studio-tooltip]")!;
   const ray = new THREE.Raycaster();
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -39,6 +54,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let destroyed = false;
   let failed = false;
   let frame = 0;
+  cleanup.push(()=>cancelAnimationFrame(frame));
+  let ready=false;
+  let shaderError:StudioFailure|undefined;
+  renderer.debug.onShaderError=(gl,program,vertex,fragment)=>{
+    shaderError=new StudioFailure("shader",[gl.getProgramInfoLog(program),gl.getShaderInfoLog(vertex),gl.getShaderInfoLog(fragment)].filter(Boolean).join("\n"));
+  };
   let angle = DEFAULT_ROOM_VIEW.angle;
   let elevation = DEFAULT_ROOM_VIEW.elevation;
   let roomZoom = DEFAULT_ROOM_VIEW.zoom, targetZoom = roomZoom;
@@ -323,6 +344,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   lamp.shadow.bias=-0.0002;lamp.shadow.normalBias=0.008;scene.add(lamp);
   const ambient=new THREE.HemisphereLight(0xfff6e5,0x746b51,2.6);scene.add(ambient);
   const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,2.5);sun.castShadow=true;
+  cleanup.push(()=>{sun.shadow.map?.dispose();lamp.shadow.map?.dispose();});
   sun.target.position.set(0,0,-0.8);scene.add(sun.target);
   sun.shadow.radius=12;
   sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-3.8;sun.shadow.camera.right=3.8;sun.shadow.camera.top=3.8;sun.shadow.camera.bottom=-3.8;
@@ -391,10 +413,28 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       motion.sample(motion.enter?t:1-t);
       if(t===1) {const done=motion.resolve;motion=undefined;done();}
     }
-    renderer.render(scene,camera);
-    if(motion||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving)) frame=requestAnimationFrame(draw);
+    if(!render())return;
+    if(active&&!frame&&(motion||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
   function requestDraw() {if(active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
+  function fail(error:StudioFailure) {
+    if(destroyed||failed)return;
+    failed=true;ready=false;clearHover();cancelAnimationFrame(frame);frame=0;
+    mount.dataset.renderActive="false";mount.dataset.steamActive="false";
+    // Three.js invalidates GPU handles and rebuilds them on restore; keep the
+    // CPU-side geometry/material/texture objects alive for that re-upload.
+    motion?.resolve();motion=undefined;canvas.hidden=true;onFailure(error);
+  }
+  function render() {
+    if(destroyed||failed)return false;
+    try {
+      renderer.render(scene,camera);
+      if(renderer.getContext().isContextLost()) {fail(new StudioFailure("context-lost","WebGL context lost"));return false;}
+      if(shaderError)throw shaderError;
+    } catch(error) {fail(studioFailure(error,"render"));return false;}
+    if(!ready) {ready=true;canvas.hidden=false;onReady();}
+    return true;
+  }
   function updateClock() {
     const text=clockText(clockDate,showDate);if(text===displayedTime)return;displayedTime=text;
     const ctx=clockImage.getContext("2d")!;
@@ -418,6 +458,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     clearHover();if(!zoomed&&!motion)setRoomCamera();requestDraw();
   }
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mount);
+  cleanup.push(()=>resizeObserver.disconnect());
   function clearHover() {
     for(const item of highlighted) {
       item.mesh.material=item.original;
@@ -476,9 +517,25 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   canvas.addEventListener("pointercancel",()=>{down=undefined;clearHover();},{signal:events.signal});
   canvas.addEventListener("pointerleave",()=>clearHover(),{signal:events.signal});
   reducedMotion.addEventListener("change",()=>{clearHover();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;stopCamera();}if(!motion&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
-  canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();failed=true;clearHover();mount.dataset.renderActive="false";mount.dataset.steamActive="false";cancelAnimationFrame(frame);frame=0;motion?.resolve();motion=undefined;canvas.hidden=true;onFailure();},{signal:events.signal});
+  canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();fail(new StudioFailure("context-lost",(event as WebGLContextEvent).statusMessage||"WebGL context lost"));},{signal:events.signal});
+  canvas.addEventListener("webglcontextrestored",()=>{
+    if(destroyed)return;
+    failed=false;shaderError=undefined;ready=false;steamFrameTime=undefined;chairFrameTime=undefined;
+    drawers.forEach(drawer=>drawer.frameTime=undefined);
+    textures.forEach(texture=>texture.needsUpdate=true);
+    renderer.shadowMap.needsUpdate=true;
+    render();if(active)requestDraw();
+  },{signal:events.signal});
   setRoomCamera();resize();
   return {
+    snapshot() {return {view:{zoom:targetZoom,angle:targetAngle,elevation:targetElevation},lampOn,showDate,drawers:drawers.map(drawer=>drawer.open)};},
+    restore(snapshot:{view:RoomView;lampOn:boolean;showDate:boolean;drawers:boolean[]}) {
+      roomZoom=targetZoom=snapshot.view.zoom;angle=targetAngle=snapshot.view.angle;elevation=targetElevation=snapshot.view.elevation;
+      if(lampOn!==snapshot.lampOn)this.toggleLamp();
+      if(showDate!==snapshot.showDate)this.toggleClock();
+      drawers.forEach((drawer,index)=>{if(drawer.open!==snapshot.drawers[index])this.toggleDrawer(drawer.action);drawer.moving=false;drawer.group.position.z=-0.68+drawer.to;});
+      setRoomCamera();onViewChange(snapshot.view);requestDraw();
+    },
     setPointerEnabled(value:boolean) {
       pointerEnabled=value;
       if(!value) {
@@ -486,7 +543,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         down=undefined;clearHover();stopCamera();requestDraw();
       }
     },
-    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {stopCamera();steamFrameTime=undefined;steam.visible=false;mount.dataset.steamActive="false";cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;drawers.forEach(drawer=>drawer.frameTime=undefined);clearHover();down=undefined;if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)renderer.render(scene,camera);}else requestDraw();},
+    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {stopCamera();steamFrameTime=undefined;steam.visible=false;mount.dataset.steamActive="false";cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;drawers.forEach(drawer=>drawer.frameTime=undefined);clearHover();down=undefined;if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)render();}else requestDraw();},
     adjustView(action:RoomViewAction) {
       if(!roomInteractive())return;
       const next=stepRoomView({zoom:targetZoom,angle:targetAngle,elevation:targetElevation},action);
@@ -548,6 +605,10 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve};requestDraw();});
     },
     cancelTransition() {stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=false;setRoomCamera();requestDraw();},
-    dispose() {destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();cancelAnimationFrame(frame);motion?.resolve();events.abort();resizeObserver.disconnect();sun.shadow.map?.dispose();lamp.shadow.map?.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer.dispose();canvas.remove();},
+    dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();motion?.resolve();cleanup.reverse().forEach(dispose=>dispose());},
   };
+  } catch(error) {
+    cleanup.reverse().forEach(dispose=>dispose());
+    throw studioFailure(error,"initialization");
+  }
 }

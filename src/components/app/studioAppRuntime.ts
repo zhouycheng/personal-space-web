@@ -1,6 +1,7 @@
 import { NAV_ITEMS, PAGE_TITLES, pageForPath, studioStateForPage, historyAction, type AppPage } from "../../app/navigation";
 import { ACTION_LABELS, DIARY_URL, type StudioState, type StudioAction } from "../studio/studioState";
 import type { StudioScene } from "../studio/studioScene";
+import { canRetryStudio, studioFailure, type StudioFailure } from "../studio/studioFailure";
 import { studioLighting } from "../studio/studioTime";
 import { smooth, surfaceOpacity, stepRoomView, DEFAULT_ROOM_VIEW, type RoomView, type RoomViewAction } from "../studio/studioMotion";
 
@@ -29,6 +30,14 @@ function init(shell: HTMLElement) {
   let historyPending = false;
   let scene: StudioScene | undefined;
   let sceneLoading: Promise<void> | undefined;
+  let sceneBlocked=false,lightweight=false;
+  let savedScene:ReturnType<StudioScene["snapshot"]>|undefined;
+  const retry=panel.querySelector<HTMLButtonElement>("[data-studio-retry]")!;
+  const diagnostics=panel.querySelector<HTMLDetailsElement>("[data-studio-diagnostics]")!;
+  const diagnosticText=diagnostics.querySelector<HTMLTextAreaElement>("textarea")!;
+  const diagnosticMode=new URLSearchParams(location.search).get("studioDebug")==="1";
+  diagnostics.hidden=!diagnosticMode;
+  const diagnosticEntries:string[]=[];
   let disposed = false;
   let transition = 0;
   let clock = 0;
@@ -122,13 +131,48 @@ function init(shell: HTMLElement) {
     scene?.setLighting(light);
     scene?.setTime(now);
   }
-  function sceneFailed() {
+  function report(error?:StudioFailure) {
+    if(error)console.error(`[studio:${error.stage}]`,error);
+    if(!diagnosticMode)return;
+    const canvas=mount.querySelector("canvas");
+    const gl=canvas?.getContext("webgl2");
+    diagnosticEntries.push(JSON.stringify({time:new Date().toISOString(),stage:error?.stage??"ready",message:error?.message,stack:error?.stack,cause:error?.cause instanceof Error?error.cause.stack:undefined,protocol:location.protocol,secureContext:isSecureContext,userAgent:navigator.userAgent,lightweight,webgl2:gl?true:null,contextLost:gl?.isContextLost(),attributes:gl?.getContextAttributes(),maxTextureSize:gl&&!gl.isContextLost()?gl.getParameter(gl.MAX_TEXTURE_SIZE):null},null,2));
+    diagnosticText.value=diagnosticEntries.slice(-12).join("\n\n");
+  }
+  function sceneReady() {
+    if(disposed)return;
+    sceneBlocked=false;studio.classList.remove("is-fallback");status.hidden=true;retry.hidden=true;
+    sceneAvailability(true);scene?.setPointerEnabled(!panel.open);
+    mount.dataset.renderActive=String((page==="home"||isMoving())&&!document.hidden);
+    report();
+    scene?.setActive((page==="home"||isMoving())&&!document.hidden);
+  }
+  function sceneFailed(error:StudioFailure) {
+    if(disposed)return;
+    report(error);sceneBlocked=true;
+    if(isMoving()) {transition++;state=studioStateForPage(page);clearProjection();scene?.cancelTransition();sync();}
     studio.classList.add("is-fallback");
     status.hidden = false;
-    status.textContent = "三维场景暂不可用，请使用下方入口。";
-    panelStatus.textContent="三维场景暂不可用，你仍可以访问这些内容。";
+    const retrying=canRetryStudio(error,lightweight,disposed);
+    status.textContent = retrying?"正在以轻量模式恢复工作室…":error.stage==="context-lost"?"三维场景已暂停，等待恢复…":"三维场景加载失败，可在探索中重试。";
+    panelStatus.textContent=status.textContent;
+    retry.hidden=retrying;
     sceneAvailability(false);openExplore();
+    if(retrying) {lightweight=true;queueMicrotask(()=>void rebuildScene());}
   }
+  async function rebuildScene() {
+    await sceneLoading;
+    if(disposed)return;
+    savedScene=scene?.snapshot()??savedScene;scene?.dispose();scene=undefined;
+    sceneBlocked=false;
+    retry.hidden=true;status.hidden=false;status.textContent="正在恢复工作室…";
+    await loadScene();
+  }
+  retry.addEventListener("click",()=>{retry.hidden=true;void rebuildScene();},{signal:events.signal});
+  diagnostics.querySelector("button")!.addEventListener("click",async()=>{
+    diagnosticText.focus();diagnosticText.select();
+    try {await navigator.clipboard.writeText(diagnosticText.value);}catch { /* HTTP supports manual selection and copy. */ }
+  },{signal:events.signal});
   function sync() {
     const home = page === "home";
     if(!home||state!=="room")closeExplore(false,true);
@@ -171,16 +215,15 @@ function init(shell: HTMLElement) {
   }
   function loadScene() {
     if (sceneLoading) return sceneLoading;
-    sceneLoading = import("../studio/studioScene").then(({ createStudioScene }) => {
+    if(scene||sceneBlocked||disposed)return Promise.resolve();
+    sceneLoading = import("../studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(({ createStudioScene }) => {
       if (disposed) return;
-      scene = createStudioScene(mount, action => void act(action), sceneFailed, syncView);
-      scene.setPointerEnabled(!panel.open);sceneAvailability(true);
+      scene = createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight);
+      if(savedScene)scene.restore(savedScene);
+      scene.setPointerEnabled(!panel.open);
       updateLighting();
-      status.hidden = true;
-      // Paint once for a directly loaded gallery's room backdrop, then suspend.
-      if (page === "works") requestAnimationFrame(()=>scene?.setActive(false));
-      else scene.setActive((page === "home" || isMoving()) && !document.hidden);
-    }).catch(sceneFailed);
+      // First-frame success owns availability and subsequent background suspension.
+    }).catch(error=>sceneFailed(studioFailure(error,"initialization"))).finally(()=>{sceneLoading=undefined;});
     return sceneLoading;
   }
   function navigate(next: AppPage) {

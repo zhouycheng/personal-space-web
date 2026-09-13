@@ -26,6 +26,11 @@
 .studio-panel-tabs button[aria-selected="true"] {color:#164ce9;border-bottom-color:#164ce9;font-weight:600}
 .studio-panel-content {min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 22px max(22px,env(safe-area-inset-bottom));scrollbar-width:thin}
 .studio-panel-status {font-size:13px;line-height:1.5;margin:0 0 14px;color:#65665d}
+[data-studio-retry] {margin-bottom:14px;padding:10px 16px;border:1px solid currentColor;border-radius:12px;background:transparent;color:inherit}
+.studio-diagnostics {margin-top:20px;padding-top:4px;border-top:1px solid #30372d12;color:#696b62}
+.studio-panel-details.studio-diagnostics summary {font-size:12px;font-weight:400}
+.studio-diagnostics textarea {display:block;width:100%;box-sizing:border-box;margin:0 0 10px;padding:12px;border:1px solid #dedbd380;border-radius:12px;background:#eeebe480;color:#696b62;font:12px/1.6 monospace;resize:vertical}
+.studio-diagnostics button {min-height:44px;padding:0 14px;border:1px solid #dedbd3;border-radius:12px;background:transparent;color:inherit;font:inherit;font-size:12px}
 .studio-destinations {display:grid;gap:10px}
 .studio-destinations a {display:flex;align-items:center;gap:18px;min-height:68px;box-sizing:border-box;padding:10px 15px;border-radius:12px;background:#eeebe480;text-decoration:none;color:inherit}
 .studio-destinations strong {display:block;font-size:15px;font-weight:550}
