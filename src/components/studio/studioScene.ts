@@ -7,6 +7,7 @@ import { smooth, surfaceDistance, surfacePhases, wheelZoom, clampRoomZoom, clamp
 import { clockText } from "./studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "./studioMotion";
 import { StudioFailure, studioFailure } from "./studioFailure";
+import { studioFiles } from "../../data/studioFiles";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
@@ -256,23 +257,75 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const pencil=cylinder(tablet,0.014,0.48,[0.43,0.005,0],paper);pencil.rotation.x=Math.PI/2;
   box(tablet,[0.004,0.012,0.055],[0.391,0,0],keycap);
 
-  // Open metal trays with thin folder covers, paper edges and index tabs.
+  // Files rest on their lower edge; the manifest distinguishes folders from loose paper.
   const library=hotspot("works");
-  for(const x of [-1.57,-0.93]) for(const z of [-1.84,-1.48]) cylinder(library,0.012,0.55,[x,1.705,z],charcoal);
-  for(let row=0;row<3;row++) {
-    const y=1.46+row*0.18;
-    rounded(library,[0.69,0.018,0.46],[-1.25,y,-1.65],charcoal,0.008);
-    for(const x of [-1.58,-0.92]) box(library,[0.018,0.065,0.46],[x,y+0.032,-1.65],charcoal);
-    box(library,[0.66,0.065,0.018],[-1.25,y+0.032,-1.872],charcoal);
-    const folder=new THREE.Group();library.add(folder);folder.position.set(-1.25,y+0.026,-1.63);folder.rotation.y=(row-1)*0.045;
-    const cover=row===1?blue:material(row===0?0xc8ab7b:0xb8bdc7);
-    rounded(folder,[0.58,0.009,0.37],[0,0,0],cover,0.004);
-    for(let page=0;page<4;page++) box(folder,[0.54,0.004,0.338],[page%2*0.003,0.008+page*0.005,0],paper);
-    const topCover=rounded(folder,[0.58,0.009,0.37],[0,0.032,0],cover,0.004);topCover.rotation.z=-0.025;
-    box(folder,[0.014,0.034,0.37],[-0.283,0.016,0],cover);
-    rounded(folder,[0.145,0.01,0.045],[-0.16+row*0.14,0.032,0.197],cover,0.004);
-    const tabLabel=label(folder,["PROJECTS","SELECTED","ARCHIVE"][row],0.32,0.065,[0.035,0.043,0.09],row===1?"#002fa7":row===0?"#c8ab7b":"#b8bdc7",row===1?"#fff9e9":"#303b39",0.4);tabLabel.rotation.x=-Math.PI/2;
+  library.position.set(-1.25,1.44,-1.68);
+  library.userData.label=`文件夹 · ${studioFiles.length} 个文件`;
+  const fileBox=material(0xece5d5,0.92);
+  rounded(library,[0.68,0.028,0.5],[0,0,0],fileBox,0.009);
+  rounded(library,[0.68,0.24,0.023],[0,0.12,0.24],fileBox,0.009);
+  box(library,[0.68,0.7,0.023],[0,0.35,-0.24],fileBox);
+  const side=new THREE.Shape();
+  side.moveTo(-0.24,0);side.lineTo(0.24,0);side.lineTo(0.24,0.7);
+  side.lineTo(0.10,0.7);side.lineTo(-0.24,0.24);side.closePath();
+  for(const x of [-0.34,0.32]) {
+    const wall=mesh(library,new THREE.ExtrudeGeometry(side,{depth:0.02,bevelEnabled:false}),fileBox,x,0,0);
+    wall.rotation.y=Math.PI/2;
   }
+  label(library,"FILES",0.22,0.06,[0,0.13,0.253],"#ece5d5","#51574f",0.5);
+  const slot=0.58/Math.max(1,studioFiles.length);
+  const fileLean=Math.min(0.025,slot*0.12);
+  // The left wall's inner face is x=-0.32; lean into its 0.7-high rear support.
+  let fileEdge=-0.32+(0.7-0.014)*Math.tan(fileLean);
+  studioFiles.forEach((file,index)=>{
+    const folder=new THREE.Group();library.add(folder);
+    const thickness=Math.min(0.10,slot*0.65),height=0.76+(index%3)*0.045;
+    const occupied=file.kind==="resume"?Math.min(0.012,slot*0.1):thickness+Math.min(0.009,slot*0.08);
+    folder.position.set(fileEdge+occupied/2,0.014+occupied/2*Math.sin(fileLean),0);
+    fileEdge+=occupied;
+    folder.rotation.z=fileLean;
+    if(file.kind==="resume") {
+      // The sheet rests alongside the cover with only a slight outward bow.
+      const sheetHeight=0.86,sheetWidth=0.40;
+      folder.position.z=0.018;
+      folder.rotation.y=-Math.min(0.018,slot*0.1);
+      const sheet=label(folder,`${file.resume.name} · 简历`,sheetWidth,sheetHeight,[0,sheetHeight/2,0],"#fffdf5","#303b39",0.045);
+      const geometry=new THREE.PlaneGeometry(sheetWidth,sheetHeight,8,16);
+      geometry.rotateY(Math.PI/2);
+      const positions=geometry.attributes.position;
+      for(let vertex=0;vertex<positions.count;vertex++) {
+        const t=(positions.getY(vertex)+sheetHeight/2)/sheetHeight;
+        positions.setX(vertex,Math.min(0.012,slot*0.08)*t*(1-t));
+      }
+      geometry.computeVertexNormals();geometries.add(geometry);sheet.geometry=geometry;
+      const sheetMaterial=new THREE.MeshStandardMaterial({map:(sheet.material as THREE.MeshBasicMaterial).map,side:THREE.DoubleSide,roughness:0.96});
+      materials.add(sheetMaterial);sheet.material=sheetMaterial;
+      const image=sheetMaterial.map!.image as HTMLCanvasElement;
+      const ctx=image.getContext("2d")!;
+      ctx.fillStyle="#fffdf5";ctx.fillRect(0,0,image.width,image.height);
+      ctx.textAlign="left";ctx.fillStyle="#303b39";
+      ctx.font="600 88px sans-serif";ctx.fillText(file.resume.name,100,235);
+      ctx.font="38px sans-serif";ctx.fillStyle="#002fa7";ctx.fillText(file.resume.role,100,315);
+      ctx.fillRect(100,365,100,6);
+      file.resume.sections.forEach((section,index)=>{
+        const y=490+index*290;
+        ctx.fillStyle="#303b39";ctx.font="600 42px sans-serif";ctx.fillText(section.title,100,y);
+        ctx.fillStyle="#c5c8be";
+        for(let line=0;line<4;line++) ctx.fillRect(100,y+55+line*35,line===3?520:800,8);
+      });
+      sheetMaterial.map!.needsUpdate=true;
+      return;
+    }
+    const color=index%2?0x002fa7:0xa8b7b5;
+    const cover=material(color),edge=Math.min(0.006,thickness*0.08);
+    for(const x of [-thickness/2,thickness/2]) box(folder,[edge,height,0.40],[x,height/2,0],cover);
+    box(folder,[thickness,height,edge],[0,height/2,0.20],cover);
+    box(folder,[thickness*0.85,height-0.025,0.37],[0,(height-0.025)/2,0],paper);
+    for(let sheet=1;sheet<4;sheet++) box(folder,[edge/3,height-0.028,0.372],[-thickness*0.4+thickness*0.2*sheet,(height-0.028)/2,0],fileBox);
+    const title=label(folder,file.title,0.35,thickness*0.8,[0,height-0.22,0.205],`#${color.toString(16).padStart(6,"0")}`,index%2?"#fff9e9":"#303b39",0.55);
+    title.rotation.z=-Math.PI/2;
+    rounded(folder,[thickness*0.8,0.05,0.04],[0,height+0.012,-0.12+index%3*0.08],cover,Math.min(0.004,edge));
+  });
   const mug=new THREE.Group();room.add(mug);mug.position.set(-1.1,1.448,-0.94);mug.userData.label="一杯咖啡";
   const ceramic=material(0xeee4d1,0.24),coffee=material(0x382015,0.16);
   mesh(mug,new THREE.CylinderGeometry(0.15,0.15,0.014,48),material(0x98714b),0,-0.011,0);

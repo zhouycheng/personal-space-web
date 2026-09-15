@@ -18,14 +18,14 @@ The application runs from the repository root using Astro 7 server output, the `
 - `src/justin-kit/components/`: reusable components and their runtimes, maintained according to component READMEs. The `macos-desktop` component owns desktop and window behavior.
 - `public/os-desktop/`: file-driven desktop content, scanned here in development and from `dist/client/os-desktop/` in production.
 - `src/pages/api/activity/`, `src/lib/activity/`, and Justin Kit's `local-activity-status`: local activity endpoints, state, and monitoring. Trace each affected endpoint's actual call chain before editing.
-- `src/data/projects.json`: portfolio content. `src/data/kit.ts`: Justin Kit catalog. Shared layout lives in `src/styles/global.css`; domain styles stay with their components.
+- `src/data/studioFiles.ts`: ordered file manifest shared by the 3D file box and reading view; references `src/data/projects.json` and `src/data/resume.json`. `src/data/kit.ts`: Justin Kit catalog. Shared layout lives in `src/styles/global.css`; domain styles stay with their components.
 - `ops/backup/`: backup, restore, and integrity checks independent of the Web process.
 
 ## Interaction Contracts
 
-- `/home` opens the studio, `/works` the portfolio, `/canvas` the personal canvas, and `/os` Justin OS. The client normalizes `/` to `/home`.
+- `/home` opens the studio, `/works` the file collection, `/canvas` the personal canvas, and `/os` Justin OS. The client normalizes `/` to `/home`.
 - The URL determines the stable page and updates when navigation starts. Animation handles the visual transition. Returning to the studio reuses a known home history entry or replaces the current entry.
-- The studio uses a freestanding desk-and-chair composition: the computer opens OS, the flat iPad opens the canvas, and the desktop document rack opens the portfolio. The signature overlays the bottom of the scene.
+- The studio uses a freestanding desk-and-chair composition: the computer opens OS, the flat iPad opens the canvas, and the upright file box opens the file collection. File details require a separate activation; reject retargeted scene clicks and drag gestures. The signature overlays the bottom of the scene.
 - Keep the computer and iPad fixed. The camera first faces the screen, then approaches it as live content fades in over the screen and expands to fullscreen. Reverse this sequence on return.
 - Preserve on-demand rendering, background suspension, and resource disposal. Maintain keyboard entry points, WebGL fallback access, and `prefers-reduced-motion` behavior when changing interactions.
 

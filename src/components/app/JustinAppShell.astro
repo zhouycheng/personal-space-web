@@ -15,7 +15,7 @@ const entries = await getMacOsDesktopEntries();
   <main class:list={["app-shell", "alpha-shell", activePage === "home" && "is-home-active"]} data-initial-page={activePage} aria-label="Justin OS">
     <div class="app-content">
       <section id="page-home" class:list={["app-page", activePage === "home" && "is-active"]} aria-label="工作室"><InteractiveStudio /></section>
-      <section id="page-works" class:list={["app-page", activePage === "works" && "is-active"]} aria-label="作品集"><StudioPortfolio /></section>
+      <section id="page-works" class:list={["app-page", activePage === "works" && "is-active"]} aria-label="文件夹"><StudioPortfolio /></section>
       <section id="page-canvas" class:list={["app-page", "mine-page", activePage === "canvas" && "is-active"]} aria-label="我的画布"><MineCanvas /><button class="canvas-room-return" data-canvas-return hidden>← 返回工作室</button></section>
     </div>
     <div class="os-fullscreen-projection" data-os-fullscreen aria-hidden="true" inert>

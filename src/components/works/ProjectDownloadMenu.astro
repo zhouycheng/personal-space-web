@@ -167,10 +167,10 @@ const downloadDataJson = JSON.stringify(downloads).replace(/</g, "\\u003c");
   }
 
   .project-download__control {
-    display: inline-flex;
-    min-height: clamp(2rem, 3.8svh, 2.38rem);
+    display: flex;
+    min-height: 44px;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: 10px;
     color: #ffffff;
     background: var(--blue);
     box-shadow: 0 0.4rem 1rem rgba(0, 47, 167, 0.14);
@@ -182,7 +182,6 @@ const downloadDataJson = JSON.stringify(downloads).replace(/</g, "\\u003c");
   .project-download__control:hover,
   .project-download:focus-within .project-download__control,
   .project-download.is-open .project-download__control {
-    transform: translateY(-0.12rem);
     box-shadow: 0 0.55rem 1.4rem rgba(0, 47, 167, 0.22);
   }
 
@@ -202,8 +201,8 @@ const downloadDataJson = JSON.stringify(downloads).replace(/</g, "\\u003c");
     justify-content: center;
     gap: 0.48rem;
     padding: 0.48rem 0.78rem 0.48rem 0.9rem;
-    font-size: clamp(0.72rem, 0.9vw, 0.86rem);
-    font-weight: 760;
+    font-size: 14px;
+    font-weight: 500;
     white-space: nowrap;
   }
 
@@ -218,7 +217,8 @@ const downloadDataJson = JSON.stringify(downloads).replace(/</g, "\\u003c");
   }
 
   .project-download__toggle {
-    width: 2.18rem;
+    width: 44px;
+    min-height: 44px;
     display: grid;
     place-items: center;
     border-left: 1px solid rgba(255, 255, 255, 0.28);
@@ -355,11 +355,11 @@ const downloadDataJson = JSON.stringify(downloads).replace(/</g, "\\u003c");
       min-width: 7.4rem;
       padding-right: 0.62rem;
       padding-left: 0.72rem;
-      font-size: 0.72rem;
+      font-size: 14px;
     }
 
     .project-download__toggle {
-      width: 2rem;
+      width: 44px;
     }
 
     .project-download__menu {
