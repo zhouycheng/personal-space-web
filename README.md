@@ -13,13 +13,13 @@
   <a href="CHANGELOG.md">更新日志</a>
 </p>
 
-JustinWeb 把个人介绍、项目作品、可编辑画布和文件驱动的桌面内容组织在同一个可探索的入口里。访客从三维工作室进入 Justin OS、作品集或我的画布；作者可以在画布中编辑内容，并通过 SQLite revision 保留历史。
+JustinWeb 把个人介绍、项目作品、可编辑画布和文件驱动的桌面内容组织在同一个可探索的入口里。访客从三维工作室进入 Justin OS、文件夹或我的画布；作者可以在画布中编辑内容，并通过 SQLite revision 保留历史。
 
 ## 核心能力
 
 - **三维工作室首页**：Three.js 桌椅、电脑、平板、文件架和台灯组成默认空间。可以拖动视角、使用滚轮在 `0.85×–2.2×` 之间缩放、点击部件和悬停查看提示。手机通过一个「探索」入口打开「去逛逛 / 视角 / 摆件」面板，按需访问内容、调整视角和操作物件；桌面键盘也可打开同一面板。MacBook 与咖啡杯包含近景细节，咖啡热气随场景可见性暂停；背景和灯光按访客本地时间变化。
-- **空间化入口**：电脑进入 Justin OS，桌面平放的 iPad 进入我的画布，文件架进入作品集。电脑和 iPad 保持在场景中，由镜头转向屏幕正面并沿屏幕法线靠近，内容在过渡中贴屏渐显。
-- **作品集**：`/works` 由 `src/data/projects.json` 驱动，当前包含 FrameLean 和 QandA，支持项目预览、标签、描述、GitHub/Gitee 链接和 FrameLean 安装包下载。
+- **空间化入口**：电脑进入 Justin OS，桌面平放的 iPad 进入我的画布，直立文件盒进入文件夹。电脑和 iPad 保持在场景中，由镜头转向屏幕正面并沿屏幕法线靠近，内容在过渡中贴屏渐显。
+- **文件夹**：`/works` 由 `src/data/studioFiles.ts` 清单驱动，依次包含 FrameLean、QandA 和周耀程简历。作品引用 `src/data/projects.json`，保留预览、链接与安装包下载；简历正文维护在 `src/data/resume.json`。新增条目需在清单中引用对应内容，3D 文件、列表与数量随之更新。列表支持触摸、鼠标、滚轮和键盘，以单张卡片居中吸附；拖动达到中心间距的 25% 时切换相邻文件，否则动画弹回，点击才打开阅读详情。
 - **Justin OS 桌面**：`/os` 使用 macOS 风格桌面组件，从 `public/os-desktop/` 递归读取 HTML、Markdown 和文件夹；桌面图标、窗口尺寸和显示设置支持本地持久化。
 - **我的画布**：`/canvas` 使用 ReactFlow 提供无限画布、节点拖拽、连线、缩放、内联编辑和七种卡片类型：文字、图片、引用、链接、时间线、活动监控和名片。
 - **Justin Kit**：可复用组件源文件位于 `src/justin-kit/components/`，当前包含 Cursor Reveal Hero、Local Activity Status、macOS Desktop 和 Symbol Dome Background。
@@ -31,7 +31,7 @@ JustinWeb 把个人介绍、项目作品、可编辑画布和文件驱动的桌�
 | --- | --- | --- |
 | `/` | 首页别名 | 客户端规范化到 `/home` |
 | `/home` | 三维工作室 | 默认入口 |
-| `/works` | 作品集 | 文件架入口或导航 |
+| `/works` | 文件夹 | 直立文件盒入口或导航 |
 | `/canvas` | 我的画布 | iPad 入口或导航 |
 | `/os` | Justin OS | 电脑入口或导航 |
 

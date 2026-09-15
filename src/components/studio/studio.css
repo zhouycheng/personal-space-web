@@ -78,7 +78,7 @@
 .alpha-shell.is-gallery-active {background:#171f23}
 .alpha-shell #page-works {background:transparent;z-index:3}
 .alpha-shell.is-gallery-active #page-home {pointer-events:none;filter:blur(4px)}
-.alpha-shell.is-gallery-active .studio-signature {visibility:hidden}
+.alpha-shell.is-gallery-active .studio-signature,.alpha-shell.is-gallery-active .studio-explore {visibility:hidden}
 .alpha-shell .studio-canvas-open {z-index:58;filter:none;transition:none;transform:none}
 .alpha-shell .studio-projecting {position:fixed;inset:0;width:100vw;height:100vh;height:100svh;transform-origin:0 0;visibility:visible;filter:none;transition:none;pointer-events:none;will-change:transform,opacity;z-index:58;overflow:hidden}
 .alpha-shell .studio-projecting .macos-desktop,.alpha-shell .studio-projecting .os-menu-bar {opacity:1;transition:none;transform:none;pointer-events:none}

@@ -2,7 +2,7 @@ export type AppPage = "home" | "works" | "os" | "canvas";
 
 export const NAV_ITEMS = [
   { page: "home", path: "/home", number: "01", label: "首页" },
-  { page: "works", path: "/works", number: "02", label: "作品集" },
+  { page: "works", path: "/works", number: "02", label: "文件夹" },
   { page: "canvas", path: "/canvas", number: "03", label: "我的画布" },
   { page: "os", path: "/os", number: "04", label: "Justin OS" },
 ] as const satisfies ReadonlyArray<{
@@ -14,7 +14,7 @@ export const NAV_ITEMS = [
 
 export const PAGE_TITLES: Record<AppPage, string> = {
   home: "Justin OS",
-  works: "Justin OS - 作品集",
+  works: "Justin OS - 文件夹",
   os: "Justin OS",
   canvas: "Justin OS - 我的画布",
 };

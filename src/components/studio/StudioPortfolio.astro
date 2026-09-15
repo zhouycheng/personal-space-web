@@ -1,120 +1,93 @@
 ---
-import projects from "../../data/projects.json";
+import { studioFiles } from "../../data/studioFiles";
 import FrameLeanWorkbenchPreview from "../works/FrameLeanWorkbenchPreview.astro";
 import ProjectDownloadMenu from "../works/ProjectDownloadMenu.astro";
 const images = import.meta.glob<{default: {src:string}|string}>("/src/assets/projects/*.{svg,png,jpg,webp}",{eager:true});
 const imageUrl = (src: string) => { const image=images[src]?.default; return typeof image==="string"?image:image?.src; };
 ---
-<section class="studio-gallery" data-studio-gallery aria-label="书架作品集">
+<section class="studio-gallery" data-studio-gallery aria-label="桌面文件夹">
   <header class="gallery-header">
     <button data-gallery-return>← 返回工作室</button>
-    <div><p>来自书架</p><h1>作品集</h1></div>
+    <div><p>来自桌面</p><h1>文件夹</h1></div>
   </header>
-  <div class="gallery-viewport" tabindex="0" aria-label="作品卡片，左右方向键切换" data-gallery-viewport>
+  <div class="gallery-viewport" tabindex="0" aria-label="文件卡片，滑动或使用左右方向键浏览" data-gallery-viewport>
     <div class="gallery-track">
-      {projects.map((project,index)=><article class="gallery-item">
-        <button class="gallery-print" data-gallery-project={project.id} aria-haspopup="dialog" aria-label={`查看 ${project.title}`} style={`--lean:${index%2===0?-4:4}deg`}>
+      {studioFiles.map((file,index)=><article class="gallery-item" data-file-position={index===0?"current":"right"}>
+        <div class="gallery-file">
+        <button class="gallery-print" data-gallery-file={file.id} aria-haspopup="dialog" aria-label={`查看 ${file.title}`}>
           <div class="gallery-art">
-            {project.preview.kind==="framelean-workbench"?<FrameLeanWorkbenchPreview alt={project.preview.alt}/>:project.id==="exercises-eagles"?<div class="study-cover" aria-label="QandA 刷题工具作品封面"><span>学 · 而时习之</span><strong>Q<span>&</span>A</strong><p>语文 / 英语 / Python</p><small>把复习，变成日常。</small></div>:<img src={imageUrl(project.preview.src!)} alt={project.preview.alt} draggable="false"/>}
+            {file.kind==="resume"?<div class="resume-cover"><span>个人简历</span><strong>{file.resume.name}</strong><p>{file.resume.role}</p><div class="resume-cover-rule"></div><small>{file.resume.summary}</small><span>教育 / 技能 / 竞赛 / 项目</span></div>:file.project.preview.kind==="framelean-workbench"?<FrameLeanWorkbenchPreview alt={file.project.preview.alt}/>:file.id==="exercises-eagles"?<div class="study-cover" aria-label="QandA 刷题工具作品封面"><span>学 · 而时习之</span><strong>Q<span>&</span>A</strong><p>语文 / 英语 / Python</p><small>把复习，变成日常。</small></div>:<img src={imageUrl(file.project.preview.src!)} alt={file.project.preview.alt} draggable="false"/>}
           </div>
-          <span class="gallery-print-meta"><span>{String(index+1).padStart(2,"0")}</span><span>{project.tags.slice(0,2).join(" / ")}</span></span>
+          <span class="gallery-print-meta"><span>{String(index+1).padStart(2,"0")}</span><span>{file.tags.slice(0,2).join(" / ")}</span></span>
         </button>
-        <h2>{project.title}</h2><p>{project.summary}</p>
+        <h2>{file.title}</h2><p>{file.summary}</p>
+        </div>
       </article>)}
     </div>
   </div>
-  <footer class="gallery-footer"><p>{String(projects.length).padStart(2,"0")} 件作品</p></footer>
+  <footer class="gallery-footer"><p>{studioFiles.length} 个文件</p><span>滑动浏览 · 点击阅读</span></footer>
   <dialog class="gallery-detail" data-gallery-detail aria-labelledby="gallery-detail-title">
-    <button class="gallery-detail-close" aria-label="关闭作品详情" autofocus>✕</button>
-    <h2 id="gallery-detail-title"></h2>
-    {projects.map(project=><section data-gallery-content={project.id} hidden>
-      <p class="gallery-tags">{project.tags.join(" · ")}</p>
-      <p class="gallery-description">{project.description}</p>
-      <p class="gallery-dates">{project.lastUpdatedText}<br/>{project.startedText}</p>
-      <div class="gallery-links">{project.links.map(link=><a href={link.href} target="_blank" rel="noreferrer">{link.label} ↗</a>)}
-        {project.downloads&&<ProjectDownloadMenu projectTitle={project.title} downloads={project.downloads}/>}
-      </div>
+    <div class="gallery-detail-toolbar"><h2 id="gallery-detail-title" tabindex="-1" autofocus></h2><button class="gallery-detail-close" aria-label="关闭文件详情">✕</button></div>
+    {studioFiles.map(file=><section data-gallery-content={file.id} hidden>
+      <p class="gallery-tags">{file.tags.join(" · ")}</p>
+      {file.kind==="resume"?<div class="resume-body">
+        <p>意向岗位：{file.resume.role} · 年龄：{file.resume.age}</p>
+        <address><a href={`tel:${file.resume.phone}`}>{file.resume.phone}</a><a href={`mailto:${file.resume.email}`}>{file.resume.email}</a></address>
+        {file.resume.sections.map(section=><section><h3>{section.title}</h3>{section.paragraphs.map(paragraph=><p>{paragraph}</p>)}</section>)}
+      </div>:<>
+        <p class="gallery-description">{file.project.description}</p>
+        <p class="gallery-dates">{file.project.lastUpdatedText}<br/>{file.project.startedText}</p>
+        <div class="gallery-links">{file.project.links.map(link=><a href={link.href} target="_blank" rel="noreferrer">{link.label} ↗</a>)}
+          {file.project.downloads&&<ProjectDownloadMenu projectTitle={file.project.title} downloads={file.project.downloads}/>}
+        </div>
+      </>}
     </section>)}
   </dialog>
 </section>
 <script>
-  import { galleryStep } from "./studioMotion";
-  const root=document.querySelector<HTMLElement>("[data-studio-gallery]")!;
-  const viewport=root.querySelector<HTMLElement>("[data-gallery-viewport]")!;
-  const dialog=root.querySelector<HTMLDialogElement>("[data-gallery-detail]")!;
-  const page=root.closest<HTMLElement>(".app-page")!;
-  const reduce=matchMedia("(prefers-reduced-motion: reduce)");
-  const events=new AbortController();
-  let target=0, position=0, frame=0, previous=0, centered=false;
-  let trigger:HTMLButtonElement|null=null;
-  const maximum=()=>Math.max(0,viewport.scrollWidth-viewport.clientWidth);
-  const active=()=>page.classList.contains("is-active")&&!dialog.open&&!document.hidden;
-  function stop(){cancelAnimationFrame(frame);frame=0;previous=0;position=target=viewport.scrollLeft;}
-  function draw(now:number){
-    frame=0;if(!active())return;
-    // Keep fractional motion independently of browser scroll-position rounding.
-    position=galleryStep(position,target,previous?now-previous:16);previous=now;
-    viewport.scrollLeft=position;
-    if(Math.abs(target-position)>0.1)frame=requestAnimationFrame(draw);else {viewport.scrollLeft=target;previous=0;}
-  }
-  function move(value:number){target=Math.max(0,Math.min(maximum(),value));if(reduce.matches){position=target;viewport.scrollLeft=target;return;}if(!frame){position=viewport.scrollLeft;frame=requestAnimationFrame(draw);}}
-  viewport.addEventListener("pointermove",event=>{
-    if(event.pointerType!=="mouse"||event.buttons||!active()||reduce.matches)return;
-    const rect=viewport.getBoundingClientRect();
-    const x=(event.clientX-rect.left)/rect.width;
-    move(x*maximum());
-  },{signal:events.signal});
-  viewport.addEventListener("pointerleave",stop,{signal:events.signal});
-  viewport.addEventListener("pointerdown",stop,{signal:events.signal});
-  viewport.addEventListener("wheel",stop,{signal:events.signal,passive:true});
-  viewport.addEventListener("focusin",stop,{signal:events.signal});
-  const step=(direction:number)=>move(viewport.scrollLeft+direction*(root.querySelector<HTMLElement>(".gallery-item")!.offsetWidth+64));
-  viewport.addEventListener("keydown",event=>{
-    if(event.key==="ArrowLeft"||event.key==="ArrowRight"){event.preventDefault();step(event.key==="ArrowLeft"?-1:1);}
-    if(event.key==="Home"||event.key==="End"){event.preventDefault();move(event.key==="Home"?0:maximum());}
-  },{signal:events.signal});
-  root.addEventListener("click",event=>{
-    const button=(event.target as Element).closest<HTMLButtonElement>("button");if(!button)return;
-    if(button.dataset.galleryProject){
-      stop();trigger=button;
-      dialog.querySelector("h2")!.textContent=button.closest("article")!.querySelector("h2")!.textContent;
-      dialog.querySelectorAll<HTMLElement>("[data-gallery-content]").forEach(el=>el.hidden=el.dataset.galleryContent!==button.dataset.galleryProject);
-      dialog.showModal();
-    }
-    if(button.matches(".gallery-detail-close"))dialog.close();
-  },{signal:events.signal});
-  dialog.addEventListener("close",()=>trigger?.focus(),{signal:events.signal});
-  function centerOnFirstOpen(){if(active()&&!centered){viewport.scrollLeft=innerWidth<700?0:maximum()/2;position=target=viewport.scrollLeft;centered=true;}}
-  const observer=new MutationObserver(()=>{if(!active()){stop();dialog.close();}else centerOnFirstOpen();});
-  observer.observe(page,{attributes:true,attributeFilter:["class"]});
-  centerOnFirstOpen();
-  document.addEventListener("visibilitychange",stop,{signal:events.signal});
-  reduce.addEventListener("change",stop,{signal:events.signal});
-  window.addEventListener("resize",stop,{signal:events.signal});
-  window.addEventListener("pagehide",event=>{stop();if(!event.persisted){observer.disconnect();events.abort();}},{signal:events.signal});
+  import { setupStudioGallery } from "./studioGallery";
+  setupStudioGallery(document.querySelector<HTMLElement>("[data-studio-gallery]")!);
 </script>
 <style>
-  .studio-gallery{--card-width:clamp(280px,38vw,460px);height:100%;color:#fff9e9;background:#17201955;display:grid;grid-template-rows:auto minmax(0,1fr) auto;}
+  .studio-gallery{--card-width:clamp(280px,38vw,460px);height:100%;color:#fff9e9;background:#17201999;display:grid;grid-template-rows:auto minmax(0,1fr) auto;-webkit-user-select:none;user-select:none}
+  :global(.app-page.is-active) .gallery-track{animation:files-enter 320ms ease-out both}
   .gallery-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:32px 5vw;gap:20px}
   .gallery-header div{text-align:center}.gallery-header p{font-size:12px;margin:0 0 6px;opacity:.7}.gallery-header h1{font-size:26px;letter-spacing:4px;font-weight:500;margin:0}
   button{font:inherit;cursor:pointer;color:inherit}.gallery-header button{justify-self:start;border:0;background:transparent;min-height:44px;padding:10px 0;opacity:.8;transition:opacity .2s}
   .gallery-header button:hover{opacity:1}button:focus-visible{outline:3px solid #7799ee;outline-offset:6px}
-  .gallery-viewport{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-x;min-height:0;outline-offset:-5px}
+  .gallery-viewport{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-y pinch-zoom;min-height:0;outline-offset:-5px;cursor:grab}
+  .gallery-viewport.is-dragging{cursor:grabbing}.gallery-viewport.is-dragging button{cursor:grabbing}
   .gallery-viewport::-webkit-scrollbar{display:none}
-  .gallery-track{display:flex;align-items:center;gap:64px;min-height:100%;width:max-content;padding:30px max(24px,calc((100vw - var(--card-width))/2))}
-  .gallery-item{flex:0 0 var(--card-width);width:var(--card-width);text-align:center;perspective:1000px}
-  .gallery-print{display:block;position:relative;width:100%;border:0;border-radius:16px;padding:20px;background:#fffdf7;color:#51574f;box-shadow:8px 20px 30px #10170e55;transform:rotateY(var(--lean)) rotateZ(var(--lean));transition:box-shadow .25s}
-  .gallery-print:hover,.gallery-print:focus-visible{box-shadow:8px 28px 38px #10170e66}
+  .gallery-track{display:flex;align-items:center;gap:64px;min-height:100%;box-sizing:border-box;width:max-content;padding:30px max(24px,calc((100vw - var(--card-width))/2));user-select:none}
+  .gallery-item{flex:0 0 var(--card-width);width:var(--card-width);text-align:center}
+  .gallery-item[data-file-position="left"]{--lean:-14deg}
+  .gallery-item[data-file-position="right"]{--lean:14deg}
+  .gallery-item[data-file-position="current"]{--lean:0deg;--file-scale:1;--file-lift:0px;--file-opacity:1;--file-shade:0}
+  .gallery-file{opacity:var(--file-opacity,.65);transform:translateY(var(--file-lift,18px)) rotateZ(var(--lean)) scale(var(--file-scale,.88));transition:opacity .32s,transform .32s cubic-bezier(.22,.61,.36,1)}
+  .gallery-print{display:block;position:relative;width:100%;border:0;border-radius:12px;padding:20px;background:#fffdf7;color:#51574f;box-shadow:2px 3px 0 #ded9cc,4px 6px 0 #f7f2e5,8px 20px 30px #10170e55;transition:box-shadow .25s}
+  .gallery-print::after{content:"";position:absolute;inset:0;border-radius:inherit;background:#172019;opacity:var(--file-shade,.18);pointer-events:none;transition:opacity .32s}
+  @media(hover:hover){.gallery-print:hover{box-shadow:2px 3px 0 #ded9cc,4px 6px 0 #f7f2e5,8px 28px 38px #10170e66}}
+  .gallery-print:focus-visible{box-shadow:8px 28px 38px #10170e66}
   .gallery-art{height:clamp(200px,39svh,390px);overflow:hidden;border-radius:7px;background:#f1f2ee;display:grid;place-items:center}
   .gallery-art img{width:100%;height:100%;object-fit:contain}.gallery-art :global(.framelean-preview){width:100%;height:100%}
   .study-cover{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#e9eddf;color:#283c31}.study-cover>span{font-size:12px;letter-spacing:5px}.study-cover strong{font:italic 100px Georgia,serif;letter-spacing:-10px;margin:20px 0}.study-cover strong span{font-size:.6em;color:#82906e}.study-cover p{font:12px var(--mono);letter-spacing:2px;margin:0 0 14px}.study-cover small{font-size:12px}
   .gallery-print-meta{display:flex;justify-content:space-between;gap:16px;margin-top:20px;font:11px var(--mono);letter-spacing:1px}
-  .gallery-item h2{margin:28px 0 10px;font-size:21px;font-weight:500}.gallery-item>p{font-size:13px;line-height:1.7;max-width:34em;margin:0 auto;opacity:.8}
-  .gallery-footer{padding:18px 20px 30px}.gallery-footer p{text-align:center;font:12px var(--mono);letter-spacing:2px;opacity:.7;margin:0}
-  .gallery-detail{width:min(600px,calc(100vw - 32px));max-height:85svh;overflow:auto;border:0;border-radius:14px;padding:40px;background:#fffdf7;color:#303b39;box-shadow:0 30px 100px #10170e88}
-  .gallery-detail::backdrop{background:#111a2266;backdrop-filter:blur(8px)}.gallery-detail-close{position:absolute;top:12px;right:12px;width:44px;height:44px;border:0;background:transparent;color:#303b39}
-  .gallery-detail h2{font-size:30px;font-weight:500}.gallery-tags,.gallery-dates{font-size:12px;line-height:1.8;color:#74796f}.gallery-description{white-space:pre-line;line-height:1.9;font-size:15px}.gallery-links{display:flex;align-items:center;flex-wrap:wrap;gap:20px;margin-top:30px;color:#002fa7}
-  @media(max-width:640px){.gallery-header{padding:20px;grid-template-columns:1fr auto}.gallery-header h1{font-size:20px}.gallery-item>p{font-size:12px}.gallery-track{gap:40px}.gallery-print{padding:14px}.gallery-footer{padding-bottom:22px}.gallery-item h2{margin-top:22px}}
-  @media(max-height:640px){.gallery-header{padding-block:12px}.gallery-art{height:28svh;min-height:100px}.gallery-item>p{display:none}.gallery-footer{padding:10px}.gallery-item h2{margin:15px 0 0}.gallery-track{padding-block:20px}}
-  @media(prefers-reduced-motion:reduce){.gallery-print{transition:none;transform:none}}
+  .gallery-item h2{margin:28px 0 10px;font-size:21px;font-weight:500}.gallery-file>p{font-size:13px;line-height:1.7;max-width:34em;margin:0 auto;opacity:.8}
+  .gallery-footer{padding:18px 20px max(30px,env(safe-area-inset-bottom));text-align:center}.gallery-footer p{font:12px var(--mono);letter-spacing:2px;opacity:.85;margin:0}.gallery-footer>span{display:block;margin-top:9px;font-size:11px;opacity:.65}
+  .gallery-detail{box-sizing:border-box;width:min(680px,calc(100vw - 32px));max-height:85svh;overflow:auto;overscroll-behavior:contain;border:0;border-radius:14px;padding:0 40px 40px;background:#fffdf7;color:#303b39;box-shadow:0 30px 100px #10170e88;-webkit-user-select:text;user-select:text}
+  .gallery-detail[open]{animation:file-open 220ms ease-out both}.gallery-detail.is-closing{animation:file-close 160ms ease-in both;pointer-events:none}
+  .gallery-detail::backdrop{background:#111a2266;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .gallery-detail-toolbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 0 18px;background:#fffdf7}
+  .gallery-detail-close{width:44px;height:44px;flex-shrink:0;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:#eeebe4;color:#303b39}
+  .gallery-detail-close:focus-visible{outline-offset:2px}
+  .gallery-detail h2{margin:0;font-size:30px;font-weight:500;outline:none}.gallery-tags,.gallery-dates{font-size:12px;line-height:1.8;color:#74796f}.gallery-description{white-space:pre-line;line-height:1.9;font-size:15px}.gallery-links{display:flex;align-items:center;flex-wrap:wrap;gap:12px 20px;margin-top:30px;color:#002fa7}
+  .gallery-links>a{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
+  .resume-cover{box-sizing:border-box;width:100%;height:100%;padding:26px;text-align:left;display:flex;flex-direction:column;justify-content:center;background:#ebe8df;color:#303b39;gap:16px}.resume-cover>span{font-size:10px;letter-spacing:2px;color:#68706a}.resume-cover strong{font-size:clamp(30px,4vw,44px);font-weight:500;letter-spacing:5px}.resume-cover p{font-size:14px;margin:0;color:#002fa7}.resume-cover small{font-size:12px;line-height:1.8;max-width:24em}.resume-cover-rule{height:2px;width:32px;background:#002fa7}
+  .resume-body{font-size:15px;line-height:1.9;overflow-wrap:anywhere}.resume-body address{display:flex;flex-wrap:wrap;gap:4px 20px;font-style:normal;font-size:14px}.resume-body a{color:#002fa7;min-height:44px;display:inline-flex;align-items:center}.resume-body h3{font-size:19px;margin:32px 0 12px}.resume-body p{margin:12px 0}
+  @media(max-width:640px){.studio-gallery{--card-width:78vw}.gallery-header{padding:20px;grid-template-columns:1fr auto}.gallery-header h1{font-size:20px}.gallery-file>p{font-size:12px}.gallery-track{gap:24px;padding-inline:calc((100vw - var(--card-width))/2)}.gallery-print{padding:14px}.gallery-item h2{margin-top:22px}.gallery-detail{padding:0 22px max(24px,env(safe-area-inset-bottom));max-height:calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}.gallery-detail h2{font-size:26px}.resume-cover{padding:22px;gap:12px}}
+  @media(max-height:640px){.gallery-header{padding-block:12px}.gallery-art{height:28svh;min-height:100px}.gallery-file>p{display:none}.gallery-footer{padding:10px}.gallery-item h2{font-size:18px;margin:12px 0 0}.gallery-track{padding-block:12px}.gallery-print-meta{margin-top:12px}.resume-cover{padding:12px;gap:6px}.resume-cover strong{font-size:24px}.resume-cover small,.resume-cover-rule,.resume-cover>span:last-child{display:none}.study-cover strong{font-size:44px;margin:6px 0}.study-cover>span,.study-cover small{display:none}.study-cover p{margin:0}}
+  @keyframes files-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes file-open{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes file-close{to{opacity:0;transform:translateY(8px) scale(.98)}}
+  @media(prefers-reduced-motion:reduce){.gallery-print,.gallery-file,.gallery-print::after{transition:none}:global(.app-page.is-active) .gallery-track,.gallery-detail[open]{animation:none}}
 </style>

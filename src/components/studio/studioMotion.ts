@@ -35,10 +35,3 @@ export const surfacePhases = (progress: number) => ({
   align: smooth(progress/0.45),
   approach: smooth((progress-0.45)/0.55),
 });
-
-// A pointer selects a position, never an unbounded velocity; cap travel at 420px/s.
-export function galleryStep(current: number, target: number, elapsed: number) {
-  const dt = Math.max(0, Math.min(32, elapsed));
-  const delta = (target-current)*(1-Math.exp(-dt/240));
-  return current + Math.max(-0.42*dt, Math.min(0.42*dt, delta));
-}

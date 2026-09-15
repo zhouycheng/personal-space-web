@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { clockText, studioLighting } from '../src/components/studio/studioTime.ts';
 import { chairTurn, CHAIR_TURN_MS } from '../src/components/studio/chairMotion.ts';
-import { surfaceDistance, surfaceOpacity, surfacePhases, galleryStep, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/components/studio/studioMotion.ts';
+import { surfaceDistance, surfaceOpacity, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/components/studio/studioMotion.ts';
 import { ACTION_LABELS } from '../src/components/studio/studioState.ts';
 
 test('room surface labels identify the canvas and portfolio', () => {
   assert.equal(ACTION_LABELS.canvas, '我的画布');
   assert.equal(Object.hasOwn(ACTION_LABELS, 'about'), false);
   assert.equal(Object.hasOwn(ACTION_LABELS, 'contact'), false);
-  assert.equal(ACTION_LABELS.works, '作品集');
+  assert.equal(ACTION_LABELS.works, '文件夹');
 });
 
 test('camera faces the fixed screen before approaching; live UI fades in during approach', () => {
@@ -28,16 +28,6 @@ test('camera faces the fixed screen before approaching; live UI fades in during 
   assert.equal(surfaceOpacity(0.48),0);
   assert.ok(Math.abs(surfaceOpacity(0.69)-0.5)<1e-12);
   assert.equal(surfaceOpacity(1),1);
-});
-
-test('gallery motion is capped, settles and never overshoots', () => {
-  assert.ok(galleryStep(0,1000,16)<=6.72);
-  assert.ok(galleryStep(1000,0,16)>=993.28);
-  assert.equal(galleryStep(10,10,16),10);
-  assert.equal(galleryStep(0,10,0),0);
-  let x=0;
-  for(let i=0;i<400;i++){x=galleryStep(x,300,16);assert.ok(x>=0&&x<=300);}
-  assert.ok(Math.abs(x-300)<0.01);
 });
 
 test('room zoom normalizes wheel units, clamps extremes and reverses immediately at either limit', () => {
