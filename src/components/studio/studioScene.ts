@@ -8,6 +8,8 @@ import { clockText } from "./studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "./studioMotion";
 import { StudioFailure, studioFailure } from "./studioFailure";
 import { studioFiles } from "../../data/studioFiles";
+import { createJournalBook, type BookReport } from "../journal/journalBook";
+import type { JournalManifest, JournalRegion } from "../../features/journal/types";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
@@ -151,6 +153,16 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   box(diary,[0.018,0.003,0.53],[0.14,0.036,0.01],charcoal);
   const diaryTitle=label(diary,"JOURNAL",0.28,0.1,[-0.02,0.035,-0.065],"#70432d","#e7c88d",0.3);diaryTitle.rotation.x=-Math.PI/2;
   box(diary,[0.03,0.004,0.055],[0.06,-0.012,0.263],brass);
+  let journalBook:ReturnType<typeof createJournalBook>|undefined;
+  let journalAmount=0,journalActive=false;
+  const diaryRotation=new THREE.Quaternion(),diaryOrigin=new THREE.Vector3();
+  function poseJournal() {
+    if(!journalBook||!journalActive)return;
+    diary.getWorldPosition(diaryOrigin);diary.getWorldQuaternion(diaryRotation);
+    diaryRotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2));
+    journalBook.pose(journalAmount,diaryOrigin,diaryRotation);
+  }
+  cleanup.push(()=>journalBook?.dispose());
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
   // Stylized at room scale; the lid, keyboard and trackpad belong to one hotspot.
   const computer = hotspot("computer");
@@ -466,8 +478,10 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       motion.sample(motion.enter?t:1-t);
       if(t===1) {const done=motion.resolve;motion=undefined;done();}
     }
+    const journalMoving=journalBook?.tick(now);
+    poseJournal();
     if(!render())return;
-    if(active&&!frame&&(motion||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
+    if(active&&!frame&&(motion||journalMoving||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
   function requestDraw() {if(active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
   function fail(error:StudioFailure) {
@@ -508,7 +522,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function resize() {
     const w=mount.clientWidth,h=mount.clientHeight;if(!w||!h)return;
     renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
-    clearHover();if(!zoomed&&!motion)setRoomCamera();requestDraw();
+    clearHover();if(!zoomed&&!motion)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
   }
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mount);
   cleanup.push(()=>resizeObserver.disconnect());
@@ -581,6 +595,25 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   },{signal:events.signal});
   setRoomCamera();resize();
   return {
+    configureJournal(book:JournalManifest,index:number,onReport:(state:BookReport)=>void,onRegion:(region:JournalRegion)=>void) {
+      journalBook??=createJournalBook(renderer,scene,camera,requestDraw);
+      journalBook.configure(book,onReport,onRegion);journalBook.setPage(index);journalBook.resize();
+    },
+    moveJournal(enter:boolean,duration:number) {
+      if(!journalBook)return Promise.resolve();
+      stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=true;journalActive=true;
+      diary.visible=false;journalBook.activate(true);
+      const sample=(value:number)=>{journalAmount=value;poseJournal();};
+      const finish=()=>{if(!enter){journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();}requestDraw();};
+      if(!duration){sample(enter?1:0);finish();return Promise.resolve();}
+      sample(enter?0:1);
+      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve:()=>{finish();resolve();}};requestDraw();});
+    },
+    hideJournal() {journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();requestDraw();},
+    setJournalPage(index:number){journalBook?.setPage(index);},
+    turnJournal(direction:1|-1){journalBook?.turn(direction,reducedMotion.matches);},
+    zoomJournal(value:number){journalBook?.setZoom(value);poseJournal();},
+    retryJournal(){journalBook?.retry();},
     snapshot() {return {view:{zoom:targetZoom,angle:targetAngle,elevation:targetElevation},lampOn,showDate,drawers:drawers.map(drawer=>drawer.open)};},
     restore(snapshot:{view:RoomView;lampOn:boolean;showDate:boolean;drawers:boolean[]}) {
       roomZoom=targetZoom=snapshot.view.zoom;angle=targetAngle=snapshot.view.angle;elevation=targetElevation=snapshot.view.elevation;
@@ -596,7 +629,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         down=undefined;clearHover();stopCamera();requestDraw();
       }
     },
-    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {stopCamera();steamFrameTime=undefined;steam.visible=false;mount.dataset.steamActive="false";cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;drawers.forEach(drawer=>drawer.frameTime=undefined);clearHover();down=undefined;if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)render();}else requestDraw();},
+    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {journalBook?.cancel();stopCamera();steamFrameTime=undefined;steam.visible=false;mount.dataset.steamActive="false";cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;drawers.forEach(drawer=>drawer.frameTime=undefined);clearHover();down=undefined;if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)render();}else requestDraw();},
     adjustView(action:RoomViewAction) {
       if(!roomInteractive())return;
       const next=stepRoomView({zoom:targetZoom,angle:targetAngle,elevation:targetElevation},action);
@@ -657,7 +690,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       sample(enter?0:1);
       return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve};requestDraw();});
     },
-    cancelTransition() {stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=false;setRoomCamera();requestDraw();},
+    cancelTransition() {stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=journalActive;setRoomCamera();requestDraw();},
     dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();motion?.resolve();cleanup.reverse().forEach(dispose=>dispose());},
   };
   } catch(error) {

@@ -1,0 +1,7 @@
+---
+import JustinAppShell from "../../components/app/JustinAppShell.astro";
+import { journal } from "../../server/journal";
+const article=journal.articles.find(a=>a.slug===Astro.params.slug);
+if(!article)return new Response("日记不存在",{status:404});
+---
+<JustinAppShell initialPage="journal" journalSlug={article.slug}/>

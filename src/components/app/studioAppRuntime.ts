@@ -1,9 +1,10 @@
-import { NAV_ITEMS, PAGE_TITLES, pageForPath, studioStateForPage, historyAction, type AppPage } from "../../app/navigation";
-import { ACTION_LABELS, DIARY_URL, type StudioState, type StudioAction } from "../studio/studioState";
+import { NAV_ITEMS, PAGE_TITLES, pathForPage, pageForPath, studioStateForPage, historyAction, type AppPage } from "../../app/navigation";
+import { ACTION_LABELS, type StudioState, type StudioAction } from "../studio/studioState";
 import type { StudioScene } from "../studio/studioScene";
 import { canRetryStudio, studioFailure, type StudioFailure } from "../studio/studioFailure";
 import { studioLighting } from "../studio/studioTime";
 import { smooth, surfaceOpacity, stepRoomView, DEFAULT_ROOM_VIEW, type RoomView, type RoomViewAction } from "../studio/studioMotion";
+import { createJournalReader } from "../journal/journalRuntime";
 
 const shell = document.querySelector<HTMLElement>(".alpha-shell");
 if (shell) init(shell);
@@ -41,6 +42,10 @@ function init(shell: HTMLElement) {
   let disposed = false;
   let transition = 0;
   let clock = 0;
+  const journal = createJournalReader(shell.querySelector<HTMLElement>('[data-journal-root]')!,()=>scene,path=>{
+    history.pushState({justinPage:'journal',from:page},'',path);
+    if(page==='journal')journal.select(location.pathname+location.hash);else void applyRoute('journal');
+  });
   const isOpen = () => state === "desktop" || state === "canvas";
   const isMoving = () => state.startsWith("entering") || state.startsWith("returning");
   function selectPanelTab(id:string) {
@@ -143,13 +148,14 @@ function init(shell: HTMLElement) {
     if(disposed)return;
     sceneBlocked=false;studio.classList.remove("is-fallback");status.hidden=true;retry.hidden=true;
     sceneAvailability(true);scene?.setPointerEnabled(!panel.open);
-    mount.dataset.renderActive=String((page==="home"||isMoving())&&!document.hidden);
+    mount.dataset.renderActive=String((page==="home"||page==="journal"||isMoving())&&!document.hidden);
     report();
-    scene?.setActive((page==="home"||isMoving())&&!document.hidden);
+    scene?.setActive((page==="home"||page==="journal"||isMoving())&&!document.hidden);
   }
   function sceneFailed(error:StudioFailure) {
     if(disposed)return;
     report(error);sceneBlocked=true;
+    if(page==='journal')journal.fallback();
     if(isMoving()) {transition++;state=studioStateForPage(page);clearProjection();scene?.cancelTransition();sync();}
     studio.classList.add("is-fallback");
     status.hidden = false;
@@ -179,18 +185,20 @@ function init(shell: HTMLElement) {
     const osOpen = state === "desktop";
     const canvasOpen = state === "canvas";
     const canvasVisible = canvasOpen || state.endsWith("-canvas");
+    const journalVisible = page==='journal'||state.endsWith('-journal');
     studio.dataset.state = state;
-    studio.inert = !home || state !== "room";
+    studio.inert = !journalVisible&&(!home || state !== "room");
     studio.style.visibility = isOpen() ? "hidden" : "";
     shell.classList.toggle("is-home-active", home || isMoving());
     shell.classList.toggle("is-home-suspended", page === "works");
     shell.classList.toggle("is-gallery-active", page === "works");
+    shell.classList.toggle("is-journal-active", journalVisible);
     shell.querySelector<HTMLElement>(".app-dock")!.hidden = true;
     desktop.classList.toggle("is-settled", osOpen);
     desktop.setAttribute("aria-hidden", String(!osOpen));
     desktop.inert = !osOpen;
     shell.querySelectorAll<HTMLElement>(".app-page").forEach(el => {
-      const active = el.id === `page-${page}` || (el.id === "page-home" && (page === "works" || isMoving())) || (el === personalCanvas && canvasVisible);
+      const active = el.id === `page-${page}` || (el.id === "page-home" && (page === "works" || journalVisible || isMoving())) || (el === personalCanvas && canvasVisible);
       el.classList.toggle("is-active", active);
       el.inert = !active || (el === personalCanvas && canvasVisible && !canvasOpen) || (el.id === "page-home" && page === "works");
     });
@@ -201,9 +209,9 @@ function init(shell: HTMLElement) {
       if (link.dataset.page === page) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     });
-    document.title = PAGE_TITLES[page];
-    scene?.setActive((home || isMoving()) && !document.hidden);
-    if (home || isMoving() || page === "works") void loadScene();
+    if(page!=='journal')document.title = PAGE_TITLES[page];
+    scene?.setActive((home || journalVisible || isMoving()) && !document.hidden);
+    if (home || journalVisible || isMoving() || page === "works") void loadScene();
     clearInterval(clock);
     if ((home || isMoving() || osOpen) && !document.hidden) {
       const tick = () => {
@@ -232,7 +240,7 @@ function init(shell: HTMLElement) {
     const action = historyAction(page, next, history.state);
     if (action === "none") return;
     if (action === "back") { historyPending = true; history.back(); return; }
-    const path = NAV_ITEMS.find(item => item.page === next)!.path;
+    const path = pathForPage(next);
     const entry = { justinPage: next, from: action === "push" ? page : null };
     if (action === "replace") history.replaceState(entry, "", path);
     else history.pushState(entry, "", path);
@@ -247,6 +255,22 @@ function init(shell: HTMLElement) {
     clearProjection();
     page = next;
     state = studioStateForPage(next);
+    if(next==='journal'){
+      state='entering-journal';sync();await loadScene();
+      if(token!==transition||disposed)return;
+      if(from==='journal'){journal.select(location.pathname+location.hash);state='journal';sync();return;}
+      await journal.enter(location.pathname+location.hash,reduce.matches||from!=='home'?0:1250);
+      if(token!==transition||disposed)return;
+      state='journal';sync();focusRoute();return;
+    }
+    if(from==='journal'){
+      if(next==='home'){
+        state='returning-journal';sync();await journal.leave(reduce.matches?0:950);
+        if(token!==transition||disposed)return;
+        state=studioStateForPage(next);sync();focusRoute();return;
+      }
+      journal.deactivate();
+    }else if(!next.startsWith('journal'))journal.deactivate();
     if (!animate) {sync();focusRoute();return;}
     const enter = from === "home";
     const target = (enter ? next : from) === "canvas" ? "canvas" : "computer";
@@ -273,7 +297,8 @@ function init(shell: HTMLElement) {
     focusRoute();
   }
   function focusRoute() {
-    if (page === "os") returnButton.focus();
+    if (page === "journal") shell.querySelector<HTMLAnchorElement>('[data-journal-close]')?.focus();
+    else if (page === "os") returnButton.focus();
     else if (page === "canvas") shell.querySelector<HTMLButtonElement>("[data-canvas-return]")?.focus();
     else if (page === "works") shell.querySelector<HTMLButtonElement>("[data-gallery-return]")?.focus();
     else (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
@@ -284,7 +309,7 @@ function init(shell: HTMLElement) {
     if (action === "canvas") { navigate("canvas"); return; }
     if (action === "works") { navigate("works"); return; }
     if (action === "chair") { scene?.spinChair(reduce.matches); return; }
-    if (action === "diary") { location.assign(DIARY_URL); return; }
+    if (action === "diary") { navigate("journal"); return; }
     if (!scene) return;
     if (action === "zoom-in" || action === "zoom-out" || action === "reset-view" || action === "view-left" || action === "view-right" || action === "view-up" || action === "view-down") { scene.adjustView(action); return; }
     const button = studio.querySelector<HTMLButtonElement>(`[data-studio-action="${action}"]`);
@@ -312,7 +337,6 @@ function init(shell: HTMLElement) {
     if (action && Object.hasOwn(ACTION_LABELS, action)) {
       if(target instanceof HTMLAnchorElement) {
         if(event instanceof MouseEvent&&(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0))return;
-        if(action==="diary") {closeExplore(false,true);return;}
         event.preventDefault();
       }
       void act(action as StudioAction);
@@ -320,6 +344,10 @@ function init(shell: HTMLElement) {
     if(target.dataset.studioClock&&target.getAttribute("aria-pressed")!=="true")void act("clock");
     if (target === returnButton || target.matches("[data-canvas-return]")) navigate("home");
     if (target.matches("[data-gallery-return]")) navigate("home");
+    if (target.matches("[data-journal-close]")) {
+      if(event instanceof MouseEvent&&(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey))return;
+      event.preventDefault();navigate('home');
+    }
     const command = target.dataset.desktopCommand;
     if (command === "open-display-controls" || command === "arrange-icons") window.dispatchEvent(new CustomEvent(`justin-os-desktop:${command}`));
   }, { signal: events.signal });
@@ -331,13 +359,14 @@ function init(shell: HTMLElement) {
     state = studioStateForPage(page);
     scene?.cancelTransition(); clearProjection(); scene?.setActive(false);
     clearInterval(clock);
-    if (!event.persisted) { disposed = true; scene?.dispose(); events.abort(); }
+    if (!event.persisted) { disposed = true; journal.dispose();scene?.dispose(); events.abort(); }
   }, { signal: events.signal });
   window.addEventListener("pageshow", event => {
     if (!event.persisted) return;
-    historyPending=false;page=pageForPath(location.pathname);state=studioStateForPage(page);sync();
+    historyPending=false;page=pageForPath(location.pathname);state=studioStateForPage(page);sync();if(page==='journal')void journal.enter(location.pathname,0);
   }, { signal: events.signal });
   // URL, not an old tab-wide session flag, determines refresh and deep-link state.
-  history.replaceState({ ...history.state, justinPage: page }, "", NAV_ITEMS.find(item=>item.page===page)!.path + location.search + location.hash);
+  history.replaceState({ ...history.state, justinPage: page }, "", (page==='journal'?location.pathname:pathForPage(page)) + location.search + location.hash);
   sync();
+  if(page==='journal')void loadScene().then(()=>{if(page==='journal')return journal.enter(location.pathname+location.hash,0);});
 }

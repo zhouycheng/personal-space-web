@@ -1,4 +1,4 @@
-export type AppPage = "home" | "works" | "os" | "canvas";
+export type AppPage = "home" | "works" | "os" | "canvas" | "journal";
 
 export const NAV_ITEMS = [
   { page: "home", path: "/home", number: "01", label: "首页" },
@@ -17,6 +17,7 @@ export const PAGE_TITLES: Record<AppPage, string> = {
   works: "Justin OS - 文件夹",
   os: "Justin OS",
   canvas: "Justin OS - 我的画布",
+  journal: "Justin — 日记",
 };
 
 export function normalizeAppPath(pathname: string) {
@@ -25,11 +26,11 @@ export function normalizeAppPath(pathname: string) {
 }
 
 export function isAppPage(value: unknown): value is AppPage {
-  return value === "home" || value === "works" || value === "os" || value === "canvas";
+  return value === "home" || value === "works" || value === "os" || value === "canvas" || value === "journal";
 }
 
 export function studioStateForPage(page: AppPage) {
-  return page === "os" ? "desktop" : page === "canvas" ? "canvas" : "room";
+  return page === "journal" ? "journal" : page === "os" ? "desktop" : page === "canvas" ? "canvas" : "room";
 }
 
 // Return through an entry created by this router; never guess the previous URL.
@@ -43,5 +44,10 @@ export function historyAction(current: AppPage, next: AppPage, entry: unknown): 
 export function pageForPath(pathname: string): AppPage {
   const normalized = normalizeAppPath(pathname);
   if (normalized === "/") return "home";
+  if (normalized === "/journal" || /^\/journal\/[^/]+$/.test(normalized)) return "journal";
   return NAV_ITEMS.find((item) => item.path === normalized)?.page ?? "home";
+}
+
+export function pathForPage(page: AppPage) {
+  return page === "journal" ? "/journal" : NAV_ITEMS.find(item => item.page === page)!.path;
 }
