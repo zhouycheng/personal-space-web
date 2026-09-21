@@ -1,0 +1,68 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+
+const base=process.env.JOURNAL_TEST_URL??'http://127.0.0.1:4321';
+const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
+await mkdir('.workspace/journal-checks',{recursive:true});
+const context=await browser.newContext({viewport:{width:1440,height:1000}});
+const page=await context.newPage();
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+  await page.goto(base+'/journal');
+  await page.waitForFunction(()=>document.querySelector('[data-studio-scene] canvas')?.dataset.journalTextures==='3');
+  await page.waitForFunction(()=>!document.querySelector('[data-journal-root]').classList.contains('is-entering'));
+  await page.screenshot({path:'.workspace/journal-checks/desktop.png'});
+  assert.equal(await page.locator('[data-journal-text]').isVisible(),false);
+  assert.match(await page.locator('[data-journal-progress]').textContent(),/1–2 \/ 3/);
+  await page.getByRole('button',{name:'下一页',exact:true}).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({path:'.workspace/journal-checks/turn.png'});
+  await page.waitForFunction(()=>document.querySelector('[data-studio-scene] canvas').dataset.journalPage==='2'&&document.querySelector('[data-studio-scene] canvas').dataset.journalBusy==='false');
+  await page.screenshot({path:'.workspace/journal-checks/back-face.png'});
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForFunction(()=>document.querySelector('[data-studio-scene] canvas').dataset.journalPage==='0'&&document.querySelector('[data-studio-scene] canvas').dataset.journalBusy==='false');
+  await page.getByRole('button',{name:'文字阅读',exact:true}).click();
+  assert.equal(await page.locator('[data-journal-text]').isVisible(),true);
+  assert.match(await page.locator('[data-journal-text]').textContent(),/生活节奏/);
+  await page.getByRole('button',{name:'立体阅读',exact:true}).click();
+  await page.getByRole('button',{name:'放大书页'}).click();
+  assert.equal(await page.locator('[data-journal-image]').isVisible(),true);
+  await page.getByRole('button',{name:'关闭放大'}).click();
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForFunction(()=>document.querySelector('[data-journal-progress]').textContent==='1 / 3');
+  await page.screenshot({path:'.workspace/journal-checks/mobile.png'});
+  for(const expected of [1,2]){
+    await page.getByRole('button',{name:'下一页',exact:true}).click();
+    await page.waitForFunction(i=>document.querySelector('[data-studio-scene] canvas').dataset.journalPage===String(i)&&document.querySelector('[data-studio-scene] canvas').dataset.journalBusy==='false',expected);
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.waitForFunction(()=>document.querySelector('[data-journal-progress]').textContent==='3 / 3');
+  await page.getByRole('link',{name:'合上日记',exact:false}).click();
+  await page.waitForURL('**/home');
+  await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='room');
+  assert.equal(await page.locator('[data-studio-scene] canvas').getAttribute('data-journal-textures'),'0');
+  await page.getByRole('button',{name:'探索',exact:true}).focus();
+  await page.getByRole('button',{name:'探索',exact:true}).click();
+  await page.locator('[data-studio-action="diary"]').click();
+  await page.waitForURL('**/journal');
+  await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='journal');
+  await page.goBack();await page.waitForURL('**/home');
+  await page.goForward();await page.waitForURL('**/journal');
+  await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='journal');
+  const manifest=await (await page.request.get(base+'/journal/generated/manifest.json')).json();
+  const slug=encodeURIComponent(manifest.articles[0].slug);
+  await page.locator('[data-journal-directory]').click();
+  await page.locator('#journal-directory [data-journal-article]').first().click();
+  await page.waitForURL('**/journal/'+slug);
+  assert.equal(await page.locator('#journal-directory').isVisible(),false);
+  assert.match(await page.title(),/记录和节奏/);
+  await page.goto(base+'/journal/'+slug);await page.reload();
+  await page.waitForFunction(()=>document.querySelector('[data-studio-scene] canvas')?.dataset.journalTextures==='3');
+  assert.equal(new URL(page.url()).pathname,'/journal/'+slug);
+  const redirect=await page.request.get(base+'/blog/'+slug,{maxRedirects:0});assert.equal(redirect.status(),301);
+  assert.match(await (await page.request.get(base+'/rss.xml')).text(),/记录和节奏/);
+  assert.equal((await page.request.get(base+'/api/health')).status(),200);
+  assert.deepEqual(errors,[]);
+  console.log('Journal browser checks passed: desktop, turning/back face, text, zoom, portrait, restore, history, direct route, RSS, redirect, health.');
+}finally{await browser.close();}
