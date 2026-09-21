@@ -1,0 +1,4 @@
+import type { APIRoute } from "astro";
+import { journal, articlePath } from "../server/journal";
+const xml=(s:string)=>s.replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]!));
+export const GET:APIRoute=({url})=>new Response(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Justin 日记</title><link>${xml(url.origin+'/journal')}</link><description>找到属于自己的节奏</description>${[...journal.articles].reverse().map(a=>{const link=url.origin+articlePath(a.slug);return `<item><title>${xml(a.title)}</title><link>${xml(link)}</link><guid>${xml(link)}</guid><pubDate>${new Date(a.date).toUTCString()}</pubDate><description>${xml(a.description)}</description></item>`;}).join('')}</channel></rss>`,{headers:{'Content-Type':'application/rss+xml; charset=utf-8'}});

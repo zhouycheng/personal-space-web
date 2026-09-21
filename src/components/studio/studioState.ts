@@ -1,7 +1,7 @@
-export type StudioState = "room" | "entering" | "desktop" | "returning" | "entering-canvas" | "canvas" | "returning-canvas";
+export type StudioState = "room" | "entering" | "desktop" | "returning" | "entering-canvas" | "canvas" | "returning-canvas" | "journal" | "entering-journal" | "returning-journal";
 import type { RoomViewAction } from "./studioMotion";
 export type StudioAction = "computer" | "canvas" | "works" | "chair" | "lamp" | "clock" | "drawer-top" | "drawer-middle" | "drawer-bottom" | "diary" | RoomViewAction;
-export const DIARY_URL = "https://zhouycheng.github.io";
+export const DIARY_URL = "/journal";
 export const ACTION_LABELS: Record<StudioAction, string> = {
   computer: "进入 Justin OS", canvas: "我的画布",
   works: "文件夹", chair: "转动座椅",

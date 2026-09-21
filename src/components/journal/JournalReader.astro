@@ -1,0 +1,34 @@
+---
+import { journal, articlePath } from "../../server/journal";
+import "./journal.css";
+type Props = { slug?: string; active?: boolean };
+const selected = journal.articles.find(a => a.slug === Astro.props.slug) ?? journal.articles.at(-1);
+---
+<section id="page-journal" class:list={['app-page','journal',Astro.props.active&&'is-active']} aria-label="日记阅读" data-journal-root>
+  <header class="journal-header">
+    <a href="/home" data-journal-close class="journal-close">← 合上日记</a>
+    <div class="journal-heading"><span>JUSTIN / JOURNAL</span><h1 data-journal-title>{selected?.title ?? "日记"}</h1></div>
+    <button data-journal-directory aria-expanded="false" aria-controls="journal-directory">目录</button>
+  </header>
+  <nav id="journal-directory" class="journal-directory" aria-label="日记目录" hidden>
+    <p>写下的日子</p>
+    {[...journal.articles].reverse().map(article => <a href={articlePath(article.slug)} data-journal-article={article.slug}><time>{article.date}</time><strong>{article.title}</strong><small>{article.description}</small></a>)}
+    <a href="/rss.xml">订阅 RSS ↗</a>
+  </nav>
+  <p class="journal-status" data-journal-status role="status">正在翻开日记…</p>
+  <div class="journal-text" data-journal-text tabindex="-1">
+    {journal.articles.map(article => <article data-journal-prose={article.slug} hidden={article.slug!==selected?.slug}><header><time>{article.date}</time><h2>{article.title}</h2></header><div set:html={article.html}/></article>)}
+    {!selected && <p>日记尚未写下第一篇。</p>}
+  </div>
+  <footer class="journal-controls">
+    <button data-journal-prev aria-label="上一页">←</button>
+    <output data-journal-progress aria-live="polite">—</output>
+    <button data-journal-next aria-label="下一页">→</button>
+    <span class="journal-control-divider"></span>
+    <button data-journal-zoom aria-label="放大书页" aria-expanded="false">放大</button>
+    <button data-journal-mode>立体阅读</button>
+    <button class="journal-retry" data-journal-retry hidden>重试书页</button>
+  </footer>
+  <dialog class="journal-image" data-journal-image aria-label="放大查看书页或图片"><button data-journal-image-close aria-label="关闭放大">×</button><img alt=""/><div data-journal-zoom-pages></div></dialog>
+  <script type="application/json" data-journal-manifest set:html={JSON.stringify(journal).replace(/</g,"\\u003c")} />
+</section>
