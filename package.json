@@ -7,6 +7,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "journal:build": "node scripts/journal-build.mjs",
+    "journal:setup": "playwright install chromium",
     "dev": "astro dev --host 0.0.0.0 --port 4321",
     "dev:full": "(sleep 3 && node src/justin-kit/components/local-activity-status/scripts/activity-monitor.mjs) & astro dev --host 0.0.0.0 --port 4321; kill %1 2>/dev/null",
     "build": "astro build",
@@ -37,6 +39,12 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.19.25",
     "@types/three": "^0.186.0",
+    "gray-matter": "4.0.3",
+    "marked": "18.0.13",
+    "pagedjs": "0.4.3",
+    "playwright": "1.63.0",
+    "sanitize-html": "2.17.7",
+    "sharp": "0.35.4",
     "typescript": "^5.9.3"
   }
 }
