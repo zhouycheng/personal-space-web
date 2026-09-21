@@ -20,6 +20,7 @@
 - `src/pages/index.astro`、`src/pages/home.astro`、`src/pages/works.astro`、`src/pages/canvas.astro` 和 `src/pages/os.astro` 仅拥有路由入口。
 - `src/components/app/JustinAppShell.astro` 拥有共享 Dock 路由外壳和 OS 投影挂载点；`studioAppRuntime.ts` 协调导航、面板、房间与桌面状态。
 - `src/components/studio/` 拥有房间几何、相机、物件点击与 HTML 替代入口，不读取画布私有数据。
+- `src/components/journal/` 拥有共享场景中的日记本与阅读 UI；`src/content/journal/` 维护 Markdown，`scripts/journal-build.mjs` 在构建时生成固定分页和纹理，生成物不提交。
 - `src/styles/global.css` 拥有共享布局和动效样式。
 - `src/justin-kit/components/` 拥有可复用组件及其运行时文件。
 - `public/os-desktop/` 仅拥有文件驱动的桌面内容。

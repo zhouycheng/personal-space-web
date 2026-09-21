@@ -13,6 +13,7 @@ The application runs from the repository root using Astro 7 server output, the `
 - `src/pages/*.astro`: route entry points mounting the shared `src/components/app/JustinAppShell.astro` shell.
 - `src/app/navigation.ts`: route definitions and history decisions. `src/components/app/studioAppRuntime.ts`: navigation, spatial transitions, and page lifecycle coordination.
 - `src/components/studio/`: Three.js scene, camera, object interactions, lighting, portfolio, and accessible HTML entry points. The scene requests navigation through callbacks; canvas modules own canvas content.
+- `src/components/journal/`: book geometry and reading UI sharing the studio renderer. `src/features/journal/`: page mapping and reading anchors. `src/content/journal/`: published Markdown sources; `scripts/journal-build.mjs`: fixed pagination and image generation.
 - `src/components/mine-canvas/`: ReactFlow editor and card UI. `src/features/canvas/`: document protocol, client sessions, asset interfaces, and serialized save queue.
 - `src/server/canvas/`: SQLite revisions, author authentication, and image storage. `src/pages/api/canvas*`: HTTP interfaces.
 - `src/justin-kit/components/`: reusable components and their runtimes, maintained according to component READMEs. The `macos-desktop` component owns desktop and window behavior.
@@ -24,6 +25,7 @@ The application runs from the repository root using Astro 7 server output, the `
 ## Interaction Contracts
 
 - `/home` opens the studio, `/works` the file collection, `/canvas` the personal canvas, and `/os` Justin OS. The client normalizes `/` to `/home`.
+- `/journal` and `/journal/[slug]` open the diary. Preserve stable article slugs, physical front/back page order, fixed pagination across devices, and HTML reading access when WebGL fails. Page turns do not push browser history.
 - The URL determines the stable page and updates when navigation starts. Animation handles the visual transition. Returning to the studio reuses a known home history entry or replaces the current entry.
 - The studio uses a freestanding desk-and-chair composition: the computer opens OS, the flat iPad opens the canvas, and the upright file box opens the file collection. File details require a separate activation; reject retargeted scene clicks and drag gestures. The signature overlays the bottom of the scene.
 - Keep the computer and iPad fixed. The camera first faces the screen, then approaches it as live content fades in over the screen and expands to fullscreen. Reverse this sequence on return.
@@ -54,6 +56,7 @@ rtk npm run monitor:activity
 ## Validation
 
 - Run `rtk npm run build` as the baseline. Run relevant Node tests for logic changes and the full suite for shared-flow changes. Report build and type-check results separately.
+- Install the pinned Playwright Chromium with `npm run journal:setup` before journal builds or pagination tests. Generated journal assets are local build output; edit Markdown and layout sources instead. Use temporary input, output, asset and database directories for validation.
 - Check UI and animation changes on desktop and narrow viewports, including intermediate frames. For studio interactions, check dragging, clicking, hovering, entry, and return. Base touch and performance claims on checks using the relevant devices.
 - For routing or shell changes, check direct loading, refresh, back/forward, and mid-animation navigation across `/`, `/home`, `/works`, `/canvas`, and `/os`. Check viewport changes when transitions depend on dimensions.
 - For canvas storage changes, verify revision reads, save conflicts, authentication, SQLite integrity, and restoration to a temporary directory. For desktop scanning or deployment changes, verify built content and `/api/health`.
