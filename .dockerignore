@@ -18,3 +18,7 @@ backups/
 restore/
 dist/
 output/
+.workspace/
+.codegraph/
+public/journal/generated/
+src/generated/journal.json

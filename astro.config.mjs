@@ -1,10 +1,11 @@
 import { defineConfig } from "astro/config";
 import node from "@astrojs/node";
 import react from "@astrojs/react";
+import journalIntegration from "./scripts/journal-integration.mjs";
 
 export default defineConfig({
   output: "server",
-  integrations: [react()],
+  integrations: [react(), journalIntegration()],
   devToolbar: {
     enabled: false,
   },

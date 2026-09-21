@@ -1,0 +1,13 @@
+@font-face{font-family:Journal;src:url('/journal/fonts/NotoSerifSC.woff2') format('woff2');font-weight:100 900;font-display:block}
+@page{size:420px 594px;margin:38px 36px 42px;@bottom-center{content:counter(page);font:12px Journal;color:#8c7965}}
+*{box-sizing:border-box}
+body{margin:0;color:#302a24;background:#faf5e9;font-family:Journal,serif;font-size:20px;line-height:1.7;font-weight:400;overflow-wrap:anywhere;line-break:strict}
+.pagedjs_page{background:#faf5e9!important;box-shadow:none!important;margin:0!important}
+h1{font-size:29px;line-height:1.45;margin:0 0 14px;font-weight:600;break-after:avoid}
+h2,h3,h4{font-size:23px;line-height:1.5;margin:20px 0 8px;break-after:avoid}
+p{margin:0 0 16px;orphans:2;widows:2} .date{font-size:12px;letter-spacing:1px;color:#8c7965;margin-bottom:24px}
+figure{margin:12px 0;break-inside:avoid}img{max-width:100%;max-height:400px;object-fit:contain}figcaption{font-size:13px;line-height:1.5}
+ul,ol{padding-left:26px;margin:12px 0}li{orphans:2;widows:2}blockquote{margin:16px 0;padding-left:16px;border-left:2px solid #b6976e;color:#665744}
+pre{font:13px/1.6 monospace;white-space:pre-wrap;overflow-wrap:anywhere;margin:16px 0;padding:0;break-inside:auto;orphans:2;widows:2}code{font-size:.85em}
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;line-height:1.5}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:6px;border:1px solid #c8bca9;overflow-wrap:anywhere}
+a{color:#65452e;text-decoration:underline}hr{border:0;border-top:1px solid #c8bca9;margin:20px 0}

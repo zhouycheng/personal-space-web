@@ -67,3 +67,7 @@ next-env.d.ts
 
 /design/
 /output/
+
+# Reproducible journal pagination artifacts
+/public/journal/generated/
+/src/generated/journal.json

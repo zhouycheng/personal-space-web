@@ -1,13 +1,14 @@
 # Stage 1: Build the Astro app (includes native module compilation)
-FROM node:22-alpine AS builder
+FROM node:22.22.3-bookworm-slim AS builder
 
 WORKDIR /app
 
 # needed for better-sqlite3 native compilation
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 RUN npm ci
+RUN npx playwright install --with-deps chromium
 
 COPY . .
 
