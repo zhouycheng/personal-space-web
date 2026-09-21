@@ -22,6 +22,7 @@ JustinWeb 把个人介绍、项目作品、可编辑画布和文件驱动的桌�
 - **文件夹**：`/works` 由 `src/data/studioFiles.ts` 清单驱动，依次包含 FrameLean、QandA 和周耀程简历。作品引用 `src/data/projects.json`，保留预览、链接与安装包下载；简历正文维护在 `src/data/resume.json`。新增条目需在清单中引用对应内容，3D 文件、列表与数量随之更新。列表支持触摸、鼠标、滚轮和键盘，以单张卡片居中吸附；拖动达到中心间距的 25% 时切换相邻文件，否则动画弹回，点击才打开阅读详情。
 - **Justin OS 桌面**：`/os` 使用 macOS 风格桌面组件，从 `public/os-desktop/` 递归读取 HTML、Markdown 和文件夹；桌面图标、窗口尺寸和显示设置支持本地持久化。
 - **我的画布**：`/canvas` 使用 ReactFlow 提供无限画布、节点拖拽、连线、缩放、内联编辑和七种卡片类型：文字、图片、引用、链接、时间线、活动监控和名片。
+- **实体日记本**：抽屉中的日记本进入 `/journal`。Markdown 在构建时自动分页，Three.js 呈现纸张正反面与卷曲翻页，支持手机单页、目录、阅读书签、放大和文字阅读。写作与构建说明见 [日记文档](docs/features/journal.md)。
 - **Justin Kit**：可复用组件源文件位于 `src/justin-kit/components/`，当前包含 Cursor Reveal Hero、Local Activity Status、macOS Desktop 和 Symbol Dome Background。
 - **本地活动状态**：提供 macOS 前台应用监控脚本、鉴权更新接口、SSE 推送和 TTL 内存存储；画布监控卡片可消费实时状态，Justin Kit 徽章可按页面需要挂载。
 
@@ -34,6 +35,8 @@ JustinWeb 把个人介绍、项目作品、可编辑画布和文件驱动的桌�
 | `/works` | 文件夹 | 直立文件盒入口或导航 |
 | `/canvas` | 我的画布 | iPad 入口或导航 |
 | `/os` | Justin OS | 电脑入口或导航 |
+| `/journal`、`/journal/[slug]` | 实体日记本与文章 | 抽屉日记本或探索入口 |
+| `/blog/[slug]`、`/rss.xml` | 旧路径重定向与订阅 | 原文章路径 / RSS |
 
 URL 是界面状态的唯一来源。导航开始时更新地址，动画只负责视觉过渡；过渡中刷新会按 URL 打开稳定页面，返回工作室不会追加重复的首页历史记录。
 
@@ -51,6 +54,7 @@ URL 是界面状态的唯一来源。导航开始时更新地址，动画只负�
 
 ```bash
 npm ci
+npm run journal:setup
 cp .env.example .env.local
 npm run dev
 ```
@@ -69,6 +73,7 @@ npm run monitor:activity
 npm run dev
 npm run build
 npm run preview
+npm run journal:build
 npm run db:backup
 npm run db:backup:check
 npm run db:restore -- local latest
