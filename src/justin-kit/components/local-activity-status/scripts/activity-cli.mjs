@@ -51,7 +51,7 @@ export function installFiles(home, node, source) {
   mkdirSync(p.root, { recursive: true, mode: 0o700 }); chmodSync(p.root, 0o700);
   mkdirSync(dirname(p.cli), { recursive: true });
   for (const file of ['activity-cli.mjs', 'activity-core.mjs', 'activity-service.mjs']) copyFileSync(join(source, file), join(p.root, file));
-  if (!existsSync(p.config)) writeJson(p.config, { url: 'https://zhoust.cn', token: '' });
+  if (!existsSync(p.config)) writeJson(p.config, { url: '', token: '' });
   chmodSync(p.config, 0o600);
   writeFileSync(p.manual, plist(p, node), { mode: 0o600 });
   writeFileSync(p.cli, `#!/bin/sh\nif [ ! -x ${quote(node)} ]; then\n  echo 'Node 不可用，请重新运行仓库安装脚本' >&2\n  exit 1\nfi\nexec ${quote(node)} ${quote(join(p.root, 'activity-cli.mjs'))} "$@"\n`, { mode: 0o755 });
@@ -72,7 +72,9 @@ async function configure(p) {
   output.isTTY = true; output.columns = process.stdout.columns;
   const rl = createInterface({ input: process.stdin, output, terminal: true });
   try {
-    const url = (await rl.question(`上报地址 [${config.url ?? 'https://zhoust.cn'}]: `)).trim() || config.url || 'https://zhoust.cn';
+    const prompt = config.url ? `上报地址 [${config.url}]: ` : '上报地址（必填）: ';
+    const url = (await rl.question(prompt)).trim() || config.url || '';
+    if (!url) throw new Error('上报地址不能为空');
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error('请输入无凭据、查询参数的 HTTP(S) 地址');
     process.stdout.write('Token（隐藏输入，留空保留）: '); muted = true;
@@ -96,7 +98,8 @@ export async function main(args = process.argv.slice(2)) {
     if (first || wasRunning) start(p);
     console.log(`已安装 ${p.cli}`);
     if (!(process.env.PATH ?? '').split(':').includes(dirname(p.cli))) console.log('请将 ~/.local/bin 加入 PATH：export PATH="$HOME/.local/bin:$PATH"');
-    if (!readJson(p.config, {}).token) console.log('尚未配置 token。请运行 justin-activity config，然后 restart。');
+    const config = readJson(p.config, {});
+    if (!config.url || !config.token) console.log('上报配置未完成。请运行 justin-activity config，然后 restart。');
     return;
   }
   if (command === 'daemon') { await runService(p.root); return; }
@@ -118,7 +121,9 @@ export async function main(args = process.argv.slice(2)) {
       if (!match) throw new Error('文件中没有 ACTIVITY_MONITOR_TOKEN');
       const token = match[1].replace(/^(['"])(.*)\1$/, '$2');
       if (!token) throw new Error('token 为空');
-      writeJson(p.config, { ...readJson(p.config, { url: 'https://zhoust.cn' }), token });
+      const config = readJson(p.config, { url: '' });
+      if (!config.url) throw new Error('请先运行 justin-activity config 设置上报地址');
+      writeJson(p.config, { ...config, token });
       console.log('token 已导入；运行 restart 应用配置。');
     }
     else await configure(p);

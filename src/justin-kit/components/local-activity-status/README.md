@@ -17,7 +17,7 @@ justin-activity status
 
 如果命令不在 PATH，按安装输出将 ~/.local/bin 加入自己的 shell 配置。脚本不会修改 shell 文件。配置文件权限为 0600，安装目录为 0700。不要将这些文件提交到 Git。
 
-默认上报 https://zhoust.cn，需要与网站 ACTIVITY_MONITOR_TOKEN 一致。config 隐藏输入 token；config --show 只显示是否配置。也可用 config --import-env /path/to/.env 导入既有 token，不导入开发服务地址。配置修改后运行 restart。
+首次使用时运行 `config`，输入上报地址和网站的 `ACTIVITY_MONITOR_TOKEN`。Token 使用隐藏输入；`config --show` 显示上报地址和 token 是否已配置，不显示 token。也可在保存上报地址后，用 `config --import-env /path/to/.env` 导入 token。配置修改后运行 `restart`。
 
 ## 命令
 

@@ -46,6 +46,7 @@ export async function runService(root) {
   while (!stopping) {
     let error = null;
     try {
+      if (!config.url) throw new Error('尚未配置上报地址：运行 justin-activity config');
       if (!config.token) throw new Error('尚未配置 token：运行 justin-activity config');
       const activity = await readActivity();
       state.capture = '正常';

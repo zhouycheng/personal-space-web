@@ -6,7 +6,7 @@
 
 文章放在 `src/content/journal/*.md`，文件名就是稳定 slug。Frontmatter 使用 `title`、`pubDate`（YYYY-MM-DD）、可选 `description` 和 `draft`。只有 `draft: true` 会排除文章。图片放在 `public/journal/assets/`，正文使用 `/journal/assets/文件名`；不要引用远程图片或执行脚本。
 
-迁入源为 `zhouycheng/zhouycheng.github.io` 的 `src/content/blog/20260527-记录和节奏.md`，保留原文件名、frontmatter 和正文。原站继续存在。本项目的 `/blog/[slug]` 返回 301 到 `/journal/[slug]`；这不会修改旧域名的响应。RSS 在 `/rss.xml`。
+迁入源为旧站中的 `src/content/blog/20260527-记录和节奏.md`，保留原文件名、frontmatter 和正文。原站继续存在。本项目的 `/blog/[slug]` 返回 301 到 `/journal/[slug]`；这不会修改旧域名的响应。RSS 在 `/rss.xml`。
 
 新增文章后，开发服务器自动重新分页并刷新。正式构建自动生成全部已发布文章；缺失图片、字体、分页丢字或内容溢出会让构建失败。
 
