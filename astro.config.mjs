@@ -16,7 +16,6 @@ export default defineConfig({
     optimizeDeps: {
       include: [
         "@xyflow/react",
-        "lucide-react",
       ],
     },
     build: {
@@ -25,7 +24,6 @@ export default defineConfig({
           codeSplitting: {
             groups: [
               { name: "canvas-flow", test: /node_modules[\\/]@xyflow[\\/]/, priority: 3 },
-              { name: "canvas-ui", test: /node_modules[\\/]lucide-react[\\/]/, priority: 2 },
             ],
           },
         },

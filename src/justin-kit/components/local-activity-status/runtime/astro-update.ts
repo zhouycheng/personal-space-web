@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 
 import {
-  activityStatusStore,
+  getActivityStore,
   DEFAULT_ACTIVITY_TTL_MS,
 } from "./store";
 import type { ActivityUpdatePayload, ActivityWireState } from "./types";
@@ -84,7 +84,7 @@ export const POST: APIRoute = async ({ request }) => {
     return Response.json({ message: "Invalid activity payload." }, { status: 400 });
   }
 
-  const snapshot = activityStatusStore.update(payload, DEFAULT_ACTIVITY_TTL_MS);
+  const snapshot = getActivityStore().update(payload, DEFAULT_ACTIVITY_TTL_MS);
 
   return Response.json({
     ok: true,

@@ -18,7 +18,7 @@ The application runs from the repository root using Astro 7 server output, the `
 - `src/justin-kit/components/`: reusable components and their runtimes, maintained according to component READMEs. The `macos-desktop` component owns desktop and window behavior.
 - `public/os-desktop/`: file-driven desktop content, scanned here in development and from `dist/client/os-desktop/` in production.
 - `src/pages/api/activity/`, `src/lib/activity/`, and Justin Kit's `local-activity-status`: local activity endpoints, state, and monitoring. Trace each affected endpoint's actual call chain before editing.
-- `src/data/studioFiles.ts`: ordered file manifest shared by the 3D file box and reading view; references `src/data/projects.json` and `src/data/resume.json`. `src/data/kit.ts`: Justin Kit catalog. Shared layout lives in `src/styles/global.css`; domain styles stay with their components.
+- `src/data/studioFiles.ts`: ordered file manifest shared by the 3D file box and reading view; references `src/data/projects.json` and `src/data/resume.json`. Shared layout lives in `src/styles/global.css`; domain styles stay with their components.
 
 ## Interaction Contracts
 

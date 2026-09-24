@@ -38,8 +38,6 @@
 - `../src/justin-kit/components/cursor-reveal-hero/README.md`：光标揭示组件用法和行为。
 - `../src/justin-kit/components/local-activity-status/README.md`：本地活动组件、API、时序和监控设置。
 - `../src/justin-kit/components/symbol-dome-background/README.md`：符号半球背景的用法和行为。
-- `plans/2026-06-25-astro-justin-os-kit.md`：Astro 重建实现记录。
-- `archive/canvas-persistence/`：画布持久化方案的历史实现记录与设计稿。
 
 ## 更新规则
 
