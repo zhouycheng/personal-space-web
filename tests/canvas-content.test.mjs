@@ -9,7 +9,7 @@ test('published canvas contains the four real cards and two connections', () => 
   assert.equal(mineCanvasSeed.edges.length,2);
   const byKind = Object.fromEntries(mineCanvasSeed.nodes.map(n=>[n.data.kind,n]));
   assert.equal(byKind.businesscard.id,'node-businesscard-1782568979177');
-  assert.equal(byKind.businesscard.data.name,'Justin Zhou');
+  assert.equal(byKind.businesscard.data.name,'开发者');
   assert.deepEqual(byKind.businesscard.data.tags,['INTJ','Flutter','客户端']);
   assert.equal(byKind.timeline.data.items.length,5);
   assert.equal(byKind.timeline.data.items[0].time,'2026.4');

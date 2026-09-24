@@ -1,6 +1,6 @@
 import type { MineCanvasDocument } from "./mineCanvasTypes";
 
-// Published content migrated from zhoust.cn revision 138.
+// Published canvas content, revision 138.
 export const mineCanvasSeed: MineCanvasDocument = {
   "version": 4,
   "viewport": {
@@ -102,8 +102,8 @@ export const mineCanvasSeed: MineCanvasDocument = {
         "accent": "#002FA7",
         "width": 280,
         "height": 166,
-        "name": "Justin Zhou",
-        "intro": "苦寻实习中...",
+        "name": "开发者",
+        "intro": "项目与开发记录",
         "tags": [
           "INTJ",
           "Flutter",

@@ -50,6 +50,7 @@ test('isolated install preserves configuration, incident, disabled autostart and
     const source = resolve('src/justin-kit/components/local-activity-status/scripts');
     const p = installFiles(home, process.execPath, source);
     assert.ok(existsSync(p.cli)); assert.ok(existsSync(p.agent));
+    assert.equal(readJson(p.config).url, '');
     writeJson(p.config, { url: 'http://localhost:1234', token: 'test-only' });
     writeJson(p.state, { incident: { nextAt: 123 } });
     rmSync(p.agent);
