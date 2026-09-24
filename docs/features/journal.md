@@ -12,7 +12,7 @@
 
 ## 分页链路
 
-使用固定 Node 22.22.3、锁文件中的 Paged.js / Playwright 和本地 WOFF2 格式 Noto Serif SC 字体。首次安装依赖后运行 `npm run journal:setup` 下载 Chromium。Linux 构建环境使用 `npx playwright install --with-deps chromium`。Docker 仅在 Debian 构建阶段安装浏览器，运行阶段仍使用 Node Alpine。
+使用 `.node-version` 中记录的本地 Node 版本（当前为 26.9.0）、锁文件中的 Paged.js / Playwright 和本地 WOFF2 格式 Noto Serif SC 字体。首次安装依赖后运行 `npm run journal:setup` 下载 Chromium。Linux 构建环境使用 `npx playwright install --with-deps chromium`。Docker 仅在 Debian 构建阶段安装浏览器，运行阶段仍使用 Node Alpine。
 
 `npm run journal:build` 将 Markdown 解析并清洗成受控 HTML，经 Paged.js 排成 420×594 CSS px 的书页。字体与图片解码完成后，由 Chromium 以 2× 像素截图，输出普通和高清 WebP。正文 16px，1.75 倍行高、450 字重；一级标题 24px，段距 12px，左右留白 38px。段落可跨页，标题避免孤立，图片适配纸面，代码按行续页，表格按行分割。
 

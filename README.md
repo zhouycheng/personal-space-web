@@ -48,7 +48,7 @@ URL 是界面状态的唯一来源。导航开始时更新地址，动画只负�
 - npm
 - 如需运行本地活动监控，需要 macOS、`osascript` 和 System Events 辅助功能权限
 
-`.node-version` 当前记录的本地版本为 `22.22.3`。
+`.node-version` 当前记录的本地版本为 `26.9.0`。
 
 ### 安装和启动
 
