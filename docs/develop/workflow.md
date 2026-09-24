@@ -24,7 +24,7 @@
 - `src/styles/global.css` 拥有共享布局和动效样式。
 - `src/justin-kit/components/` 拥有可复用组件及其运行时文件。
 - `public/os-desktop/` 仅拥有文件驱动的桌面内容。
-- `src/pages/api/activity/` 应保持为本地活动运行时处理器的薄重导出。
+- `src/pages/api/activity/` 拥有项目活动接口；update/current 直接使用共享存储，stream 重导出组件运行时。全局 CLI 与开发监听脚本共享采集和上报实现。
 - `src/components/mine-canvas/` 拥有画布浏览器、卡片组件和浏览器本地拖动位置逻辑。
 
 ## 命令

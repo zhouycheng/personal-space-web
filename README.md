@@ -60,6 +60,8 @@ npm run dev
 
 开发服务器默认运行在 <http://localhost:4321>。首次使用本地活动监控时，在 `.env.local` 中补齐对应 token；不要把 `.env.local`、`.env.production` 或任何真实凭据提交到 Git。
 
+macOS 全局活动监视器可通过 `rtk npm run monitor:install` 安装，使用 `justin-activity` 控制运行、登录自启、状态和故障通知。详见[安装与命令说明](src/justin-kit/components/local-activity-status/README.md)。
+
 需要本地活动监控时，在另一个终端运行：
 
 ```bash

@@ -1,13 +1,10 @@
 #!/usr/bin/env node
 
 import { randomUUID } from "node:crypto";
-import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { readActivity as readForegroundActivity, publish } from "./activity-core.mjs";
 
 function loadLocalEnv() {
   for (const fileName of [".env.local", ".env"]) {
@@ -76,98 +73,10 @@ let shuttingDown = false;
 let lastFingerprint = "";
 let lastSentAt = 0;
 
-const APPLE_SCRIPT = `
-try
-  tell application "System Events"
-    set frontApp to first application process whose frontmost is true
-    set localizedName to displayed name of frontApp
-    if localizedName is "" then set localizedName to name of frontApp
-    set visibleWindowCount to 0
-    try
-      set visibleWindowCount to count of windows of frontApp
-    end try
-    return localizedName & "||" & (visibleWindowCount as string)
-  end tell
-on error errMsg
-  return "__ERROR__||" & (errMsg as string)
-end try
-`;
-
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-async function readForegroundActivity() {
-  const { stdout } = await execFileAsync("/usr/bin/osascript", ["-e", APPLE_SCRIPT], {
-    timeout: 3_000,
-  });
-
-  const output = stdout.trim();
-  if (output.startsWith("__ERROR__||")) {
-    const message = output.slice("__ERROR__||".length).trim();
-    throw new Error(
-      `osascript failed${message ? `: ${message}` : ""}. Check macOS Accessibility permissions.`
-    );
-  }
-
-  const [rawAppName = ""] = output.split("||");
-  const appName = rawAppName.trim() || null;
-
-  return {
-    appName,
-    // Some macOS apps report zero visible windows even when they are frontmost.
-    // Treat any detected frontmost app as active so the website reflects real usage.
-    state: appName ? "active" : "inactive",
-    observedAt: Date.now(),
-  };
-}
-
-async function readResponseBody(response) {
-  try {
-    const text = await response.text();
-    if (!text) {
-      return { json: null, text: "" };
-    }
-
-    try {
-      return { json: JSON.parse(text), text };
-    } catch {
-      return { json: null, text };
-    }
-  } catch {
-    return { json: null, text: "" };
-  }
-}
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 async function pushToUrl(url, payload) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${MONITOR_TOKEN}`,
-      },
-      body: JSON.stringify({
-        ...payload,
-        sessionId: SESSION_ID,
-      }),
-      signal: controller.signal,
-    });
-
-    const body = await readResponseBody(response);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}${body.text ? `: ${body.text}` : ""}`);
-    }
-
-    return body.json;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return publish(url.replace(/\/api\/activity\/update$/, ""), MONITOR_TOKEN, { ...payload, sessionId: SESSION_ID }, REQUEST_TIMEOUT_MS);
 }
 
 async function pushActivity(payload) {
@@ -181,6 +90,7 @@ async function pushActivity(payload) {
       console.error(`[activity-monitor] ${label} push failed (${url}):`, error.message);
     }
   }
+  if (!primaryResult) throw new Error("主要目标上报失败");
   return primaryResult;
 }
 
