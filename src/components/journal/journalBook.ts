@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { journalAppearance } from "./journalAppearance";
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { spreadFor, turnFaces } from "../../features/journal/book-state";
 import type { JournalManifest, JournalRegion } from "../../features/journal/types";
@@ -16,39 +17,30 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   const owned: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
   const keep = <T extends THREE.BufferGeometry | THREE.Material | THREE.Texture>(item: T): T => { owned.push(item);return item; };
   const paper = 0xfaf5e9;
-  // Deterministic grain and tooling cover the whole cover, including its reverse.
-  const skin=document.createElement('canvas');skin.width=512;skin.height=768;
-  const skinContext=skin.getContext('2d')!;skinContext.fillStyle='#4b3024';skinContext.fillRect(0,0,512,768);
-  let seed=31;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-  for(let i=0;i<65000;i++){const v=30+Math.floor(random()*55);skinContext.fillStyle=`rgba(${v+35},${v+12},${v},.25)`;skinContext.fillRect(random()*512,random()*768,1+random()*2,1);}
-  skinContext.strokeStyle='#856747';skinContext.lineWidth=2;skinContext.strokeRect(27,27,458,714);skinContext.strokeStyle='#291d16';skinContext.strokeRect(33,33,446,702);
-  const skinMap=keep(new THREE.CanvasTexture(skin));skinMap.colorSpace=THREE.SRGBColorSpace;
-  const leather = keep(new THREE.MeshStandardMaterial({ map:skinMap, bumpMap:skinMap, bumpScale:.003, roughness:.86 }));
+  const coverMaterial = keep(new THREE.MeshStandardMaterial({color:journalAppearance.cover,roughness:journalAppearance.roughness}));
   function slab(width: number, height: number, depth: number, material: THREE.Material) {
     return new THREE.Mesh(keep(new RoundedBoxGeometry(width,height,depth,2,Math.min(.012,depth/3))),material);
   }
-  const backCover = slab(1.06,H+.08,.035,leather);backCover.position.set(.5,0,-.055);content.add(backCover);
+  const backCover = slab(1.06,H+.08,.035,coverMaterial);backCover.position.set(.5,0,-.055);content.add(backCover);
   // The left paper block follows the front cover throughout opening. Keeping it
   // flat while the cover turns exposes unsupported pages through the cover.
   const leftBlock = new THREE.Group();content.add(leftBlock);
   const edgeCanvas=document.createElement('canvas');edgeCanvas.width=64;edgeCanvas.height=256;const edgeContext=edgeCanvas.getContext('2d')!;
-  edgeContext.fillStyle='#d8c9ad';edgeContext.fillRect(0,0,64,256);
-  for(let y=0;y<256;y+=4){edgeContext.fillStyle=y%12===0?'#99876d':'#bfae91';edgeContext.fillRect(0,y,64,1);}
+  edgeContext.fillStyle=journalAppearance.edgeCss;edgeContext.fillRect(0,0,64,256);
+  for(let y=0;y<256;y+=4){edgeContext.fillStyle=y%12===0?'#cfc8bc':'#ddd6ca';edgeContext.fillRect(0,y,64,1);}
   const edgeMap=keep(new THREE.CanvasTexture(edgeCanvas));edgeMap.colorSpace=THREE.SRGBColorSpace;
   const edgeMaterial = keep(new THREE.MeshStandardMaterial({map:edgeMap,roughness:1}));
   const rightStack = new THREE.Mesh(keep(new THREE.BoxGeometry(W,H,.04,32,1,1)),edgeMaterial);rightStack.position.x=.5;content.add(rightStack);
   const leftStack = new THREE.Mesh(keep(new THREE.BoxGeometry(W,H,.04,32,1,1)),edgeMaterial);leftStack.position.x=-.5;leftBlock.add(leftStack);
-  const spine = slab(.075,H+.08,.14,leather);spine.position.set(-.012,0,-.09);content.add(spine);
-  const ribbon = slab(.025,.24,.003,keep(new THREE.MeshBasicMaterial({color:0x9d703d})));ribbon.position.set(.75,-H/2-.065,-.02);content.add(ribbon);
+  const spine = slab(.075,H+.08,.14,coverMaterial);spine.position.set(-.012,0,-.09);content.add(spine);
   const hinge = new THREE.Group();content.add(hinge);
-  const lid = slab(1.06,H+.08,.028,leather);lid.position.set(.5,0,.065);hinge.add(lid);
+  const lid = slab(1.06,H+.08,.028,coverMaterial);lid.position.set(.5,0,.065);hinge.add(lid);
   const coverCanvas = document.createElement("canvas");coverCanvas.width=512;coverCanvas.height=128;
-  const ctx=coverCanvas.getContext("2d")!;ctx.fillStyle="#b79965";ctx.font="25px Georgia";ctx.textAlign="center";ctx.fillText("J O U R N A L",256,75);
+  const ctx=coverCanvas.getContext("2d")!;ctx.fillStyle=journalAppearance.titleCss;ctx.font="22px sans-serif";ctx.textAlign="center";ctx.fillText("JOURNAL",256,75);
   const coverTexture=keep(new THREE.CanvasTexture(coverCanvas));coverTexture.colorSpace=THREE.SRGBColorSpace;
-  const title=new THREE.Mesh(keep(new THREE.PlaneGeometry(.72,.18)),keep(new THREE.MeshStandardMaterial({map:coverTexture,transparent:true,roughness:.6,metalness:.25})));title.position.set(.5,.16,.081);hinge.add(title);
-  const lining=slab(.98,H-.015,.003,keep(new THREE.MeshStandardMaterial({color:0x806a4c,roughness:1})));lining.position.set(.5,0,.049);hinge.add(lining);
-  const key=new THREE.PointLight(0xfff4e5,10,6,2);key.position.set(-1.8,2,2.5);root.add(key);
-  const fill=new THREE.PointLight(0xe9eff5,4,5,2);fill.position.set(2,-.2,2);root.add(fill);
+  const title=new THREE.Mesh(keep(new THREE.PlaneGeometry(.62,.155)),keep(new THREE.MeshStandardMaterial({map:coverTexture,transparent:true,roughness:.8,metalness:.1})));title.position.set(.5,.16,.081);hinge.add(title);
+  const lining=slab(.98,H-.015,.003,keep(new THREE.MeshStandardMaterial({color:journalAppearance.lining,roughness:1})));lining.position.set(.5,0,.049);hinge.add(lining);
+  // Use the room lights so lifting the book does not illuminate nearby furniture.
   const leftMat=keep(new THREE.MeshStandardMaterial({color:paper,roughness:1})),rightMat=keep(new THREE.MeshStandardMaterial({color:paper,roughness:1}));
   const left=new THREE.Mesh(keep(new THREE.PlaneGeometry(W,H,32,2)),leftMat);left.position.x=-.5;leftBlock.add(left);
   const right=new THREE.Mesh(keep(new THREE.PlaneGeometry(W,H,32,2)),rightMat);right.position.x=.5;content.add(right);
@@ -263,7 +255,6 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
       content.position.x=single?-.5:THREE.MathUtils.lerp(-.5,0,opened);
       gutter.visible=!single&&opened>.98;
       left.visible=!single;right.visible=opened>.01&&!(single&&turning);
-      key.intensity=10*amount;fill.intensity=4*amount;
     },
     turn(direction:1|-1,reduced:boolean){if(begin(direction))finish(true,reduced);},
     retry(){error="";void warm();},

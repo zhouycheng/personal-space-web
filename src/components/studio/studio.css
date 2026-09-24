@@ -9,7 +9,7 @@
 .studio-signature {position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:0;right:0;margin:0;text-align:center;font:16px var(--mono);letter-spacing:3px;pointer-events:none}
 .studio:not([data-state="room"]) .studio-signature {visibility:hidden}
 .studio-explore {position:absolute;bottom:max(80px,calc(env(safe-area-inset-bottom) + 56px));left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;flex-direction:column;width:280px}
-.studio-explore-trigger {display:flex;align-items:center;justify-content:center;gap:10px;width:144px;min-height:48px;border:0;border-radius:999px;background:#164ce9;color:#fff;font-size:15px;box-shadow:0 3px 10px #002fa715}
+.studio-explore-trigger {display:flex;align-items:center;justify-content:center;gap:10px;width:144px;min-height:48px;border:0;border-radius:999px;background:#52614e;color:#fff;font-size:15px;box-shadow:0 3px 10px #52614e15}
 .studio-explore svg,.studio-panel svg {width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .studio-hint {font-size:12px;letter-spacing:.04em;margin:0 0 14px;color:inherit}
 .studio-hint[hidden],.studio-panel [hidden] {display:none}
@@ -23,7 +23,7 @@
 .studio-panel-close {width:44px;height:44px;padding:0;border:0;background:transparent;color:inherit;font-size:28px;font-weight:300;border-radius:50%}
 .studio-panel-tabs {display:flex;gap:12px;margin:0 22px;border-bottom:1px solid #30372d12;flex-shrink:0}
 .studio-panel-tabs button {flex:1;min-height:48px;padding:0 8px;border:0;border-bottom:2px solid transparent;background:none;font-size:14px;color:#696b62}
-.studio-panel-tabs button[aria-selected="true"] {color:#164ce9;border-bottom-color:#164ce9;font-weight:600}
+.studio-panel-tabs button[aria-selected="true"] {color:#52614e;border-bottom-color:#52614e;font-weight:600}
 .studio-panel-content {min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 22px max(22px,env(safe-area-inset-bottom));scrollbar-width:thin}
 .studio-panel-status {font-size:13px;line-height:1.5;margin:0 0 14px;color:#65665d}
 [data-studio-retry] {margin-bottom:14px;padding:10px 16px;border:1px solid currentColor;border-radius:12px;background:transparent;color:inherit}
@@ -54,11 +54,11 @@
 .studio-switch {position:relative;width:52px;height:44px;border:0;padding:0;background:transparent;flex-shrink:0}
 .studio-switch::before {content:"";position:absolute;inset:8px 0;border-radius:999px;background:#a4a69d}
 .studio-switch span {position:absolute;top:11px;left:3px;width:22px;height:22px;border-radius:50%;background:white;box-shadow:0 1px 3px #0002}
-.studio-switch[aria-checked="true"]::before {background:#164ce9}
+.studio-switch[aria-checked="true"]::before {background:#52614e}
 .studio-switch[aria-checked="true"] span {left:27px}
 .studio-clock-options {display:flex;border-radius:9px;background:#faf8f2;overflow:hidden}
 .studio-clock-options button {min-width:54px;min-height:44px;border:0;background:transparent;color:#696b62;font-size:13px}
-.studio-clock-options button[aria-pressed="true"] {background:#164ce9;color:white}
+.studio-clock-options button[aria-pressed="true"] {background:#52614e;color:white}
 .studio-drawers {padding:0 14px;border-radius:12px;background:#eeebe480;margin-bottom:10px}
 .studio-drawer-row {display:flex;gap:8px;align-items:center;min-height:54px;font-size:13px;border-top:1px solid #45453e10}
 .studio-drawer-status {margin-left:auto;color:#696b62;font-size:12px}
