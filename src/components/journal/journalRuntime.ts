@@ -7,7 +7,7 @@ import type { JournalPhase } from '../../features/journal/inspection';
 export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|undefined, navigate:(path:string)=>void) {
   const book=JSON.parse(root.querySelector('[data-journal-manifest]')!.textContent!) as JournalManifest;
   const q=<T extends HTMLElement>(selector:string)=>root.querySelector<T>(selector)!;
-  const text=q('[data-journal-text]'),status=q('[data-journal-status]'),directory=q('[data-journal-directory]');
+  const text=q('[data-journal-text]'),status=q('[data-journal-status]');
   const image=q<HTMLDialogElement>('[data-journal-image]'),mode=q<HTMLButtonElement>('[data-journal-mode]');
   const events=new AbortController();
   let page=0,active=false,readingText=true,busy=false,single=false,saved:ReadingAnchor|null=null,entryToken=0,pageError='';
@@ -44,7 +44,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
     q<HTMLButtonElement>('[data-journal-next]').disabled=busy||(visible.at(-1)??0)>=book.pages.length-1||readingText;
     for(const selector of ['[data-journal-fold]','[data-journal-reset]','[data-journal-zoom]','[data-journal-zoom-out]'])q<HTMLButtonElement>(selector).disabled=busy||readingText;
     q('[data-journal-hint]').hidden=readingText;
-    q('[data-journal-hint]').textContent=busy?'':zoom>1.05?'拖动平移 · 滚轮 / 双指缩放 · 摆正复位':reading?'拖动调整角度 · 拖页角翻页 · 滚轮 / 双指缩放':'拖动旋转 · 点击封面打开';
+    q('[data-journal-hint]').textContent=busy?'':zoom>1.05?'拖动平移 · 滚轮 / 双指缩放 · 摆正复位':reading?(single?'点击左 / 右半页翻页 · 拖动调整 · 双指缩放':'点击左页 / 右页翻页 · 拖动调整 · 双指缩放'):'拖动旋转 · 点击封面打开';
     status.hidden=!report.error||readingText;status.textContent=report.error;
     q('[data-journal-retry]').hidden=!report.error;
     syncText();
@@ -69,11 +69,6 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
   root.addEventListener('click',event=>{
     if(!(event.target instanceof Element))return;
     const target=event.target.closest<HTMLElement>('button,a');if(!target)return;
-    if(target.matches('[data-journal-article]')){
-      if(event instanceof MouseEvent&&(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey))return;
-      event.preventDefault();q('#journal-directory').hidden=true;directory.setAttribute('aria-expanded','false');navigate((target as HTMLAnchorElement).pathname);return;
-    }
-    if(target===directory){const nav=q('#journal-directory');nav.hidden=!nav.hidden;directory.setAttribute('aria-expanded',String(!nav.hidden));}
     if(target.matches('[data-journal-prev]'))scene()?.turnJournal(-1);
     if(target.matches('[data-journal-next]'))scene()?.turnJournal(1);
     if(target.matches('[data-journal-retry]'))scene()?.retryJournal();
@@ -90,13 +85,12 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
     if(event.key==='Escape'){
       if(image.open)return;
       event.preventDefault();
-      if(!q('#journal-directory').hidden){q('#journal-directory').hidden=true;directory.setAttribute('aria-expanded','false');directory.focus();}
-      else if(readingText&&scene()){setMode(false);mode.focus();}
+      if(readingText&&scene()){setMode(false);mode.focus();}
       else if(phase!=='observing'&&scene())void scene()?.openJournal(false);
       else q<HTMLAnchorElement>('[data-journal-close]').click();
       return;
     }
-    if(readingText||image.open||!q('#journal-directory').hidden||phase!=='reading')return;
+    if(readingText||image.open||phase!=='reading')return;
     if(['ArrowRight','PageDown','ArrowLeft','PageUp'].includes(event.key)){event.preventDefault();scene()?.turnJournal(event.key==='ArrowRight'||event.key==='PageDown'?1:-1);}
   },{signal:events.signal});
   async function enter(path:string,duration:number){

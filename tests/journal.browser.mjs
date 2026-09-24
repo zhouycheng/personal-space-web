@@ -43,8 +43,7 @@ try{
   await page.locator('[data-journal-mode]').click();
   assert.match(await page.locator('[data-journal-text]').textContent(),/生活节奏/);
   await page.keyboard.press('Escape');assert.equal(await page.locator('[data-journal-text]').isVisible(),false);
-  await page.locator('[data-journal-directory]').click();await page.keyboard.press('Escape');
-  assert.equal(await page.locator('#journal-directory').isVisible(),false);
+  assert.equal(await page.locator('[data-journal-directory]').count(),0);
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>document.querySelector('[data-journal-progress]').textContent.startsWith('1 /'));
   await shot('inspection-mobile');
@@ -67,7 +66,7 @@ try{
   await page.locator('[data-studio-explore]').focus();await page.locator('[data-studio-explore]').click();await page.locator('[data-studio-action="diary"]').click();
   await page.waitForURL('**/journal');await phase('observing');
   await page.goBack();await page.waitForURL('**/home');await page.goForward();await page.waitForURL('**/journal');await phase('observing');
-  await page.locator('[data-journal-directory]').click();await page.locator('[data-journal-article]').first().click();
+  await page.goto(base+'/journal/'+slug);
   await page.waitForURL('**/journal/'+slug);await phase('reading');
   await page.reload();await phase('reading');assert.match(await page.title(),/记录和节奏/);
   assert.equal((await page.request.get(base+'/blog/'+slug,{maxRedirects:0})).status(),301);
