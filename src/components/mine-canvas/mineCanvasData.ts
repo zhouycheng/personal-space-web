@@ -1,170 +1,172 @@
-import type { MineCanvasDocument, MineCanvasEdge, MineCanvasNode, MineCanvasNodeData, MineCanvasNodeKind } from "./mineCanvasTypes";
+import type { MineCanvasDocument } from "./mineCanvasTypes";
 
-const edgeStyle = {
-  stroke: "#aebbd2",
-  strokeDasharray: "5 8",
-  strokeWidth: 1.6,
-};
-
-const edge = (id: string, source: string, target: string): MineCanvasEdge => ({
-  id,
-  source,
-  target,
-  type: "mineCurve",
-  animated: false,
-  style: edgeStyle,
-  data: {},
-});
-
-const paragraph = (text: string) => `<p>${text}</p>`;
-
-const sizeByKind: Record<MineCanvasNodeKind, { width: number; height: number }> = {
-  text: { width: 260, height: 170 },
-  image: { width: 300, height: 190 },
-  quote: { width: 270, height: 132 },
-  link: { width: 278, height: 156 },
-  timeline: { width: 330, height: 460 },
-  monitor: { width: 320, height: 140 },
-  businesscard: { width: 280, height: 188 },
-};
-
-const node = (id: string, position: MineCanvasNode["position"], data: MineCanvasNodeData): MineCanvasNode => ({
-  id,
-  type: "mine",
-  position,
-  style: {
-    width: data.width,
-    height: data.height,
-  },
-  data,
-});
-
+// Published content migrated from zhoust.cn revision 138.
 export const mineCanvasSeed: MineCanvasDocument = {
-  version: 4,
-  viewport: { x: 280, y: 54, zoom: 0.72 },
-  nodes: [
-    node("intro", { x: 90, y: 170 }, {
-      kind: "text",
-      title: "个人 OS",
-      bodyHtml: paragraph("把个人网站做成一个可以探索、编辑和展示的系统。画布里的每张卡片都连接一个判断、项目或长期线索。"),
-      heightMode: "auto",
-      accent: "#002FA7",
-      width: sizeByKind.text.width,
-      height: sizeByKind.text.height,
-      textStyle: {
-        fontSize: 15,
-        fontWeight: "medium",
-        align: "left",
-        color: "#242733",
+  "version": 4,
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "nodes": [
+    {
+      "id": "node-monitor-1782561306641",
+      "type": "mine",
+      "position": {
+        "x": 532.9665531882612,
+        "y": 270.39725464626827
       },
-    }),
-    node("timeline", { x: 440, y: 90 }, {
-      kind: "timeline",
-      title: "经历时间线",
-      accent: "#3f79d8",
-      width: sizeByKind.timeline.width,
-      height: sizeByKind.timeline.height,
-      items: [
-        {
-          id: "now",
-          time: "2025.12 - 至今",
-          title: "火星回响 - ListenHub & ColaOS",
-          subtitle: "Agent Native 时代",
-          color: "#ffd84b",
-          hollow: false,
-        },
-        {
-          id: "mcn",
-          time: "2025",
-          title: "AI行业MCN - 达人运营",
-          subtitle: "三个月升至运营主管",
-          color: "#3f79d8",
-          hollow: true,
-        },
-        {
-          id: "market",
-          time: "2022 - 2024",
-          title: "设计软件达人运营 -> 自酒行业运营/市场",
-          subtitle: "深耕 marketing",
-          color: "#3f79d8",
-          hollow: true,
-        },
-        {
-          id: "grad",
-          time: "2018 - 2022",
-          title: "米兰理工大学",
-          subtitle: "Architecture & Urban Design 硕士",
-          color: "#3f79d8",
-          hollow: true,
-        },
-        {
-          id: "undergrad",
-          time: "2015 - 2019",
-          title: "南京大学",
-          subtitle: "建筑学本科",
-          color: "#3f79d8",
-          hollow: false,
-        },
-      ],
-    }),
-    node("quote", { x: 108, y: 490 }, {
-      kind: "quote",
-      title: "引用",
-      contentHtml: paragraph("找到你喜欢的事，然后让它杀死你。"),
-      author: "Charles Bukowski",
-      accent: "#3f79d8",
-      width: sizeByKind.quote.width,
-      height: sizeByKind.quote.height,
-    }),
-    node("agent-native", { x: 850, y: 150 }, {
-      kind: "text",
-      title: "AI 伙伴",
-      bodyHtml: paragraph("不是给旧流程加 AI，而是让流程天然能与 Agent 协作：梳理、建造、复盘都在同一个系统里发生。"),
-      heightMode: "auto",
-      accent: "#002FA7",
-      width: sizeByKind.text.width,
-      height: sizeByKind.text.height,
-      textStyle: {
-        fontSize: 14,
-        fontWeight: "regular",
-        align: "left",
-        color: "#303441",
+      "data": {
+        "kind": "monitor",
+        "title": "我正在使用",
+        "accent": "#059669",
+        "width": 320,
+        "height": 140
       },
-    }),
-    node("colaos", { x: 1160, y: 360 }, {
-      kind: "link",
-      title: "ColaOS",
-      summary: "一个与个人 OS 相互映照的产品方向：把想法、内容和工具组织起来。",
-      url: "https://colaos.zhoust.com",
-      accent: "#002FA7",
-      width: sizeByKind.link.width,
-      height: sizeByKind.link.height,
-    }),
-    node("works", { x: 760, y: 430 }, {
-      kind: "link",
-      title: "作品集",
-      summary: "FrameLean、FacileIM、ExercisesEagles 和 JustinWeb 正在组成一个持续进化的作品系统。",
-      url: "/works",
-      accent: "#4b5565",
-      width: sizeByKind.link.width,
-      height: sizeByKind.link.height,
-    }),
-    node("image-placeholder", { x: 1180, y: 92 }, {
-      kind: "image",
-      title: "现场照片",
-      accent: "#6b7280",
-      width: sizeByKind.image.width,
-      height: sizeByKind.image.height,
-      fileName: "点击选择图片",
-      naturalRatio: 1.58,
-    }),
+      "style": {
+        "width": 320,
+        "height": 140
+      }
+    },
+    {
+      "id": "node-timeline-1782563332675",
+      "type": "mine",
+      "position": {
+        "x": 516.0157258667899,
+        "y": 519.2604691818574
+      },
+      "data": {
+        "kind": "timeline",
+        "title": "竞赛经历时间线",
+        "accent": "#3f79d8",
+        "width": 330,
+        "height": 545,
+        "items": [
+          {
+            "id": "time-1782567802731",
+            "time": "2026.4",
+            "title": "第 48 届世界技能大赛移动应用开发项目国家集训队 10 进 1 测试赛",
+            "subtitle": "第 5 名，第 5 名，第 5 名",
+            "color": "#3f79d8",
+            "hollow": true
+          },
+          {
+            "id": "time-1782567641128",
+            "time": "2025.9",
+            "title": "第三届中华人民共和国职业技能大赛的移动应用开发项目",
+            "subtitle": "拿了优胜奖，进前十喽，进了第 48 届世界技能大赛的国家集训队",
+            "color": "#3f79d8",
+            "hollow": true
+          },
+          {
+            "id": "time-1782567477291",
+            "time": "2024.10 - 2025.9",
+            "title": "在广州集训备赛了一整年",
+            "subtitle": "备赛第三届中华人民共和国职业技能大赛的移动应用开发项目",
+            "color": "#3f79d8",
+            "hollow": true
+          },
+          {
+            "id": "time-1782566183167",
+            "time": "2024.9",
+            "title": "第一次接触到移动应用开发相关的比赛",
+            "subtitle": "拿到国赛银牌哈哈哈",
+            "color": "#3f79d8",
+            "hollow": true
+          },
+          {
+            "id": "time-1782563332675",
+            "time": "2023.9",
+            "title": "第一次参加技能大赛",
+            "subtitle": "数字化产品设计与开发，也是第一次让我在技能上找到自信",
+            "color": "#3f79d8",
+            "hollow": true
+          }
+        ]
+      },
+      "style": {
+        "width": 330,
+        "height": 545
+      }
+    },
+    {
+      "id": "node-businesscard-1782568979177",
+      "type": "mine",
+      "position": {
+        "x": -68.60905670155026,
+        "y": 480.2837657024479
+      },
+      "data": {
+        "kind": "businesscard",
+        "title": "名片卡",
+        "accent": "#002FA7",
+        "width": 280,
+        "height": 166,
+        "name": "Justin Zhou",
+        "intro": "苦寻实习中...",
+        "tags": [
+          "INTJ",
+          "Flutter",
+          "客户端"
+        ],
+        "avatarSrc": "/canvas/justin-avatar.jpg",
+        "avatarFileName": "justin-avatar.jpg"
+      },
+      "style": {
+        "width": 280,
+        "height": 166
+      }
+    },
+    {
+      "id": "node-quote-1782594210516",
+      "type": "mine",
+      "position": {
+        "x": 20.392503038078416,
+        "y": 706.3344902411769
+      },
+      "data": {
+        "kind": "quote",
+        "title": "新引用卡",
+        "contentHtml": "<p>发生的一切都是必然的</p>",
+        "author": "巴鲁赫·斯宾诺莎",
+        "accent": "#3f79d8",
+        "width": 270,
+        "height": 132
+      },
+      "style": {
+        "width": 270,
+        "height": 132
+      }
+    }
   ],
-  edges: [
-    edge("intro-to-timeline", "intro", "timeline"),
-    edge("timeline-to-agent", "timeline", "agent-native"),
-    edge("timeline-to-works", "timeline", "works"),
-    edge("agent-to-colaos", "agent-native", "colaos"),
-    edge("quote-to-intro", "quote", "intro"),
-    edge("works-to-colaos", "works", "colaos"),
-  ],
+  "edges": [
+    {
+      "type": "mineCurve",
+      "style": {
+        "stroke": "#aebbd2",
+        "strokeDasharray": "5 8",
+        "strokeWidth": 1.6
+      },
+      "data": {},
+      "source": "node-businesscard-1782568979177",
+      "sourceHandle": "right",
+      "target": "node-monitor-1782561306641",
+      "targetHandle": "left",
+      "id": "edge-node-businesscard-1782568979177-node-monitor-1782561306641-1782570216914"
+    },
+    {
+      "type": "mineCurve",
+      "style": {
+        "stroke": "#aebbd2",
+        "strokeDasharray": "5 8",
+        "strokeWidth": 1.6
+      },
+      "data": {},
+      "source": "node-businesscard-1782568979177",
+      "sourceHandle": "right",
+      "target": "node-timeline-1782563332675",
+      "targetHandle": "left",
+      "id": "edge-node-businesscard-1782568979177-node-timeline-1782563332675-1782570221974"
+    }
+  ]
 };

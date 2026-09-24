@@ -6,7 +6,7 @@ test('invalid storage falls back to defaults', () => {
   for (const input of [null, 'broken', 'null', '[]', '{"a":{"x":"1","y":2}}']) assert.deepEqual(parsePositions(input), {});
 });
 test('positions preserve current content and ignore removed IDs', () => {
-  const positions = parsePositions('{"intro":{"x":4,"y":5,"content":"stale"},"removed":{"x":1,"y":2}}');
+  const positions = parsePositions(JSON.stringify({[mineCanvasSeed.nodes[0].id]:{x:4,y:5,content:'stale'},intro:{x:1,y:2},removed:{x:1,y:2}}));
   const nodes = applyPositions(mineCanvasSeed.nodes, positions);
   assert.deepEqual(nodes[0].position, {x:4,y:5});
   assert.equal(nodes[0].data, mineCanvasSeed.nodes[0].data);
