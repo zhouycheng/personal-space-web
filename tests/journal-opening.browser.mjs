@@ -13,14 +13,19 @@ try{
   await page.waitForFunction(()=>document.querySelector('canvas[data-journal-phase]')?.dataset.journalPhase==='observing');
   await page.clock.install();await page.clock.pauseAt(new Date(Date.now()+1000));
   for(const action of ['open','fold']){
+    const emptyLeftArea=action==='open'
+      ? await sharp(await page.screenshot()).extract({left:200,top:420,width:30,height:100}).raw().toBuffer()
+      : undefined;
     await page.locator('[data-journal-'+action+']').evaluate(el=>el.click());
     await page.clock.runFor(375);
     assert.equal(await phase(),action==='open'?'opening':'closing');
     const screenshot=await page.screenshot({path:'.workspace/journal-checks/'+action+'-midpoint.png'});
-    // At half-open the left paper block must be beside the vertical cover,
-    // not a detached, fully unfolded cream page in the empty left-hand area.
-    const {channels}=await sharp(screenshot).extract({left:200,top:420,width:30,height:100}).stats();
-    assert.ok(channels.slice(0,3).every(c=>c.mean<120),'left pages are exposed before their cover unfolds');
+    // The empty scene area must stay unchanged; the left paper block belongs beside the cover.
+    if(emptyLeftArea){
+      const openedLeftArea=await sharp(screenshot).extract({left:200,top:420,width:30,height:100}).raw().toBuffer();
+      let changed=0;for(let i=0;i<emptyLeftArea.length;i++)if(Math.abs(emptyLeftArea[i]-openedLeftArea[i])>12)changed++;
+      assert.ok(changed<emptyLeftArea.length*0.01,'the left pages must not detach into the empty scene area');
+    }
     await page.clock.runFor(500);
     assert.equal(await phase(),action==='open'?'reading':'observing');
   }

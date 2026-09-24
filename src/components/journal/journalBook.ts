@@ -176,7 +176,9 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     if(turning)return;
     const found=hit(event);if(!found?.uv)return;
     const {x,y}=found.uv;
-    const direction=phase==='reading'&&(y<.2||y>.8)?(single?(x>.84?1:x<.16?-1:0):(found.object===right&&x>.84?1:found.object===left&&x<.16?-1:0)):0;
+    const ids=visiblePages(),pageId=single?ids[0]:found.object===left?ids[0]:ids[1];
+    const regionHit=phase==='reading'&&book?.pages[pageId]?.regions.some(r=>x*420>=r.x&&x*420<=r.x+r.width&&(1-y)*594>=r.y&&(1-y)*594<=r.y+r.height);
+    const direction=phase==='reading'&&!regionHit&&(y<.2||y>.8)?(single?(x>.84?1:x<.16?-1:0):(found.object===right&&x>.84?1:found.object===left&&x<.16?-1:0)):0;
     const kind=direction?'turn':zoom>1.05||event.shiftKey?'pan':'rotate';
     if(direction&&!begin(direction))return;
     drag={id:event.pointerId,x:event.clientX,y:event.clientY,lastX:event.clientX,lastY:event.clientY,direction,kind,moved:false};
@@ -209,7 +211,9 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     const found=hit(event);if(!found?.uv||!book)return;
     const ids=visiblePages(),id=single?ids[0]:found.object===left?ids[0]:ids[1];
     const x=found.uv.x*420,y=(1-found.uv.y)*594;
-    const target=book.pages[id]?.regions.find(r=>x>=r.x&&x<=r.x+r.width&&y>=r.y&&y<=r.y+r.height);if(target)region(target);
+    const target=book.pages[id]?.regions.find(r=>x>=r.x&&x<=r.x+r.width&&y>=r.y&&y<=r.y+r.height);if(target){region(target);return;}
+    const direction=single?(found.uv.x<.5?-1:1):found.object===left?-1:1;
+    if(begin(direction))finish(true,reduced());
   },{signal:events.signal});
   canvas.addEventListener("pointercancel",()=>{releasePointers();finish(false,reduced());},{signal:events.signal});
   canvas.addEventListener('lostpointercapture',event=>{if(pointers.has(event.pointerId)){releasePointers();finish(false,reduced());}},{signal:events.signal});

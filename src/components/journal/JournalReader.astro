@@ -1,20 +1,14 @@
 ---
-import { journal, articlePath } from "../../server/journal";
+import { journal } from "../../server/journal";
 import "./journal.css";
 type Props = { slug?: string; active?: boolean };
 const selected = journal.articles.find(a => a.slug === Astro.props.slug) ?? journal.articles.at(-1);
 ---
 <section id="page-journal" class:list={['app-page','journal',Astro.props.active&&'is-active']} aria-label="日记阅读" data-journal-root>
   <header class="journal-header">
-    <a href="/home" data-journal-close class="journal-close">← 放回抽屉</a>
+    <a href="/home" data-journal-close class="journal-close room-return">← 返回首页</a>
     <h1 class="journal-heading" data-journal-title>{selected?.title ?? "日记"}</h1>
-    <button data-journal-directory aria-expanded="false" aria-controls="journal-directory">目录</button>
   </header>
-  <nav id="journal-directory" class="journal-directory" aria-label="日记目录" hidden>
-    <p>写下的日子</p>
-    {[...journal.articles].reverse().map(article => <a href={articlePath(article.slug)} data-journal-article={article.slug}><time>{article.date}</time><strong>{article.title}</strong><small>{article.description}</small></a>)}
-    <a href="/rss.xml">订阅 RSS ↗</a>
-  </nav>
   <p class="journal-status" data-journal-status role="status">正在翻开日记…</p>
   <div class="journal-text" data-journal-text tabindex="-1">
     {journal.articles.map(article => <article data-journal-prose={article.slug} hidden={article.slug!==selected?.slug}><header><time>{article.date}</time><h2>{article.title}</h2></header><div set:html={article.html}/></article>)}

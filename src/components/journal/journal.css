@@ -1,27 +1,26 @@
-.alpha-shell #page-journal{position:fixed;inset:0;z-index:65;overflow:hidden;background:transparent;transform:none;filter:none;transition:opacity .25s;pointer-events:none;color:#f5eddf}
+.alpha-shell #page-journal{position:fixed;inset:0;z-index:65;overflow:hidden;background:transparent;transform:none;filter:none;transition:opacity .25s;pointer-events:none;color:var(--studio-foreground,#393632)}
 .alpha-shell.is-journal-active #page-home{visibility:visible;opacity:1;transform:none;filter:none;pointer-events:none}
 .alpha-shell.is-journal-active .studio-scene{pointer-events:auto}
 .alpha-shell.is-journal-active .studio-signature,.alpha-shell.is-journal-active .studio-explore{visibility:hidden}
 .journal [hidden]{display:none!important}
 .journal button,.journal a{font:inherit;color:inherit}
-.journal button,.journal-close{min-height:44px;border:0;background:transparent;border-radius:2px;padding:9px 12px;cursor:pointer;text-decoration:none;text-shadow:0 1px 5px #0008}
-.journal button:hover,.journal-close:hover{background:#ffffff12}
-.journal button:focus-visible,.journal a:focus-visible{outline:1px solid #dac7a2;outline-offset:3px;opacity:1}
-.journal-header{position:absolute;inset:20px 24px auto;display:flex;align-items:center;justify-content:space-between;gap:16px;pointer-events:auto}
+.journal button,.journal-close{min-height:44px;border:0;background:transparent;border-radius:2px;padding:9px 12px;cursor:pointer;text-decoration:none;text-shadow:none}
+.journal button:hover,.journal-close:hover{background:color-mix(in srgb,currentColor 8%,transparent)}
+.journal button:focus-visible,.journal a:focus-visible{outline:1px solid currentColor;outline-offset:3px;opacity:1}
+.journal-header{position:absolute;inset:0 0 auto;height:80px;pointer-events:none}
+.journal-header .journal-close{pointer-events:auto}
 .journal-heading{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .journal-controls{position:absolute;bottom:22px;left:24px;right:24px;display:flex;justify-content:center;align-items:center;gap:8px;padding:0;white-space:nowrap;pointer-events:auto;font:12px var(--sans)}
-.journal-controls button{background:transparent;border:0;padding:8px 12px}.journal-controls button:disabled{opacity:.3;cursor:default}.journal-controls output{min-width:65px;text-align:center;font-variant-numeric:tabular-nums;color:#dbcfb9}.journal-control-divider{height:14px;border-left:1px solid #ffffff25}
-.journal-hint{position:absolute;bottom:76px;left:12px;right:12px;text-align:center;font:11px/1.5 var(--sans);letter-spacing:1px;color:#d4cbb7;pointer-events:none;text-shadow:0 1px 6px #0009}
-.alpha-shell.is-journal-active .studio-scene{background:radial-gradient(ellipse at 45% 35%,#41413b,#202924);transition:background .4s}
+.journal-controls button{background:transparent;border:0;padding:8px 12px}.journal-controls button:disabled{opacity:.3;cursor:default}.journal-controls output{min-width:65px;text-align:center;font-variant-numeric:tabular-nums;color:inherit}.journal-control-divider{height:14px;border-left:1px solid color-mix(in srgb,currentColor 20%,transparent)}
+.journal-hint{position:absolute;bottom:76px;left:12px;right:12px;text-align:center;font:11px/1.5 var(--sans);letter-spacing:1px;color:inherit;pointer-events:none;text-shadow:none}
 .alpha-shell.is-journal-active .studio-scene canvas{touch-action:none}
-.journal-directory{position:absolute;right:24px;top:80px;width:min(380px,calc(100vw - 32px));max-height:calc(100svh - 180px);overflow:auto;padding:22px;background:#f8f2e6;color:#3f3328;border:1px solid #b9a98d;box-shadow:0 16px 60px #0005;pointer-events:auto}
-.journal-directory>p{font:13px var(--sans);letter-spacing:2px;color:#89725a}.journal-directory a{display:block;padding:16px 0;border-bottom:1px solid #c7b99e66;text-decoration:none}.journal-directory time,.journal-directory small{display:block;font:12px/1.7 var(--sans);color:#877560}.journal-directory strong{display:block;margin:6px 0;font:500 18px/1.7 serif}
-.journal-status{position:absolute;top:90px;left:50%;transform:translateX(-50%);max-width:90%;text-align:center;font:13px/1.6 var(--sans);padding:8px 16px;background:#262c29d9;border-radius:4px;pointer-events:none}
+
+.journal-status{position:absolute;top:90px;left:50%;transform:translateX(-50%);max-width:90%;text-align:center;font:13px/1.6 var(--sans);padding:8px 16px;background:#262c29d9;color:#f5eddf;border-radius:4px;pointer-events:none}
 .journal-controls:has(.journal-retry:not([hidden])){flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px)}
 .journal-retry{pointer-events:auto;flex-basis:100%;color:#ead2a8!important}
 .journal-text{position:absolute;inset:90px max(24px,calc((100vw - 800px)/2)) 98px;overflow:auto;padding:clamp(24px,5vw,54px);background:#faf5e9;color:#332b22;pointer-events:auto;font:18px/1.9 Georgia,'Songti SC',serif;overflow-wrap:anywhere;box-shadow:0 12px 70px #0004}
 .journal-text article>header{margin-bottom:32px}.journal-text time{font:12px var(--sans);color:#927a5e}.journal-text h2{font-weight:500;font-size:28px}.journal-text p{margin:0 0 1.4em}.journal-text img{max-width:100%;height:auto}.journal-text pre{white-space:pre-wrap;font-size:14px}.journal-text table{width:100%;border-collapse:collapse;font-size:14px}.journal-text td,.journal-text th{border:1px solid #d3c8b7;padding:8px}.journal-text blockquote{margin-left:0;padding-left:20px;border-left:2px solid #ac9573}
 .journal-image{max-width:96vw;max-height:96svh;padding:50px 20px 20px;background:#292b27;border:1px solid #a8967544;color:#f6eedf;pointer-events:auto;overflow:auto}.journal-image::backdrop{background:#111a}.journal-image>button{position:sticky;top:0;float:right;z-index:1}.journal-image>img{display:block;max-width:85vw;max-height:80svh;object-fit:contain}.journal-image>img:not([src]){display:none}
 .journal.is-turning .journal-controls [data-journal-zoom]{opacity:.4}.journal.is-entering .journal-controls{opacity:0;pointer-events:none}
-@media(max-width:640px){.journal-header{inset:12px 12px auto;gap:8px}.journal-header button,.journal-close{font-size:12px;padding:8px 10px}.journal-controls{left:8px;right:8px;bottom:max(14px,env(safe-area-inset-bottom));gap:0;flex-wrap:wrap}.journal-controls button{padding:8px;font-size:11px}.journal-controls output{min-width:48px;font-size:11px}.journal-text{inset:78px 12px 112px;padding:24px}.journal-directory{right:12px;top:67px}.journal-status{top:70px}.journal-hint{bottom:108px;font-size:10px}.journal-control-divider{display:none}}
+@media(max-width:640px){.journal-header button,.journal-close{font-size:12px;padding:8px 10px}.journal-controls{left:8px;right:8px;bottom:max(14px,env(safe-area-inset-bottom));gap:0;flex-wrap:wrap}.journal-controls button{padding:8px;font-size:11px}.journal-controls output{min-width:48px;font-size:11px}.journal-text{inset:78px 12px 112px;padding:24px}.journal-status{top:70px}.journal-hint{bottom:108px;font-size:10px}.journal-control-divider{display:none}}
 @media(prefers-reduced-motion:reduce){.alpha-shell #page-journal{transition:none}}
