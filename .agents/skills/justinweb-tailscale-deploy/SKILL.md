@@ -9,7 +9,7 @@ Deploy the user-confirmed JustinWeb revision through a private Tailscale path an
 
 ## Required Context
 
-Read `.agents/skills/README.md`, `README.md` deployment and data sections, `Dockerfile`, `docker-compose.yml`, `.env.example`, and the current Git state. Read `ops/backup/` only when backup or restore behavior is in scope.
+Read `.agents/skills/README.md`, `README.md` deployment and data sections, `Dockerfile`, `docker-compose.yml`, `.env.example`, and the current Git state.
 
 Use the repository's Docker Compose deployment. Do not introduce another hosting platform, process manager, or proxy unless the existing server cannot support the confirmed goal.
 
@@ -33,7 +33,7 @@ Never hard-code invocation-specific addresses, domains, usernames, emails, key p
 2. Run the build and relevant tests with the Node version recorded in `.node-version`.
 3. Verify Tailscale reachability and SSH access before mutating the server. Do not silently fall back to public SSH.
 4. Inspect the remote OS and architecture, free disk and memory, Docker and Compose versions, current containers, listening ports, reverse-proxy ownership, certificate validity, deployment Git state, bind mounts, and `/api/health`.
-5. Identify the exact persistent paths for `.env*`, SQLite, canvas assets, backups, and restore data. A successful container build does not prove those paths are preserved.
+5. Identify the exact persistent paths for `.env*` and any legacy runtime data. A successful container build does not prove those paths are preserved.
 
 ## Deployment Decisions
 
@@ -49,7 +49,7 @@ Never hard-code invocation-specific addresses, domains, usernames, emails, key p
 1. Build without stopping the current Web container when practical.
 2. Start a candidate on a private loopback port when the image or release path is uncertain. Use isolated temporary data unless read-only access is sufficient.
 3. Require the candidate to pass `/api/health` with `ok: true`, a nonzero desktop entry count, and a healthy database before switching production.
-4. Recreate only the confirmed JustinWeb services. Keep the backup service and unrelated containers running unless they are explicitly in scope.
+4. Recreate only the confirmed JustinWeb services. Keep unrelated containers running unless they are explicitly in scope.
 5. Verify the production container health, recent logs, persistent mount source, disk space, and HTTP 200 responses for `/`, `/home`, `/works`, `/canvas`, and `/os`.
 6. Verify the reverse proxy locally with the intended Host/SNI value before public testing. Check certificate dates, SAN coverage, and public-key/private-key correspondence before any certificate replacement; validate proxy syntax before reload.
 7. Perform the final public HTTPS check without `-k`, disabled certificate checks, or a browser security bypass. Then check the rendered homepage and representative navigation in a real browser.
