@@ -2,9 +2,7 @@
 
 Justin Kit 是 Justin OS 背后的个人组件库。
 
-此首个 Astro 版本以源文件优先的方式保留组件库。类型化目录位于 `src/data/kit.ts`，完整的已提取组件源码位于 `src/justin-kit/components`。
-
-目录为首页区域和未来的 `/kit` 路由提供可复用源码；当前页面通过正式业务组件按需接入。
+组件源码位于 `src/justin-kit/components`，当前页面通过正式业务组件按需接入。
 
 ## 首页状态词汇
 
@@ -30,13 +28,6 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 - `macos-desktop`：Justin OS 桌面图标层、递归桌面文件扫描器、macOS 风格窗口、图标拖拽、碰撞避免和显示控件。
 - `symbol-dome-background`：Justin OS 桌面背景的 Canvas 符号半球，替代原星星层，带单面右转、海洋闪动和轻微鼠标朝向。
 
-## 目录条目
-
-- `justin-brand-dna`：设计令牌、布局规则和视觉 QA 规则，作为目录规划条目。
-- `flutter-status-chip`：可复制的 Dart 状态徽章，作为目录规划条目。
-
-以上规划条目已存在于 `src/data/kit.ts` 中，用于维护目录契约和后续接入边界。
-
 ## 组件边界
 
 每个已提取组件包含：
@@ -49,12 +40,3 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 - `source-notes.md`，说明来源实现和提取范围。
 
 活跃的 Astro 页面可以导入组件，但组件不应依赖首页专属的 CSS 或数据。
-
-## 下一步
-
-下一步应将每个已提取组件转变为：
-
-- 一个一流的全页 Astro 预览路由，
-- 可复制的源码片段，
-- 一张视觉截图，
-- 一份小型 QA 检查清单。

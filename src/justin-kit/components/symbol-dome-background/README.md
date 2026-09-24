@@ -40,4 +40,3 @@ import SymbolDomeBackground from "/src/justin-kit/components/symbol-dome-backgro
 - 背景放在桌面图标和窗口层下方。
 - 不修改宿主的纯克莱因蓝背景。
 - 不捕获指针事件。
-- 更新 `src/data/kit.ts` 后，组件库目录可以发现该组件。

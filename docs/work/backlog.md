@@ -8,6 +8,5 @@
 
 | ID | 领域 | 优先级 | 状态 | 候选需求 | 下一步 | 来源 |
 | --- | --- | --- | --- | --- | --- | --- |
-| JW-001 | Justin Kit | Medium | Candidate | 添加专用 `/kit` 路由，为已提取组件提供全页预览。 | 分析路由形态和目录渲染。 | README |
 | JW-002 | 首页 | Medium | Candidate | 添加真实的作品集和我的 OS 页面内容，超越占位文案。 | 定义产品内容和交互边界。 | README |
 | JW-003 | 本地活动 | Low | Candidate | 确认位置后，在公共 UI 中挂载 `LocalActivityStatus`。 | 决定位置和隐私文案。 | docs/README.md |

@@ -11,7 +11,6 @@
 - `src/components/app/JustinAppShell.astro`：共享路由外壳与工作室、OS、文件夹、个人画布挂载点。
 - `src/components/app/studioAppRuntime.ts`：URL 驱动的 History API 导航、空间动画；返回复用已有首页记录。
 - `src/components/studio/`：程序化 Three.js 房间、三个内容入口、转椅动画、键盘/失败替代入口及本地时间光照插值。
-- `src/components/app/homeRuntimeState.mjs`：保留的旧终端辅助，不再用于首页。
 - `src/styles/global.css`：全局布局、启动屏幕动效、Dock 导航、个人画布、响应式规则和 OS 投影样式。
 - `src/justin-kit/components/macos-desktop/`：可复用的 macOS 风格桌面和窗口系统。
 - `src/justin-kit/components/symbol-dome-background/`：Justin OS 桌面背景的单面符号半球组件。

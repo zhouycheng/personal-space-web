@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 
-import { activityStatusStore } from "./store";
+import { getActivityStore } from "./store";
 import type { ActivitySnapshot } from "./types";
 
 export const prerender = false;
@@ -39,6 +39,8 @@ export const GET: APIRoute = ({ request }) => {
         controller.enqueue(encodeSnapshot(snapshot));
       };
 
+      const activityStore = getActivityStore();
+
       const heartbeatTimer = setInterval(() => {
         if (closed) return;
         controller.enqueue(encodeHeartbeat());
@@ -46,8 +48,8 @@ export const GET: APIRoute = ({ request }) => {
 
       heartbeatTimer.unref?.();
 
-      const unsubscribe = activityStatusStore.subscribe(pushSnapshot);
-      pushSnapshot(activityStatusStore.getSnapshot());
+      const unsubscribe = activityStore.subscribe(pushSnapshot);
+      pushSnapshot(activityStore.getSnapshot());
 
       const abortHandler = () => {
         close();

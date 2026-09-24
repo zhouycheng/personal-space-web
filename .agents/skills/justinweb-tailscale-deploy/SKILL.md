@@ -48,7 +48,7 @@ Never hard-code invocation-specific addresses, domains, usernames, emails, key p
 
 1. Build without stopping the current Web container when practical.
 2. Start a candidate on a private loopback port when the image or release path is uncertain. Use isolated temporary data unless read-only access is sufficient.
-3. Require the candidate to pass `/api/health` with `ok: true`, a nonzero desktop entry count, and a healthy database before switching production.
+3. Require the candidate to pass `/api/health` with `ok: true`, a nonzero desktop entry count, and valid static canvas structure before switching production.
 4. Recreate only the confirmed JustinWeb services. Keep unrelated containers running unless they are explicitly in scope.
 5. Verify the production container health, recent logs, persistent mount source, disk space, and HTTP 200 responses for `/`, `/home`, `/works`, `/canvas`, and `/os`.
 6. Verify the reverse proxy locally with the intended Host/SNI value before public testing. Check certificate dates, SAN coverage, and public-key/private-key correspondence before any certificate replacement; validate proxy syntax before reload.
