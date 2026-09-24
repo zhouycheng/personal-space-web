@@ -3,14 +3,14 @@ import test from "node:test";
 
 import { createHealthReport } from "../src/server/health.ts";
 
-test("health report is ready only when desktop content and database are healthy", async () => {
+test("health report is ready only when desktop content and canvas are healthy", async () => {
   const ready = await createHealthReport({
     readDesktopEntries: async () => [{ id: "folder", kind: "folder" }],
-    checkDatabase: () => ({ ok: true }),
+    checkCanvas: () => ({ ok: true }),
   });
   const empty = await createHealthReport({
     readDesktopEntries: async () => [],
-    checkDatabase: () => ({ ok: true }),
+    checkCanvas: () => ({ ok: true }),
   });
 
   assert.equal(ready.ok, true);
@@ -22,7 +22,7 @@ test("health report is ready only when desktop content and database are healthy"
 test("health report captures dependency failures without throwing", async () => {
   const report = await createHealthReport({
     readDesktopEntries: async () => { throw new Error("missing desktop"); },
-    checkDatabase: () => ({ ok: false }),
+    checkCanvas: () => ({ ok: false }),
   });
 
   assert.equal(report.ok, false);

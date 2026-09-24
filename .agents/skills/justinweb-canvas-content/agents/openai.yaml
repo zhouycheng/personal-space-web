@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinWeb Canvas Content"
+  short_description: "Maintain canvas content, layout and custom cards in repository files"
+  default_prompt: "Use $justinweb-canvas-content to update the JustinWeb canvas content, default layout or card presentation."

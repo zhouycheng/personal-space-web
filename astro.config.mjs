@@ -15,12 +15,6 @@ export default defineConfig({
   vite: {
     optimizeDeps: {
       include: [
-        "@floating-ui/react",
-        "@tiptap/extension-color",
-        "@tiptap/extension-text-align",
-        "@tiptap/extension-text-style",
-        "@tiptap/react",
-        "@tiptap/starter-kit",
         "@xyflow/react",
         "lucide-react",
       ],
@@ -31,8 +25,7 @@ export default defineConfig({
           codeSplitting: {
             groups: [
               { name: "canvas-flow", test: /node_modules[\\/]@xyflow[\\/]/, priority: 3 },
-              { name: "canvas-editor", test: /node_modules[\\/]@tiptap[\\/]/, priority: 3 },
-              { name: "canvas-ui", test: /node_modules[\\/](@floating-ui|lucide-react)[\\/]/, priority: 2 },
+              { name: "canvas-ui", test: /node_modules[\\/]lucide-react[\\/]/, priority: 2 },
             ],
           },
         },

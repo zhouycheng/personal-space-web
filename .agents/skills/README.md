@@ -22,6 +22,7 @@ These skills serve this repository only.
 
 | User intent | Skill | Main output |
 | --- | --- | --- |
+| Maintain canvas content, layout and cards | `justinweb-canvas-content` | Published source files |
 | Implement confirmed code, docs, or scripts | `justinweb-implementation` | Working-tree changes |
 | Validate, review, run checks, diagnose failures, and re-check | `justinweb-validation` | Validation report |
 | Calibrate docs and prepare a requested commit or PR handoff | `justinweb-delivery` | Delivery notes, commit information, or PR description |

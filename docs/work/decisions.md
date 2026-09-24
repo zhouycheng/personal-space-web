@@ -11,7 +11,6 @@
 | 2026-06-26 | 项目工作流技能使用 `justinweb-` 前缀，位于 `.agents/skills/` 下。 | Active | .agents/skills/README.md |
 | 2026-09-11 | 界面使用 `/home`、`/works`、`/canvas`、`/os` 独立路由；`/os` 专用于 Justin OS，画布使用 `/canvas`。 | Active | src/app/navigation.ts |
 | 2026-09-11 | URL 决定界面，过渡中刷新按地址恢复；返回工作室复用已知首页历史，不追加重复首页。 | Active | src/components/app/studioAppRuntime.ts |
-| 2026-06-27 | 画布/白板使用 ReactFlow 节点编辑器，通过 better-sqlite3 进行 SQLite 持久化。 | Active | src/components/mine-canvas/MineCanvasEditor.tsx |
-| 2026-06-28 | 画布保存使用 append-only revision 和 expectedRevision 乐观锁，旧版本不可变。 | Active | src/server/canvas/canvas-store.ts |
 | 2026-06-28 | Docker 全屏桌面从 `dist/client/os-desktop` 扫描，空目录由 `/api/health` 报告失败。 | Active | src/pages/api/health.ts |
-| 2026-06-28 | 画布数据库和资源每小时备份到本机与 S3 兼容 Restic 仓库。 | Active | ops/backup/ |
+
+| 2026-09-24 | 画布采用仓库维护内容与组件、访客浏览及本地拖动位置；移除数据库与备份服务。 | Active | docs/features/canvas.md |
