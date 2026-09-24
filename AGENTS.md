@@ -4,7 +4,7 @@
 
 The application runs from the repository root using Astro 7 server output, the `@astrojs/node` standalone adapter, and React integration.
 
-- Check `package.json` engines for the Node requirement, currently `>=22.12.0`. Prefer the version recorded in `.node-version`, currently `22.22.3`, for development and validation.
+- Check `package.json` engines for the Node requirement, currently `>=22.12.0`. Use the version recorded in `.node-version` for development and validation; it is currently `26.9.0`.
 - Use the same Node version to install dependencies, start the application, and run tests. For `better-sqlite3` native module ABI errors, check the active Node version and dependency build environment first.
 - Development and preview scripts default to `0.0.0.0:4321`. Use the actual address reported by the startup log for browser checks and reuse an existing service when available.
 
