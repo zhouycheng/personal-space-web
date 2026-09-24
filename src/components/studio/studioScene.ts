@@ -144,7 +144,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     return {action,group,open:false,from:0,to:0,elapsed:0,frameTime:undefined as number|undefined,moving:false};
   });
   const diary=new THREE.Group();drawers[0].group.add(diary);diary.userData.action="diary";
-  diary.position.set(0,-0.105,-0.33);diary.rotation.y=-0.08;
+  diary.position.set(0,-0.105,-0.39);diary.rotation.y=-0.08;
   const leather=material(0x70432d,0.93);
   rounded(diary,[0.39,0.038,0.47],[0,0,0],paper,0.008);
   for(const y of [-0.026,0.026]) rounded(diary,[0.41,0.016,0.49],[0,y,0],leather,0.008);
@@ -153,14 +153,20 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   box(diary,[0.018,0.003,0.53],[0.14,0.036,0.01],charcoal);
   const diaryTitle=label(diary,"JOURNAL",0.28,0.1,[-0.02,0.035,-0.065],"#70432d","#e7c88d",0.3);diaryTitle.rotation.x=-Math.PI/2;
   box(diary,[0.03,0.004,0.055],[0.06,-0.012,0.263],brass);
+  const diaryHitMaterial=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,colorWrite:false});materials.add(diaryHitMaterial);
+  const diaryHit=mesh(diary,new THREE.BoxGeometry(.49,.12,.57),diaryHitMaterial,0,.015,0);
+  diaryHit.castShadow=false;diaryHit.receiveShadow=false;diaryHit.userData.hitProxy=true;
   let journalBook:ReturnType<typeof createJournalBook>|undefined;
   let journalAmount=0,journalActive=false;
+  let journalLighting:{ambient:number;sun:number;lamp:number}|undefined;
+  function restoreJournalLighting(){if(journalLighting){ambient.intensity=journalLighting.ambient;sun.intensity=journalLighting.sun;lamp.intensity=journalLighting.lamp;journalLighting=undefined;}}
   const diaryRotation=new THREE.Quaternion(),diaryOrigin=new THREE.Vector3();
   function poseJournal() {
     if(!journalBook||!journalActive)return;
     diary.getWorldPosition(diaryOrigin);diary.getWorldQuaternion(diaryRotation);
     diaryRotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2));
     journalBook.pose(journalAmount,diaryOrigin,diaryRotation);
+    if(journalLighting){const dim=1-journalAmount*.76;ambient.intensity=journalLighting.ambient*dim;sun.intensity=journalLighting.sun*dim;lamp.intensity=journalLighting.lamp*dim;}
   }
   cleanup.push(()=>journalBook?.dispose());
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
@@ -487,6 +493,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function fail(error:StudioFailure) {
     if(destroyed||failed)return;
     failed=true;ready=false;clearHover();cancelAnimationFrame(frame);frame=0;
+    journalBook?.cancel();
     mount.dataset.renderActive="false";mount.dataset.steamActive="false";
     // Three.js invalidates GPU handles and rebuilds them on restore; keep the
     // CPU-side geometry/material/texture objects alive for that re-upload.
@@ -496,6 +503,10 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     if(destroyed||failed)return false;
     try {
       renderer.render(scene,camera);
+      if(drawers[0].open&&diary.visible){
+        const point=diary.localToWorld(new THREE.Vector3(0,.06,-.12)).project(camera);
+        mount.dataset.diaryTarget=`${(point.x+1)*mount.clientWidth/2},${(1-point.y)*mount.clientHeight/2}`;
+      }else delete mount.dataset.diaryTarget;
       if(renderer.getContext().isContextLost()) {fail(new StudioFailure("context-lost","WebGL context lost"));return false;}
       if(shaderError)throw shaderError;
     } catch(error) {fail(studioFailure(error,"render"));return false;}
@@ -538,7 +549,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function highlight(group:THREE.Group|undefined) {
     hovering=group;
     group?.traverse(object=>{
-      if(!(object instanceof THREE.Mesh))return;
+      if(!(object instanceof THREE.Mesh)||object.userData.hitProxy)return;
       const original=object.material;
       const glowMaterial=(m:THREE.Material)=>{
         const glow=m.clone();
@@ -552,7 +563,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   }
   function pick(event:PointerEvent) {
     const rect=canvas.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1),camera);
-    const hit=ray.intersectObjects(room.children,true)[0];
+    const hit=ray.intersectObjects(room.children,true).find(hit=>!hit.object.userData.hitProxy||(drawers[0].open&&!drawers[0].moving&&diary.visible));
     let object: THREE.Object3D | null=hit?.object ?? null;
     while(object && !object.userData.action&&!object.userData.label)object=object.parent;
     return (object??undefined) as THREE.Group | undefined;
@@ -601,15 +612,41 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     },
     moveJournal(enter:boolean,duration:number) {
       if(!journalBook)return Promise.resolve();
-      stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=true;journalActive=true;
-      diary.visible=false;journalBook.activate(true);
-      const sample=(value:number)=>{journalAmount=value;poseJournal();};
-      const finish=()=>{if(!enter){journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();}requestDraw();};
-      if(!duration){sample(enter?1:0);finish();return Promise.resolve();}
-      sample(enter?0:1);
-      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve:()=>{finish();resolve();}};requestDraw();});
+      if(failed||destroyed||!active)duration=0;
+      journalLighting??={ambient:ambient.intensity,sun:sun.intensity,lamp:lamp.intensity};
+      stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=true;
+      const drawer=drawers[0],drawerStart=drawer.group.position.z;
+      const drawerEnd=-.68+.85,drawerDuration=Math.abs(drawerStart-drawerEnd)>.001&&duration?420:0;
+      drawer.open=true;drawer.moving=false;drawer.to=.85;
+      drawer.group.userData.label=ACTION_LABELS['drawer-top'].replace('打开','关闭');
+      const total=duration+drawerDuration;
+      if(enter){journalActive=false;diary.visible=true;journalBook.activate(false);}
+      let transferred=!enter;
+      const sample=(value:number)=>{
+        const elapsed=value*total,drawerProgress=drawerDuration?Math.min(1,elapsed/drawerDuration):1;
+        const drawerZ=THREE.MathUtils.lerp(drawerStart,drawerEnd,smooth(drawerProgress));
+        if(drawer.group.position.z!==drawerZ)renderer.shadowMap.needsUpdate=true;
+        drawer.group.position.z=drawerZ;
+        mount.dataset.journalDrawerReady=String(drawerProgress===1);
+        if(drawerProgress<1)return;
+        if(!transferred){transferred=true;journalActive=true;diary.visible=false;journalBook!.activate(true);}
+        const travel=duration?Math.min(1,(elapsed-drawerDuration)/duration):1;
+        journalAmount=enter?travel:1-travel;poseJournal();
+      };
+      const finish=()=>{
+        drawer.group.position.z=drawerEnd;mount.dataset.journalDrawerReady='true';
+        if(!enter){journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);restoreJournalLighting();zoomed=false;setRoomCamera();}
+        requestDraw();
+      };
+      if(!total){sample(1);finish();return Promise.resolve();}
+      sample(0);
+      return new Promise<void>(resolve=>{motion={start:performance.now(),duration:total,sample,enter:true,resolve:()=>{finish();resolve();}};requestDraw();});
     },
-    hideJournal() {journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();requestDraw();},
+    hideJournal() {journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);restoreJournalLighting();zoomed=false;setRoomCamera();requestDraw();},
+    prepareJournal(reading:boolean){journalBook?.prepare(reading);},
+    journalAvailable(){return !failed&&!destroyed;},
+    openJournal(value:boolean){return journalBook?.open(value,reducedMotion.matches||failed||destroyed||!active)??Promise.resolve();},
+    resetJournal(){journalBook?.resetView();},
     setJournalPage(index:number){journalBook?.setPage(index);},
     turnJournal(direction:1|-1){journalBook?.turn(direction,reducedMotion.matches);},
     zoomJournal(value:number){journalBook?.setZoom(value);poseJournal();},
@@ -660,6 +697,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       renderer.shadowMap.needsUpdate=true;
       sun.intensity=1.1+2.1*light.daylight;sun.color.setHex(light.sun);
       ambient.intensity=1.15+1.05*light.daylight;lampPower=2.8*(1-light.daylight)+1.2;lamp.intensity=lampOn?lampPower:0;
+      if(journalLighting){journalLighting={ambient:ambient.intensity,sun:sun.intensity,lamp:lamp.intensity};poseJournal();}
       requestDraw();
     },
     setTime(date:Date) {
@@ -690,7 +728,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       sample(enter?0:1);
       return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve};requestDraw();});
     },
-    cancelTransition() {stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=journalActive;setRoomCamera();requestDraw();},
+    cancelTransition() {stopCamera();clearHover();journalBook?.cancel();motion?.resolve();motion=undefined;zoomed=journalActive;setRoomCamera();requestDraw();},
     dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();motion?.resolve();cleanup.reverse().forEach(dispose=>dispose());},
   };
   } catch(error) {

@@ -2,6 +2,7 @@ import type { StudioScene } from "../studio/studioScene";
 import type { JournalManifest, ReadingAnchor, JournalRegion } from "../../features/journal/types";
 import type { BookReport } from "./journalBook";
 import { journalSlug, resolveReadingPage, spreadFor } from "../../features/journal/book-state";
+import type { JournalPhase } from '../../features/journal/inspection';
 
 export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|undefined, navigate:(path:string)=>void) {
   const book=JSON.parse(root.querySelector('[data-journal-manifest]')!.textContent!) as JournalManifest;
@@ -10,6 +11,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
   const image=q<HTMLDialogElement>('[data-journal-image]'),mode=q<HTMLButtonElement>('[data-journal-mode]');
   const events=new AbortController();
   let page=0,active=false,readingText=true,busy=false,single=false,saved:ReadingAnchor|null=null,entryToken=0,pageError='';
+  let phase:JournalPhase='observing',zoom=1;
   try {saved=JSON.parse(localStorage.getItem('justin-journal-bookmark')??'null');}catch{/* Storage is optional. */}
   function article(){return book.articles.find(a=>a.slug===book.pages[page]?.slug)??book.articles.at(-1);}
   function requestedPage(path:string){
@@ -27,6 +29,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
   function update(report:BookReport){
     const previousSlug=book.pages[page]?.slug;
     page=report.page;busy=report.busy;single=report.single;
+    phase=report.phase;zoom=report.zoom;root.dataset.phase=phase;
     pageError=report.error;
     if(active&&!busy&&previousSlug&&book.pages[page]?.slug!==previousSlug){
       history.replaceState(history.state,'',`/journal/${encodeURIComponent(book.pages[page].slug)}`);
@@ -34,8 +37,14 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
     root.classList.toggle('is-turning',busy);
     const visible=spreadFor(page,book.pages.length,single);
     q('output').textContent=visible.map(i=>i+1).join('–')+` / ${book.pages.length}`;
+    const reading=phase==='reading';
+    for(const selector of ['[data-journal-prev]','[data-journal-next]','output','[data-journal-fold]'])q(selector).hidden=!reading||readingText;
+    q('[data-journal-open]').hidden=phase!=='observing'||readingText;
     q<HTMLButtonElement>('[data-journal-prev]').disabled=busy||page===0||readingText;
     q<HTMLButtonElement>('[data-journal-next]').disabled=busy||(visible.at(-1)??0)>=book.pages.length-1||readingText;
+    for(const selector of ['[data-journal-fold]','[data-journal-reset]','[data-journal-zoom]','[data-journal-zoom-out]'])q<HTMLButtonElement>(selector).disabled=busy||readingText;
+    q('[data-journal-hint]').hidden=readingText;
+    q('[data-journal-hint]').textContent=busy?'':zoom>1.05?'拖动平移 · 滚轮 / 双指缩放 · 摆正复位':reading?'拖动调整角度 · 拖页角翻页 · 滚轮 / 双指缩放':'拖动旋转 · 点击封面打开';
     status.hidden=!report.error||readingText;status.textContent=report.error;
     q('[data-journal-retry]').hidden=!report.error;
     syncText();
@@ -47,11 +56,11 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
   function setMode(value:boolean){
     readingText=value;text.hidden=!value;mode.textContent=value?'立体阅读':'文字阅读';
     q<HTMLButtonElement>('[data-journal-zoom]').disabled=value;
-    update({page,single,busy,error:pageError,textures:0});
+    update({page,single,busy,error:pageError,textures:0,phase,zoom});
     if(value){text.focus();const anchor=book.pages[page]?.anchors[0];if(anchor)text.querySelector(`#${CSS.escape(anchor)}`)?.scrollIntoView({block:'start'});}
   }
   function openRegion(item:JournalRegion){
-    if(item.kind==='image'){q<HTMLImageElement>('[data-journal-image] > img').src=item.href;q<HTMLImageElement>('[data-journal-image] > img').alt=item.label;q('[data-journal-zoom-pages]').replaceChildren();image.showModal();return;}
+    if(item.kind==='image'){q<HTMLImageElement>('[data-journal-image] > img').src=item.href;q<HTMLImageElement>('[data-journal-image] > img').alt=item.label;image.showModal();return;}
     const url=new URL(item.href,location.href);
     if(!['http:','https:','mailto:'].includes(url.protocol))return;
     if(url.origin===location.origin&&url.pathname.startsWith('/journal'))navigate(url.pathname+url.hash);
@@ -68,17 +77,26 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
     if(target.matches('[data-journal-prev]'))scene()?.turnJournal(-1);
     if(target.matches('[data-journal-next]'))scene()?.turnJournal(1);
     if(target.matches('[data-journal-retry]'))scene()?.retryJournal();
-    if(target===mode){if(readingText&&!scene()){void enter(location.pathname,0);}else setMode(!readingText);}
+    if(target.matches('[data-journal-open]'))void scene()?.openJournal(true);
+    if(target.matches('[data-journal-fold]'))void scene()?.openJournal(false);
+    if(target.matches('[data-journal-reset]'))scene()?.resetJournal();
+    if(target===mode){if(readingText&&!scene()?.journalAvailable())fallback();else setMode(!readingText);}
     if(target.matches('[data-journal-image-close]'))image.close();
-    if(target.matches('[data-journal-zoom]')&&!busy){
-      q<HTMLImageElement>('[data-journal-image] > img').removeAttribute('src');
-      const images=spreadFor(page,book.pages.length,single).map(i=>{const img=new Image();img.src=book.pages[i].image;img.alt=`第 ${i+1} 页`;return img;});
-      q('[data-journal-zoom-pages]').replaceChildren(...images);q('[data-journal-zoom]').setAttribute('aria-expanded','true');image.showModal();
-    }
+    if(target.matches('[data-journal-zoom]')&&!busy)scene()?.zoomJournal(zoom+.25);
+    if(target.matches('[data-journal-zoom-out]')&&!busy)scene()?.zoomJournal(zoom-.25);
   },{signal:events.signal});
-  image.addEventListener('close',()=>q('[data-journal-zoom]').setAttribute('aria-expanded','false'),{signal:events.signal});
   window.addEventListener('keydown',event=>{
-    if(!active||readingText||image.open||!q('#journal-directory').hidden||event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement)return;
+    if(!active||event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement)return;
+    if(event.key==='Escape'){
+      if(image.open)return;
+      event.preventDefault();
+      if(!q('#journal-directory').hidden){q('#journal-directory').hidden=true;directory.setAttribute('aria-expanded','false');directory.focus();}
+      else if(readingText&&scene()){setMode(false);mode.focus();}
+      else if(phase!=='observing'&&scene())void scene()?.openJournal(false);
+      else q<HTMLAnchorElement>('[data-journal-close]').click();
+      return;
+    }
+    if(readingText||image.open||!q('#journal-directory').hidden||phase!=='reading')return;
     if(['ArrowRight','PageDown','ArrowLeft','PageUp'].includes(event.key)){event.preventDefault();scene()?.turnJournal(event.key==='ArrowRight'||event.key==='PageDown'?1:-1);}
   },{signal:events.signal});
   async function enter(path:string,duration:number){
@@ -89,6 +107,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
     if(!current){fallback();return;}
     setMode(false);root.classList.add('is-entering');
     current.configureJournal(book,page,update,openRegion);
+    current.prepareJournal(Boolean(journalSlug(new URL(path,location.origin).pathname)));
     await current.moveJournal(true,duration);
     if(token!==entryToken||!active)return;
     root.classList.remove('is-entering');
@@ -96,8 +115,8 @@ export function createJournalReader(root:HTMLElement, scene:()=>StudioScene|unde
   }
   function fallback(){root.classList.remove('is-entering');setMode(true);status.hidden=false;status.textContent='三维书本暂不可用，正文仍可阅读。';}
   return {book,enter,fallback,
-    select(path:string){page=requestedPage(path);scene()?.setJournalPage(page);syncText();text.scrollTop=0;},
-    async leave(duration:number){entryToken++;active=false;image.close();root.classList.add('is-entering');await scene()?.moveJournal(false,duration);root.classList.remove('is-entering');},
+    select(path:string){page=requestedPage(path);scene()?.setJournalPage(page);if(journalSlug(new URL(path,location.origin).pathname))void scene()?.openJournal(true);syncText();text.scrollTop=0;},
+    async leave(duration:number){const token=++entryToken;active=false;image.close();root.classList.add('is-entering');if(scene()&&phase!=='observing')await scene()?.openJournal(false);if(token!==entryToken)return;await scene()?.moveJournal(false,duration);if(token===entryToken)root.classList.remove('is-entering');},
     deactivate(){entryToken++;active=false;image.close();scene()?.hideJournal();root.classList.remove('is-entering');},
     dispose(){entryToken++;events.abort();image.close();},
   };

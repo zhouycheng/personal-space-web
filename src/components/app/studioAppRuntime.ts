@@ -180,6 +180,12 @@ function init(shell: HTMLElement) {
     try {await navigator.clipboard.writeText(diagnosticText.value);}catch { /* HTTP supports manual selection and copy. */ }
   },{signal:events.signal});
   function sync() {
+    scene?.snapshot().drawers.forEach((open,index)=>{
+      const name=['top','middle','bottom'][index];
+      const button=studio.querySelector<HTMLButtonElement>(`[data-studio-action="drawer-${name}"]`);
+      if(button){button.setAttribute('aria-expanded',String(open));button.textContent=open?'关闭':'打开';button.setAttribute('aria-label',`${open?'关闭':'打开'}${['第一','第二','第三'][index]}层抽屉`);}
+      const status=panel.querySelector<HTMLElement>(`[data-drawer-status="${name}"]`);if(status)status.textContent=open?'已打开':'已关闭';
+    });
     const home = page === "home";
     if(!home||state!=="room")closeExplore(false,true);
     const osOpen = state === "desktop";
