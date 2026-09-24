@@ -10,14 +10,13 @@ import { inferHandlePair } from './mineCanvasGeometry';
 import { applyPositions, parsePositions, POSITION_KEY, type Positions } from './canvasPositions';
 
 function Card({ data }: NodeProps<MineCanvasNode>) {
-  return <article className="canvas-card" style={{ '--card-accent': data.accent } as CSSProperties}>
-    <button className="canvas-drag" aria-label={`拖动 ${data.title}`} title="拖动位置仅保存在此浏览器">⠿</button>
-    <div className="canvas-card-body"><h2>{data.title}</h2><CanvasCardContent data={data} /></div>
+  return <article className={`canvas-card canvas-card--${data.kind}`} style={{ '--card-accent': data.accent } as CSSProperties}>
+    <div className="canvas-card-body">{data.kind === 'monitor' && <small className="canvas-monitor-label">笔记本窗口监听器</small>}{!['businesscard', 'quote'].includes(data.kind) && <h2>{data.title}</h2>}<CanvasCardContent data={data} /></div>
     {[Position.Top, Position.Right, Position.Bottom, Position.Left].map(position => <Handle key={position} id={position} type="source" position={position} isConnectable={false} />)}
   </article>;
 }
 const nodeTypes = { mine: Card }, edgeTypes = { mineCurve: MineCanvasEdgeComponent };
-const defaults = mineCanvasSeed.nodes.map(node => ({ ...node, dragHandle: '.canvas-drag' }));
+const defaults = mineCanvasSeed.nodes;
 function readPositions() { try { return parsePositions(localStorage.getItem(POSITION_KEY)); } catch { return {}; } }
 const duration = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240;
 
@@ -25,12 +24,11 @@ export default function MineCanvasEditor() {
   const overrides = useRef<Positions>(readPositions());
   const [nodes, setNodes, onNodesChange] = useNodesState<MineCanvasNode>(applyPositions(defaults, overrides.current));
   const [instance, setInstance] = useState<ReactFlowInstance<MineCanvasNode, MineCanvasEdge> | null>(null);
-  const [drawer, setDrawer] = useState(false), [selected, setSelected] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState(false);
   const [zoom, setZoom] = useState(100), [storageMessage, setStorageMessage] = useState('');
-  const wrap = useRef<HTMLDivElement>(null), dialog = useRef<HTMLDialogElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
   const contentButton = useRef<HTMLButtonElement>(null), sidebar = useRef<HTMLElement>(null);
   const dragging = useRef(false);
-  const selectedNode = nodes.find(node => node.id === selected);
   const edges: MineCanvasEdge[] = mineCanvasSeed.edges.map(edge => {
     const source = nodes.find(n => n.id === edge.source), target = nodes.find(n => n.id === edge.target);
     const pair = source && target ? inferHandlePair(
@@ -51,14 +49,10 @@ export default function MineCanvasEditor() {
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [instance]);
   useEffect(() => {
-    if (selectedNode && !dialog.current?.open) dialog.current?.showModal();
-    if (!selectedNode) dialog.current?.close();
-  }, [selectedNode]);
-  useEffect(() => {
     const page = document.getElementById('page-canvas');
     if (!page) return;
     const observer = new MutationObserver(() => {
-      if (!page.classList.contains('is-active')) { setSelected(null); setDrawer(false); }
+      if (!page.classList.contains('is-active')) setDrawer(false);
     });
     observer.observe(page, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
@@ -82,7 +76,7 @@ export default function MineCanvasEditor() {
     try { localStorage.removeItem(POSITION_KEY); } catch {}
     setNodes(defaults.map(n => ({ ...n }))); requestAnimationFrame(fit);
   };
-  return <div className="canvas-viewer" style={{ "--canvas-zoom": zoom / 100 } as CSSProperties}>
+  return <div className="canvas-viewer">
     <div className="canvas-topbar"><strong>我的画布</strong><button ref={contentButton} aria-expanded={drawer} aria-controls="canvas-contents" onClick={() => setDrawer(!drawer)}>内容</button></div>
     {drawer && <button className="canvas-sidebar-backdrop" aria-label="关闭内容列表" onClick={closeDrawer} />}
     <aside id="canvas-contents" ref={sidebar} className={`canvas-sidebar ${drawer ? 'is-open' : ''}`} aria-label="画布内容" onKeyDown={event => {
@@ -96,17 +90,23 @@ export default function MineCanvasEditor() {
     }}>
       <header><h2>内容</h2><button className="canvas-sidebar-close" onClick={closeDrawer} aria-label="关闭内容列表">×</button></header>
       <nav>{nodes.map(node => <button key={node.id} onClick={() => focus(node)}>{node.data.title}<span>↗</span></button>)}</nav>
-      <p>拖动卡片把手调整位置。位置仅保存在当前浏览器。</p><button onClick={reset}>恢复默认布局</button>
+      <p>直接拖动卡片调整位置，位置仅保存在当前浏览器。双击卡片聚焦，双击空白处查看全图。</p><button onClick={reset}>恢复默认布局</button>
     </aside>
-    <div className="canvas-flow" ref={wrap}>
+    <div className="canvas-flow" ref={wrap} onDoubleClick={event => {
+      if ((event.target as Element).classList.contains('react-flow__pane')) fit();
+    }}>
       <ReactFlow<MineCanvasNode, MineCanvasEdge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
         onInit={setInstance} onNodesChange={onNodesChange}
         onNodeDragStart={() => { dragging.current = true; }}
         onNodeDragStop={(_, node) => { savePosition(node); setTimeout(() => { dragging.current = false; }, 0); }}
-        onNodeClick={(event, node) => { if (!dragging.current && !(event.target as Element).closest('.canvas-drag')) setSelected(node.id); }}
+        onNodeDoubleClick={(event, node) => { event.stopPropagation(); if (!dragging.current) focus(node); }}
+        nodeDragThreshold={5}
         onKeyDown={event => {
           const element = (event.target as HTMLElement).closest<HTMLElement>('.react-flow__node');
-          if (element?.dataset.id && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(element.dataset.id); }
+          if (element?.dataset.id && (event.key === 'Enter' || event.key === ' ')) {
+            const node = nodes.find(n => n.id === element.dataset.id);
+            if (node) { event.preventDefault(); focus(node); }
+          }
         }}
         onMove={(_, viewport) => setZoom(Math.round(viewport.zoom * 100))}
         nodesConnectable={false} edgesReconnectable={false} connectionMode={ConnectionMode.Loose}
@@ -119,10 +119,5 @@ export default function MineCanvasEditor() {
       <button onClick={fit}>查看全图</button><button aria-label="缩小" onClick={() => void instance?.zoomOut()}>−</button><output>{zoom}%</output><button aria-label="放大" onClick={() => void instance?.zoomIn()}>＋</button>
     </div>
     {storageMessage && <p className="canvas-storage-message" role="status">{storageMessage}</p>}
-    <dialog className="canvas-reader" ref={dialog} aria-labelledby="canvas-reader-title" onClose={() => setSelected(null)} onClick={event => {
-      if (event.target === event.currentTarget) { const r=event.currentTarget.getBoundingClientRect(); if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)setSelected(null); }
-    }}>
-      {selectedNode && <><header><h2 id="canvas-reader-title">{selectedNode.data.title}</h2><button autoFocus aria-label="关闭阅读" onClick={() => setSelected(null)}>×</button></header><div className="canvas-reader-content"><CanvasCardContent data={selectedNode.data} detail /></div></>}
-    </dialog>
   </div>;
 }
