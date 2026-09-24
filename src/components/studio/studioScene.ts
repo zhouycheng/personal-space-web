@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { studioPalette as palette, paletteHex } from "./studioPalette";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { chairTurn } from "./chairMotion";
 import { ACTION_LABELS, type StudioAction } from "./studioState";
@@ -9,6 +10,7 @@ import { stepRoomView, type RoomView, type RoomViewAction } from "./studioMotion
 import { StudioFailure, studioFailure } from "./studioFailure";
 import { studioFiles } from "../../data/studioFiles";
 import { createJournalBook, type BookReport } from "../journal/journalBook";
+import { journalAppearance } from "../journal/journalAppearance";
 import type { JournalManifest, JournalRegion } from "../../features/journal/types";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
@@ -80,9 +82,9 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function material(color: number, roughness = 0.8) {
     const m = new THREE.MeshStandardMaterial({ color, roughness }); materials.add(m); return m;
   }
-  const wood = material(0xac7d50);
-  const charcoal = material(0x303b39), brass = material(0xab8a48, 0.4), paper = material(0xfff9e9);
-  const furnitureFrame = material(0x28354a), upholstery = material(0xb9b1a2, 0.95);
+  const wood = material(palette.wood);
+  const charcoal = material(palette.frame), brass = material(palette.metal, 0.4), paper = material(palette.paper);
+  const furnitureFrame = material(palette.frame), upholstery = material(palette.upholstery, 0.95);
   const blue = material(0x002fa7);
   const mesh = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     geometries.add(geometry);
@@ -112,7 +114,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   }
 
   // Transparent shadow receiver: no visible floor slab or room enclosure.
-  const shadowMaterial=new THREE.ShadowMaterial({color:0x060910,opacity:0.34});materials.add(shadowMaterial);
+  const shadowMaterial=new THREE.ShadowMaterial({color:0x242720,opacity:0.24});materials.add(shadowMaterial);
   // The ground receives the broad overhead light only. A spot shadow mask
   // includes unlit space outside the lamp cone, even where its light cannot reach.
   shadowMaterial.onBeforeCompile=shader=>{
@@ -145,28 +147,23 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   });
   const diary=new THREE.Group();drawers[0].group.add(diary);diary.userData.action="diary";
   diary.position.set(0,-0.105,-0.39);diary.rotation.y=-0.08;
-  const leather=material(0x70432d,0.93);
-  rounded(diary,[0.39,0.038,0.47],[0,0,0],paper,0.008);
+  const leather=material(journalAppearance.cover,journalAppearance.roughness);
+  rounded(diary,[0.39,0.038,0.47],[0,0,0],material(journalAppearance.edge),0.008);
   for(const y of [-0.026,0.026]) rounded(diary,[0.41,0.016,0.49],[0,y,0],leather,0.008);
   rounded(diary,[0.03,0.065,0.49],[-0.2,0,0],leather,0.008);
-  for(const y of [-0.01,0,0.01]) box(diary,[0.375,0.002,0.002],[0.01,y,0.236],upholstery);
-  box(diary,[0.018,0.003,0.53],[0.14,0.036,0.01],charcoal);
-  const diaryTitle=label(diary,"JOURNAL",0.28,0.1,[-0.02,0.035,-0.065],"#70432d","#e7c88d",0.3);diaryTitle.rotation.x=-Math.PI/2;
-  box(diary,[0.03,0.004,0.055],[0.06,-0.012,0.263],brass);
+  for(const y of [-0.01,0,0.01]) box(diary,[0.375,0.002,0.002],[0.01,y,0.236],material(0xb9b1a2,0.95));
+  const diaryTitle=label(diary,"JOURNAL",0.22,0.07,[0,0.035,-0.065],journalAppearance.coverCss,journalAppearance.titleCss,0.22);diaryTitle.rotation.x=-Math.PI/2;
   const diaryHitMaterial=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,colorWrite:false});materials.add(diaryHitMaterial);
   const diaryHit=mesh(diary,new THREE.BoxGeometry(.49,.12,.57),diaryHitMaterial,0,.015,0);
   diaryHit.castShadow=false;diaryHit.receiveShadow=false;diaryHit.userData.hitProxy=true;
   let journalBook:ReturnType<typeof createJournalBook>|undefined;
   let journalAmount=0,journalActive=false;
-  let journalLighting:{ambient:number;sun:number;lamp:number}|undefined;
-  function restoreJournalLighting(){if(journalLighting){ambient.intensity=journalLighting.ambient;sun.intensity=journalLighting.sun;lamp.intensity=journalLighting.lamp;journalLighting=undefined;}}
   const diaryRotation=new THREE.Quaternion(),diaryOrigin=new THREE.Vector3();
   function poseJournal() {
     if(!journalBook||!journalActive)return;
     diary.getWorldPosition(diaryOrigin);diary.getWorldQuaternion(diaryRotation);
     diaryRotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2));
     journalBook.pose(journalAmount,diaryOrigin,diaryRotation);
-    if(journalLighting){const dim=1-journalAmount*.76;ambient.intensity=journalLighting.ambient*dim;sun.intensity=journalLighting.sun*dim;lamp.intensity=journalLighting.lamp*dim;}
   }
   cleanup.push(()=>journalBook?.dispose());
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
@@ -206,7 +203,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const speakerTexture=new THREE.CanvasTexture(speakerImage);textures.add(speakerTexture);
   const speakerMaterial=new THREE.MeshStandardMaterial({map:speakerTexture,transparent:true,depthWrite:false,roughness:0.6});materials.add(speakerMaterial);
   for(const x of [-0.9,0.5]) {const speaker=mesh(computer,new THREE.PlaneGeometry(0.11,0.4),speakerMaterial,x,1.504,-1.48);speaker.rotation.x=-Math.PI/2;speaker.castShadow=false;}
-  box(computer,[0.23,0.013,0.009],[-0.2,1.479,-0.758],charcoal);
+  box(computer,[0.23,0.013,0.009],[-0.2,1.479,-0.758],material(0x303b39));
   for(const [side,ports] of [[-1,[-1.7,-1.53,-1.28]],[1,[-1.7,-1.49,-1.25]]] as const) for(const [index,z] of ports.entries()) {
     const width=side===1&&index===1?0.12:0.07;
     rounded(computer,[0.01,0.024,width+0.01],[-0.2+side*0.8,1.47,z],chrome,0.003);
@@ -233,28 +230,80 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const seat=new THREE.Group();chair.add(seat);
   const casters: { group: THREE.Group; startAngle: number }[]=[];
   const chairWheels: { group: THREE.Group; pathRadius: number }[]=[];
-  cylinder(chair,0.09,0.28,[0,0.36,0],furnitureFrame);
+  const chairFrame=material(0x34393b,0.65),chairFabric=material(0x292e30,0.96);
+  cylinder(chair,0.09,0.28,[0,0.36,0],chairFrame);
   cylinder(chair,0.044,0.3,[0,0.6,0],chrome);
-  rounded(seat,[0.56,0.08,0.5],[0,0.75,0],furnitureFrame,0.03);
-  rounded(seat,[0.87,0.16,0.84],[0,0.87,0],upholstery,0.07);
+  rounded(seat,[0.56,0.08,0.5],[0,0.75,0],chairFrame,0.03);
+  rounded(seat,[0.87,0.13,0.84],[0,0.855,0],chairFabric,0.065);
+
+  // Cut-out woven mesh: open cells reveal the desk through the backrest.
+  const weaveImage=document.createElement("canvas");weaveImage.width=16;weaveImage.height=16;
+  const weave=weaveImage.getContext("2d")!;
+  weave.clearRect(0,0,16,16);weave.fillStyle="#565b5d";
+  weave.fillRect(0,0,3,16);weave.fillRect(0,0,16,2);
+  const weaveTexture=new THREE.CanvasTexture(weaveImage);
+  weaveTexture.colorSpace=THREE.SRGBColorSpace;
+  weaveTexture.wrapS=weaveTexture.wrapT=THREE.RepeatWrapping;
+  weaveTexture.repeat.set(27,34);weaveTexture.anisotropy=renderer.capabilities.getMaxAnisotropy();textures.add(weaveTexture);
+  const meshFabric=new THREE.MeshStandardMaterial({map:weaveTexture,alphaTest:0.35,side:THREE.DoubleSide,roughness:0.95});
+  materials.add(meshFabric);
   const back=new THREE.Group();seat.add(back);back.position.set(0,0.96,0.36);back.rotation.x=0.12;
-  rounded(back,[0.82,0.87,0.13],[0,0.38,0.055],furnitureFrame,0.06);
-  rounded(back,[0.75,0.78,0.12],[0,0.39,-0.015],upholstery,0.055);
-  rounded(back,[0.6,0.15,0.075],[0,0.12,-0.08],upholstery,0.035);
+  function chairTube(parent:THREE.Object3D,points:THREE.Vector3[],radius:number,closed=false) {
+    return mesh(parent,new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,closed),48,radius,8,closed),chairFrame,0,0,0);
+  }
+  function backPoint(u:number,v:number) {
+    const width=0.69+0.10*Math.sin(Math.PI*v)-0.035*v;
+    return new THREE.Vector3(u*width,0.03+v*0.67,0.02-0.09*Math.sin(Math.PI*v)+0.12*u*u);
+  }
+  const meshGeometry=new THREE.PlaneGeometry(1,1,24,28);
+  const meshPositions=meshGeometry.attributes.position;
+  for(let i=0;i<meshPositions.count;i++) {
+    const point=backPoint(meshPositions.getX(i),meshPositions.getY(i)+0.5);
+    meshPositions.setXYZ(i,point.x,point.y,point.z);
+  }
+  meshGeometry.computeVertexNormals();
+  const backMesh=mesh(back,meshGeometry,meshFabric,0,0,0);
+  // The perimeter and supports cast shadows; avoid a solid shadow from the mesh sheet.
+  backMesh.castShadow=false;
+  const perimeter:THREE.Vector3[]=[];
+  for(let i=0;i<=12;i++)perimeter.push(backPoint(-0.5,i/12));
+  for(let i=1;i<=8;i++)perimeter.push(backPoint(-0.5+i/8,1));
+  for(let i=1;i<=12;i++)perimeter.push(backPoint(0.5,1-i/12));
+  for(let i=1;i<8;i++)perimeter.push(backPoint(0.5-i/8,0));
+  chairTube(back,perimeter,0.029,true);
+  // A shallow lumbar band follows the same surface as the mesh and joins both rails.
+  const lumbarGeometry=new THREE.BoxGeometry(1,0.11,0.022,32,4,1);
+  const lumbarPositions=lumbarGeometry.attributes.position;
+  for(let i=0;i<lumbarPositions.count;i++) {
+    const u=lumbarPositions.getX(i);
+    const taper=0.55+0.45*Math.cos(Math.PI*u);
+    const v=0.31+lumbarPositions.getY(i)*taper/0.67;
+    const point=backPoint(u,v);
+    // Keep the front face immediately behind the mesh, without intersecting it.
+    point.z+=0.017+lumbarPositions.getZ(i);
+    lumbarPositions.setXYZ(i,point.x,point.y,point.z);
+  }
+  lumbarGeometry.computeVertexNormals();
+  mesh(back,lumbarGeometry,chairFrame,0,0,0);
+  // Twin lower mounts terminate at the bottom rim instead of protruding up the back.
+  for(const u of [-0.34,0.34]) {
+    const joint=backPoint(u,0);
+    chairTube(back,[new THREE.Vector3(joint.x,-0.18,0.02),new THREE.Vector3(joint.x,-0.07,0.065),joint],0.025);
+  }
   for(const x of [-0.5,0.5]) {
-    rounded(seat,[0.047,0.34,0.09],[x,1.0,0.09],furnitureFrame,0.02);
-    rounded(seat,[0.15,0.07,0.53],[x,1.19,0.015],furnitureFrame,0.03);
+    rounded(seat,[0.047,0.34,0.09],[x,1.0,0.09],chairFrame,0.02);
+    rounded(seat,[0.15,0.065,0.48],[x,1.19,0.015],chairFabric,0.03);
   }
   const lever=cylinder(seat,0.014,0.3,[0.31,0.75,0.19],chrome);lever.rotation.z=Math.PI/2;
-  rounded(seat,[0.13,0.04,0.07],[0.48,0.75,0.19],charcoal,0.015);
+  rounded(seat,[0.13,0.04,0.07],[0.48,0.75,0.19],chairFrame,0.015);
   for(let i=0;i<5;i++) {
     const a=i*Math.PI*2/5;
     const spoke=new THREE.Group();chair.add(spoke);spoke.rotation.y=a;
-    const leg=rounded(spoke,[0.1,0.075,0.65],[0,0.24,0.31],furnitureFrame,0.035);leg.rotation.x=0.12;
+    const leg=rounded(spoke,[0.1,0.075,0.65],[0,0.24,0.31],chairFrame,0.035);leg.rotation.x=0.12;
     const caster=new THREE.Group();spoke.add(caster);caster.position.set(0,0,0.63);caster.rotation.y=0.25;
     casters.push({group:caster,startAngle:caster.rotation.y});
     cylinder(caster,0.025,0.1,[0,0.205,0],chrome);
-    rounded(caster,[0.09,0.08,0.12],[0,0.17,0.025],furnitureFrame,0.02);
+    rounded(caster,[0.09,0.08,0.12],[0,0.17,0.025],chairFrame,0.02);
     for(const x of [-0.065,0.065]) {
       const rolling=new THREE.Group();caster.add(rolling);rolling.position.set(x,0.14,0.043);
       chairWheels.push({group:rolling,pathRadius:Math.hypot(0.63-x,0.043)});
@@ -279,7 +328,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const library=hotspot("works");
   library.position.set(-1.25,1.44,-1.68);
   library.userData.label=`文件夹 · ${studioFiles.length} 个文件`;
-  const fileBox=material(0xece5d5,0.92);
+  const fileBox=material(palette.box,0.92);
   rounded(library,[0.68,0.028,0.5],[0,0,0],fileBox,0.009);
   rounded(library,[0.68,0.24,0.023],[0,0.12,0.24],fileBox,0.009);
   box(library,[0.68,0.7,0.023],[0,0.35,-0.24],fileBox);
@@ -290,7 +339,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     const wall=mesh(library,new THREE.ExtrudeGeometry(side,{depth:0.02,bevelEnabled:false}),fileBox,x,0,0);
     wall.rotation.y=Math.PI/2;
   }
-  label(library,"FILES",0.22,0.06,[0,0.13,0.253],"#ece5d5","#51574f",0.5);
+  label(library,"FILES",0.22,0.06,[0,0.13,0.253],paletteHex(palette.box),"#45483e",0.5);
   const slot=0.58/Math.max(1,studioFiles.length);
   const fileLean=Math.min(0.025,slot*0.12);
   // The left wall's inner face is x=-0.32; lean into its 0.7-high rear support.
@@ -334,7 +383,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       sheetMaterial.map!.needsUpdate=true;
       return;
     }
-    const color=index%2?0x002fa7:0xa8b7b5;
+    const color=index%2?(palette.accent):(palette.upholstery);
     const cover=material(color),edge=Math.min(0.006,thickness*0.08);
     for(const x of [-thickness/2,thickness/2]) box(folder,[edge,height,0.40],[x,height/2,0],cover);
     box(folder,[thickness,height,edge],[0,height/2,0.20],cover);
@@ -345,7 +394,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     rounded(folder,[thickness*0.8,0.05,0.04],[0,height+0.012,-0.12+index%3*0.08],cover,Math.min(0.004,edge));
   });
   const mug=new THREE.Group();room.add(mug);mug.position.set(-1.1,1.448,-0.94);mug.userData.label="一杯咖啡";
-  const ceramic=material(0xeee4d1,0.24),coffee=material(0x382015,0.16);
+  const ceramic=material(palette.paper,0.24),coffee=material(0x382015,0.16);
   mesh(mug,new THREE.CylinderGeometry(0.15,0.15,0.014,48),material(0x98714b),0,-0.011,0);
   const cupProfile=[[0,0],[0.066,0],[0.079,0.014],[0.097,0.18],[0.096,0.195],[0.089,0.198],[0.083,0.183],[0.068,0.032],[0,0.032]].map(([x,y])=>new THREE.Vector2(x,y));
   mesh(mug,new THREE.LatheGeometry(cupProfile,40),ceramic,0,0,0);
@@ -402,7 +451,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const shade=new THREE.Group();lampModel.add(shade);shade.position.copy(head);
   shade.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),lampTarget.position.clone().sub(head).normalize());
   // Closed lathed shell includes the top, thick rolled lip and inner wall.
-  const shadeMaterial=material(0x59645c,0.38);
+  const shadeMaterial=material(palette.lamp,0.38);
   const shadeProfile=[[0,-0.045],[0.055,-0.045],[0.075,-0.065],[0.19,-0.22],[0.203,-0.244],[0.218,-0.244],[0.22,-0.229],[0.09,-0.04],[0.063,-0.018],[0.063,0.005],[0,0.005]].map(([x,y])=>new THREE.Vector2(x,y));
   mesh(shade,new THREE.LatheGeometry(shadeProfile,48),shadeMaterial,0,-0.065,0);
   cylinder(shade,0.025,0.07,[0,-0.03,0],brass);
@@ -413,7 +462,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   lamp.position.copy(new THREE.Vector3(0,-0.315,0).applyQuaternion(shade.quaternion).add(head));lamp.target=lampTarget;
   lamp.castShadow=true;lamp.shadow.mapSize.set(1024,1024);lamp.shadow.camera.near=0.05;lamp.shadow.camera.far=5;
   lamp.shadow.bias=-0.0002;lamp.shadow.normalBias=0.008;scene.add(lamp);
-  const ambient=new THREE.HemisphereLight(0xfff6e5,0x746b51,2.6);scene.add(ambient);
+  const ambient=new THREE.HemisphereLight(0xf5f2eb,0xa29b8d,2.6);scene.add(ambient);
   const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,2.5);sun.castShadow=true;
   cleanup.push(()=>{sun.shadow.map?.dispose();lamp.shadow.map?.dispose();});
   sun.target.position.set(0,0,-0.8);scene.add(sun.target);
@@ -613,7 +662,6 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     moveJournal(enter:boolean,duration:number) {
       if(!journalBook)return Promise.resolve();
       if(failed||destroyed||!active)duration=0;
-      journalLighting??={ambient:ambient.intensity,sun:sun.intensity,lamp:lamp.intensity};
       stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=true;
       const drawer=drawers[0],drawerStart=drawer.group.position.z;
       const drawerEnd=-.68+.85,drawerDuration=Math.abs(drawerStart-drawerEnd)>.001&&duration?420:0;
@@ -635,14 +683,14 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       };
       const finish=()=>{
         drawer.group.position.z=drawerEnd;mount.dataset.journalDrawerReady='true';
-        if(!enter){journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);restoreJournalLighting();zoomed=false;setRoomCamera();}
+        if(!enter){journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();}
         requestDraw();
       };
       if(!total){sample(1);finish();return Promise.resolve();}
       sample(0);
       return new Promise<void>(resolve=>{motion={start:performance.now(),duration:total,sample,enter:true,resolve:()=>{finish();resolve();}};requestDraw();});
     },
-    hideJournal() {journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);restoreJournalLighting();zoomed=false;setRoomCamera();requestDraw();},
+    hideJournal() {journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();requestDraw();},
     prepareJournal(reading:boolean){journalBook?.prepare(reading);},
     journalAvailable(){return !failed&&!destroyed;},
     openJournal(value:boolean){return journalBook?.open(value,reducedMotion.matches||failed||destroyed||!active)??Promise.resolve();},
@@ -696,8 +744,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setLighting(light:ReturnType<typeof studioLighting>) {
       renderer.shadowMap.needsUpdate=true;
       sun.intensity=1.1+2.1*light.daylight;sun.color.setHex(light.sun);
-      ambient.intensity=1.15+1.05*light.daylight;lampPower=2.8*(1-light.daylight)+1.2;lamp.intensity=lampOn?lampPower:0;
-      if(journalLighting){journalLighting={ambient:ambient.intensity,sun:sun.intensity,lamp:lamp.intensity};poseJournal();}
+      ambient.intensity=1.35+1.25*light.daylight;lampPower=2.8*(1-light.daylight)+1.2;lamp.intensity=lampOn?lampPower:0;
       requestDraw();
     },
     setTime(date:Date) {

@@ -4,10 +4,10 @@ export const clockText = (date:Date, showDate = false) => (showDate ? [date.getM
 const periods = [
   { hour: 0, daylight: 0, background: 0x151d2b, sky: 0x172e59, sun: 0xa6bbeb },
   { hour: 5, daylight: 0, background: 0x151d2b, sky: 0x172e59, sun: 0xa6bbeb },
-  { hour: 7, daylight: 0.65, background: 0xe5d4c4, sky: 0xd9b5a0, sun: 0xffcd99 },
-  { hour: 10, daylight: 1, background: 0xeee9de, sky: 0x9ebcb5, sun: 0xffedce },
-  { hour: 16, daylight: 1, background: 0xeee9de, sky: 0x9ebcb5, sun: 0xffedce },
-  { hour: 18, daylight: 0.55, background: 0xc9aa99, sky: 0xca937f, sun: 0xffb478 },
+  { hour: 7, daylight: 0.65, background: 0xe1dcd4, sky: 0xdad4ca, sun: 0xf5e8d6 },
+  { hour: 10, daylight: 1, background: 0xe7e3dc, sky: 0xe6e7e4, sun: 0xfff8ed },
+  { hour: 16, daylight: 1, background: 0xe7e3dc, sky: 0xe6e7e4, sun: 0xfff8ed },
+  { hour: 18, daylight: 0.55, background: 0xdfd9d0, sky: 0xc9bfb1, sun: 0xefddc4 },
   { hour: 21, daylight: 0, background: 0x151d2b, sky: 0x172e59, sun: 0xa6bbeb },
   { hour: 24, daylight: 0, background: 0x151d2b, sky: 0x172e59, sun: 0xa6bbeb },
 ];
@@ -23,7 +23,7 @@ export function studioLighting(date = new Date()) {
   return {
     daylight,
     background: `#${blend(a.background, b.background).toString(16).padStart(6, "0")}`,
-    foreground: daylight < 0.35 ? "#e5e1d8" : "#45453e",
+    foreground: daylight < 0.35 ? "#e5e1d8" : "#393632",
     sky: blend(a.sky, b.sky), sun: blend(a.sun, b.sun),
   };
 }
