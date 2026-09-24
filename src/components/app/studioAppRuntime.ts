@@ -133,6 +133,7 @@ function init(shell: HTMLElement) {
     const light = studioLighting(now);
     studio.style.backgroundColor = light.background;
     studio.style.color = light.foreground;
+    shell.style.setProperty("--studio-foreground", light.foreground);
     scene?.setLighting(light);
     scene?.setTime(now);
   }
@@ -179,6 +180,10 @@ function init(shell: HTMLElement) {
     diagnosticText.focus();diagnosticText.select();
     try {await navigator.clipboard.writeText(diagnosticText.value);}catch { /* HTTP supports manual selection and copy. */ }
   },{signal:events.signal});
+  const osHint=shell.querySelector<HTMLElement>('[data-os-home-hint]')!;
+  let osHintShown=false;
+  try {osHintShown=localStorage.getItem('justin-os-return-hint')==='seen';}catch {}
+  shell.querySelector('[data-os-hint-close]')!.addEventListener('click',()=>{osHint.hidden=true;},{signal:events.signal});
   function sync() {
     scene?.snapshot().drawers.forEach((open,index)=>{
       const name=['top','middle','bottom'][index];
@@ -189,6 +194,11 @@ function init(shell: HTMLElement) {
     const home = page === "home";
     if(!home||state!=="room")closeExplore(false,true);
     const osOpen = state === "desktop";
+    if(osOpen&&!osHintShown){
+      osHint.hidden=false;osHintShown=true;
+      try{localStorage.setItem('justin-os-return-hint','seen');}catch {}
+    }
+    if(!osOpen)osHint.hidden=true;
     const canvasOpen = state === "canvas";
     const canvasVisible = canvasOpen || state.endsWith("-canvas");
     const journalVisible = page==='journal'||state.endsWith('-journal');

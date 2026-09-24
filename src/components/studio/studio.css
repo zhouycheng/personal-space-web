@@ -87,3 +87,14 @@
 .alpha-shell .os-menu-bar {min-height:42px}.alpha-shell .os-menu-item {min-height:36px;cursor:pointer}
 @media(max-width:640px) {.studio-signature {font-size:13px;letter-spacing:2px}.alpha-shell .os-menu-group {gap:10px}.alpha-shell .os-menu-bar {padding:0 12px}.alpha-shell [data-os-time] {display:none}}
 @media(prefers-reduced-motion:reduce) {.alpha-shell .app-page,.alpha-shell [data-os-fullscreen] {transition:none}}
+
+/* Shared exit placement; scene colors stay scoped to studio surfaces. */
+.alpha-shell .room-return {position:absolute;left:max(24px,env(safe-area-inset-left));right:auto;top:max(20px,env(safe-area-inset-top));z-index:60;display:inline-flex;align-items:center;min-height:44px;padding:0 8px;border:0;border-radius:0;background:transparent;box-shadow:none;color:inherit;text-decoration:none;font:14px var(--sans);cursor:pointer}
+.alpha-shell .canvas-room-return {color:#303441}
+.os-home-logo {position:relative;font-weight:700}
+.os-home-logo [role=tooltip] {display:none;position:absolute;top:calc(100% + 8px);left:0;padding:8px 12px;background:#252935;color:white;border-radius:6px;white-space:nowrap;font:12px var(--sans)}
+.os-home-logo:hover [role=tooltip],.os-home-logo:focus-visible [role=tooltip] {display:block}
+.os-home-hint {position:absolute;z-index:100;top:56px;left:16px;padding:8px 8px 8px 14px;background:#fff;color:#252935;border-radius:8px;box-shadow:0 4px 24px #0002;font:13px var(--sans)}
+.os-home-hint[hidden] {display:none}
+.os-home-hint button {min-width:44px;min-height:44px;border:0;background:none;color:inherit;font-size:20px}
+@media(max-width:640px){.alpha-shell .room-return {left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top))}}

@@ -7,7 +7,7 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
 ---
 <section class="studio-gallery" data-studio-gallery aria-label="桌面文件夹">
   <header class="gallery-header">
-    <button data-gallery-return>← 返回工作室</button>
+    <button class="room-return" data-gallery-return>← 返回首页</button>
     <div><p>来自桌面</p><h1>文件夹</h1></div>
   </header>
   <div class="gallery-viewport" tabindex="0" aria-label="文件卡片，滑动或使用左右方向键浏览" data-gallery-viewport>
@@ -52,7 +52,7 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
   .studio-gallery{--card-width:clamp(280px,38vw,460px);height:100%;color:#fff9e9;background:#17201999;display:grid;grid-template-rows:auto minmax(0,1fr) auto;-webkit-user-select:none;user-select:none}
   :global(.app-page.is-active) .gallery-track{animation:files-enter 320ms ease-out both}
   .gallery-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:32px 5vw;gap:20px}
-  .gallery-header div{text-align:center}.gallery-header p{font-size:12px;margin:0 0 6px;opacity:.7}.gallery-header h1{font-size:26px;letter-spacing:4px;font-weight:500;margin:0}
+  .gallery-header div{grid-column:2;text-align:center}.gallery-header p{font-size:12px;margin:0 0 6px;opacity:.7}.gallery-header h1{font-size:26px;letter-spacing:4px;font-weight:500;margin:0}
   button{font:inherit;cursor:pointer;color:inherit}.gallery-header button{justify-self:start;border:0;background:transparent;min-height:44px;padding:10px 0;opacity:.8;transition:opacity .2s}
   .gallery-header button:hover{opacity:1}button:focus-visible{outline:3px solid #7799ee;outline-offset:6px}
   .gallery-viewport{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-y pinch-zoom;min-height:0;outline-offset:-5px;cursor:grab}
