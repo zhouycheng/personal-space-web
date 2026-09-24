@@ -1,6 +1,21 @@
-# JustinWeb
+<p align="center"><strong>JustinWeb 是一个以交互式 3D 工作室为入口的个人空间网站</strong></p>
 
-一个个人网站，包含三维工作室、作品集、桌面、画布和日记。
+<p align="center">
+  <img src="docs/images/justinweb-homepage.png" alt="JustinWeb 三维工作室首页" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.12%2B-339933" alt="Node.js 22.12+"></a>
+  <a href="https://astro.build/"><img src="https://img.shields.io/badge/Astro-7-BC52EE" alt="Astro 7"></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-149ECA" alt="React 19"></a>
+  <a href="https://threejs.org/"><img src="https://img.shields.io/badge/Three.js-0.186-black" alt="Three.js 0.186"></a>
+  <br>
+  <a href="#功能">页面导览</a> ·
+  <a href="#本地运行">本地开发</a> ·
+  <a href="docs/README.md">项目文档</a> ·
+  <a href="CHANGELOG.md">变更记录</a> ·
+  <a href="https://github.com/zhouycheng/personal-space-web/issues">问题反馈</a>
+</p>
 
 ## 功能
 
@@ -12,7 +27,7 @@
 
 ## 本地运行
 
-需要 Node.js `>=22.12.0`。
+开发时使用 `.node-version` 指定的 Node.js 版本（当前为 `26.9.0`，运行要求 `>=22.12.0`）。
 
 ```bash
 npm ci
