@@ -5,7 +5,7 @@ import {
   DOWNLOAD_PLATFORMS,
   detectDownloadPlatform,
   selectDefaultDownload,
-} from "../src/components/works/downloadPlatform.mjs";
+} from "../src/data/selectors/downloadPlatform.mjs";
 
 test("download platform detection matches supported desktop systems", () => {
   assert.equal(

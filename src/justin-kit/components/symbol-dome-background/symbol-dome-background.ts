@@ -138,11 +138,16 @@ export function initSymbolDomeBackground(element: HTMLElement) {
     return () => {};
   }
 
-  const canvas = element.querySelector<HTMLCanvasElement>(CANVAS_SELECTOR);
-  const ctx = canvas?.getContext("2d", { alpha: true });
-  if (!canvas || !ctx) {
+  const candidateCanvas = element.querySelector<HTMLCanvasElement>(CANVAS_SELECTOR);
+  if (!candidateCanvas) {
     return () => {};
   }
+  const candidateContext = candidateCanvas.getContext("2d", { alpha: true });
+  if (!candidateContext) {
+    return () => {};
+  }
+  const canvas: HTMLCanvasElement = candidateCanvas;
+  const ctx: CanvasRenderingContext2D = candidateContext;
 
   if (!hasCanvasSize(canvas)) {
     return waitForCanvasSize(element, canvas);

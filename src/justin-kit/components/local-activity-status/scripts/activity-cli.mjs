@@ -68,7 +68,7 @@ async function configure(p) {
   if (!process.stdin.isTTY) throw new Error('请在交互终端运行 justin-activity config，密钥使用隐藏输入');
   const config = readJson(p.config, {});
   let muted = false;
-  const output = new Writable({ write(chunk, encoding, callback) { if (!muted) process.stdout.write(chunk); callback(); } });
+  const output = new Writable({ write(chunk, _encoding, callback) { if (!muted) process.stdout.write(chunk); callback(); } });
   output.isTTY = true; output.columns = process.stdout.columns;
   const rl = createInterface({ input: process.stdin, output, terminal: true });
   try {

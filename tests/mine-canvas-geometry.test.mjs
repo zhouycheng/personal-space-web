@@ -5,7 +5,7 @@ import {
   inferHandlePair,
   resolveCubicControls,
   toControlOffset,
-} from "../src/components/mine-canvas/mineCanvasGeometry.ts";
+} from "../src/presentation/interaction/canvas/mineCanvasGeometry.ts";
 
 test("inferHandlePair chooses the nearest horizontal sides", () => {
   assert.deepEqual(

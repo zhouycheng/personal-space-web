@@ -2,7 +2,7 @@
 
 ## Adopted source
 
-- `src/playground/symbol-dome-background/adopted/terminal-symbol-dome-single-face-v3.html`
+- `playground/symbol-dome-background/adopted/terminal-symbol-dome-single-face-v3.html`
 
 ## Preserved decisions
 

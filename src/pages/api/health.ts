@@ -1,13 +1,14 @@
 import { getMacOsDesktopEntries } from "../../justin-kit/components/macos-desktop/runtime/desktop-scanner";
-import { mineCanvasSeed } from "../../content/canvas/published";
-import { createHealthReport } from "../../server/health";
+import { getPublishedCanvas } from "../../data/repositories/canvas";
+import { canvasContentIsValid } from "../../data/selectors/canvas";
+import { createHealthReport } from "../../infrastructure/server/health";
 
 export const prerender = false;
 
 export async function GET() {
   const report = await createHealthReport({
     readDesktopEntries: () => getMacOsDesktopEntries({ strict: true }),
-    checkCanvas: () => ({ ok: mineCanvasSeed.nodes.length > 0 && mineCanvasSeed.edges.every(edge => mineCanvasSeed.nodes.some(n => n.id === edge.source) && mineCanvasSeed.nodes.some(n => n.id === edge.target)) }),
+    checkCanvas: () => ({ ok: canvasContentIsValid(getPublishedCanvas()) }),
   });
 
   return new Response(JSON.stringify(report), {

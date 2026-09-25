@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 
-import { getActivityStore, DEFAULT_ACTIVITY_TTL_MS } from "../../../lib/activity/store";
-import type { ActivityUpdatePayload, ActivityWireState } from "../../../lib/activity/types";
+import { getActivityStore, DEFAULT_ACTIVITY_TTL_MS } from "../../../data/stores/activity/store";
+import type { ActivityUpdatePayload, ActivityWireState } from "../../../contracts/activity";
 
 export const prerender = false;
 

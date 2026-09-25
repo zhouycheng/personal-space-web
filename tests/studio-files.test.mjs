@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { studioFiles } from '../src/data/studioFiles.ts';
-import { canOpenFile, snapFileIndex } from '../src/components/studio/fileGesture.ts';
+import { studioFiles } from '../src/data/selectors/studioFiles.ts';
+import { canOpenFile, snapFileIndex } from '../src/presentation/interaction/studio/fileGesture.ts';
 
 test('file snapping returns below the threshold and advances at most one centered card', () => {
   assert.equal(snapFileIndex(1, 99, 400, 3), 1);

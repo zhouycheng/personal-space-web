@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createHealthReport } from "../src/server/health.ts";
+import { createHealthReport } from "../src/infrastructure/server/health.ts";
 
 test("health report is ready only when desktop content and canvas are healthy", async () => {
   const ready = await createHealthReport({

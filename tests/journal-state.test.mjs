@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spreadFor, turnFaces, resolveReadingPage, journalSlug } from '../src/features/journal/book-state.ts';
+import { spreadFor, turnFaces, resolveReadingPage, journalSlug } from '../src/application/journal/book-state.ts';
 import { pageForPath, pathForPage, historyAction, studioStateForPage, NAV_ITEMS } from '../src/app/navigation.ts';
 
 test('a physical right leaf has the current right and next left faces',()=>{

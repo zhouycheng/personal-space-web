@@ -1,4 +1,5 @@
-export type AppPage = "home" | "works" | "os" | "canvas" | "journal";
+import type { AppPage } from "../contracts/navigation";
+export type { AppPage } from "../contracts/navigation";
 
 export const NAV_ITEMS = [
   { page: "home", path: "/home", number: "01", label: "首页" },

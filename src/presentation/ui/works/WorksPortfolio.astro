@@ -1,0 +1,159 @@
+---
+import type { ImageMetadata } from "astro";
+import { Image } from "astro:assets";
+import "./works.css";
+import { selectPortfolioProjects } from "../../../data/selectors/portfolio";
+import FrameLeanWorkbenchPreview from "./FrameLeanWorkbenchPreview.astro";
+import ProjectBrandIcon from "./ProjectBrandIcon.astro";
+import ProjectDownloadMenu from "./ProjectDownloadMenu.astro";
+
+type PreviewAsset = ImageMetadata | string;
+
+const imageModules = import.meta.glob<{ default: PreviewAsset }>(
+  "/src/content/assets/projects/*.{avif,gif,jpeg,jpg,png,svg,webp}",
+  { eager: true },
+);
+
+function resolvePreviewAsset(path: string) {
+  const imageModule = imageModules[path];
+  if (!imageModule) {
+    throw new Error(`Missing project preview asset: ${path}`);
+  }
+
+  const asset = imageModule.default;
+  return {
+    asset,
+    isSvg: path.toLowerCase().endsWith(".svg"),
+    url: typeof asset === "string" ? asset : asset.src,
+  };
+}
+
+const portfolioProjects = selectPortfolioProjects().map((project) => {
+  const previewAsset = project.preview.kind === "image"
+    ? resolvePreviewAsset(project.preview.src)
+    : null;
+
+  return {
+    ...project,
+    previewAsset,
+  };
+});
+---
+
+<section class="works-portfolio" data-works-portfolio aria-label="作品集">
+  <nav class="works-portfolio__tabs" aria-label="作品项目">
+    {portfolioProjects.map((project) => (
+      <button
+        class:list={["works-project-tab", project.index === 0 && "is-active"]}
+        type="button"
+        id={`works-tab-${project.id}`}
+        data-project-tab
+        data-project-index={project.index}
+        aria-controls={`works-project-${project.id}`}
+        aria-selected={project.index === 0 ? "true" : "false"}
+      >
+        <span>{project.navLabel}</span>
+      </button>
+    ))}
+  </nav>
+
+  <div class="works-portfolio__viewport" data-project-viewport tabindex="0">
+    <div class="works-portfolio__track" data-project-track>
+      {portfolioProjects.map((project) => (
+        <article
+          class="works-project"
+          id={`works-project-${project.id}`}
+          data-project-panel
+          data-project-index={project.index}
+          aria-labelledby={`works-title-${project.id}`}
+          aria-hidden={project.index === 0 ? "false" : "true"}
+        >
+          <div class="works-project__preview">
+            <div class:list={["works-project__preview-frame", project.preview.kind === "framelean-workbench" && "works-project__preview-frame--component"]}>
+              {project.preview.kind === "framelean-workbench" ? (
+                <FrameLeanWorkbenchPreview alt={project.preview.alt} />
+              ) : project.previewAsset?.isSvg ? (
+                <img
+                  class="works-project__image"
+                  src={project.previewAsset.url}
+                  alt={project.preview.alt}
+                  loading={project.index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              ) : project.previewAsset ? (
+                <Image
+                  class="works-project__image"
+                  src={project.previewAsset.asset as ImageMetadata}
+                  alt={project.preview.alt}
+                  loading={project.index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <div class="works-project__content">
+            <h2 id={`works-title-${project.id}`}>{project.title}</h2>
+
+            <ul class="works-project__tags" aria-label={`${project.title} 技术标签`}>
+              {project.tags.map((tag) => (
+                <li>{tag}</li>
+              ))}
+            </ul>
+
+            <p class="works-project__summary">{project.summary}</p>
+
+            {project.highlights && project.highlights.length > 0 && (
+              <ul class="works-project__highlights" aria-label={`${project.title} 首屏要点`}>
+                {project.highlights.map((highlight) => (
+                  <li>{highlight}</li>
+                ))}
+              </ul>
+            )}
+
+            <div class="works-project__meta">
+              <p>{project.lastUpdatedText}</p>
+              <p>{project.startedText}</p>
+            </div>
+
+            {(project.links.length > 0 || project.downloads) && (
+              <div class="works-project__links" aria-label={`${project.title} 项目链接与下载`}>
+                {project.downloads && <ProjectDownloadMenu projectTitle={project.title} downloads={project.downloads} />}
+
+                {project.primaryLinks.map((link) => (
+                  <a
+                    class:list={["works-project-link", `works-project-link--${link.kind}`]}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${project.title} ${link.label}`}
+                    title={link.label}
+                  >
+                    {(link.kind === "github" || link.kind === "gitee") ? <ProjectBrandIcon kind={link.kind} /> : <span aria-hidden="true">↗</span>}
+                    <span class="works-project-link__label">{link.label}</span>
+                  </a>
+                ))}
+
+                {project.secondaryLinks.map((link) => (
+                  <a
+                    class:list={["works-project-link", `works-project-link--${link.kind}`]}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${project.title} ${link.label}`}
+                    title={link.label}
+                  >
+                    {(link.kind === "github" || link.kind === "gitee") ? <ProjectBrandIcon kind={link.kind} /> : <span aria-hidden="true">↗</span>}
+                    <span class="works-project-link__label">{link.label}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>import "./worksRuntime.js";</script>

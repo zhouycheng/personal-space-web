@@ -1,0 +1,42 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import MineCanvas from "../canvas/MineCanvas.astro";
+import StudioPortfolio from "../studio/StudioPortfolio.astro";
+import InteractiveStudio from "../studio/InteractiveStudio.astro";
+import MacOsDesktop from "../../../justin-kit/components/macos-desktop/MacOsDesktop.astro";
+import { getMacOsDesktopEntries } from "../../../justin-kit/components/macos-desktop/runtime/desktop-scanner";
+import { isAppPage, NAV_ITEMS, PAGE_TITLES, type AppPage } from "../../../app/navigation";
+import JournalReader from "../journal/JournalReader.astro";
+import { journal } from "../../../infrastructure/server/journal";
+type Props = { initialPage?: AppPage; journalSlug?: string };
+const { initialPage = "home", journalSlug } = Astro.props;
+const activePage = isAppPage(initialPage) ? initialPage : "home";
+const entries = await getMacOsDesktopEntries();
+const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journalSlug)??journal.articles.at(-1) : undefined;
+---
+<BaseLayout title={article?`${article.title} — Justin 日记`:PAGE_TITLES[activePage]} description={article?.description}>
+  <main class:list={["app-shell", "alpha-shell", activePage === "home" && "is-home-active",activePage==='journal'&&'is-journal-active']} data-initial-page={activePage} aria-label="Justin OS">
+    <div class="app-content">
+      <section id="page-home" class:list={["app-page", activePage === "home" && "is-active"]} aria-label="工作室"><InteractiveStudio /></section>
+      <section id="page-works" class:list={["app-page", activePage === "works" && "is-active"]} aria-label="文件夹"><StudioPortfolio /></section>
+      <section id="page-canvas" class:list={["app-page", "mine-page", activePage === "canvas" && "is-active"]} aria-label="我的画布"><MineCanvas /><button class="canvas-room-return room-return" data-canvas-return hidden>← 返回首页</button></section>
+      <JournalReader slug={journalSlug} active={activePage==='journal'}/>
+    </div>
+    <div class="os-fullscreen-projection" data-os-fullscreen aria-hidden="true" inert>
+      <MacOsDesktop entries={entries} />
+      <header class="os-menu-bar" aria-label="Justin OS 菜单">
+        <div class="os-menu-group os-menu-left">
+          <button class="os-menu-item os-home-logo" data-studio-return aria-label="Justin OS，返回首页" aria-describedby="os-home-tooltip">Justin OS<span id="os-home-tooltip" role="tooltip">返回首页</span></button>
+          <button class="os-menu-item" data-desktop-command="open-display-controls">显示控制</button>
+          <button class="os-menu-item" data-desktop-command="arrange-icons">整理桌面</button>
+        </div>
+        <time data-os-time></time>
+      </header>
+      <aside class="os-home-hint" data-os-home-hint hidden role="status">点击左上角 Justin OS 返回首页<button data-os-hint-close aria-label="关闭提示">×</button></aside>
+    </div>
+    <nav class="app-dock" aria-label="主导航" hidden={activePage === "home"}>
+      {NAV_ITEMS.map(item => <a class:list={[activePage === item.page && "is-active"]} data-page={item.page} href={item.path}><span>{item.number}</span>{item.label}</a>)}
+    </nav>
+  </main>
+  <script>import "../../../app/studioAppRuntime";</script>
+</BaseLayout>
