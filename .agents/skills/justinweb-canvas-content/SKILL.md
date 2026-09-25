@@ -7,10 +7,10 @@ description: "Maintain JustinWeb canvas cards, connections, default positions, s
 
 ## Sources
 
-- Read `src/components/mine-canvas/mineCanvasData.ts`: the published, typed document and stable card IDs.
-- Read `mineCanvasTypes.ts` for card fields, dimensions, connections and text styles.
-- `CanvasCardContent.tsx` renders content directly on spatial cards. `mine-canvas.css` owns canvas styles.
-- `MineCanvasEditor.tsx` owns viewing, navigation and browser-local positions; despite its legacy filename, it provides no content editor.
+- Read `src/content/canvas/published.ts`: the published document and stable card IDs.
+- Read `src/contracts/canvas.ts` for content fields, dimensions, connections and text styles.
+- `src/presentation/ui/canvas/CanvasCardContent.tsx` renders content directly on spatial cards; `mine-canvas.css` owns canvas styles.
+- `src/presentation/ui/canvas/MineCanvasEditor.tsx` owns viewing and navigation; `src/infrastructure/client/canvasPositions.ts` owns browser-local positions. The component provides no content editor.
 - Store published images in `public/canvas/` and reference them as `/canvas/filename.ext`.
 
 ## Workflow

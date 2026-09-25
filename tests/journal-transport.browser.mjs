@@ -5,8 +5,11 @@ const page=await browser.newPage({viewport:{width:1258,height:970}});
 const base=process.env.JOURNAL_TEST_URL??'http://127.0.0.1:4323';
 async function explore(){await page.locator('[data-studio-explore]').focus();await page.locator('[data-studio-explore]').click();}
 async function record(action,stable){
+  // Pause before dispatching the action; reading the current time and pausing
+  // afterwards races the live clock when the browser is under load.
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000);
   await page.evaluate(()=>{window.transportFrames=[];window.recordTransport=true;const frame=()=>{const m=document.querySelector('[data-studio-scene]'),c=m.querySelector('canvas');window.transportFrames.push({ready:m.dataset.journalDrawerReady,t:Number(c.dataset.journalTravel),position:c.dataset.journalPosition?.split(',').map(Number),scale:c.dataset.journalScale?.split(',').map(Number)});if(window.recordTransport)requestAnimationFrame(frame);};requestAnimationFrame(frame);});
-  await action();await page.clock.pauseAt((await page.evaluate(()=>Date.now()))+1);
+  await action();
   await page.clock.runFor(650);await page.screenshot({path:'.workspace/journal-checks/transport-'+stable+'-lift.png'});
   await page.clock.runFor(350);await page.screenshot({path:'.workspace/journal-checks/transport-'+stable+'-clear.png'});
   await page.clock.runFor(1400);

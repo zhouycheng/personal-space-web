@@ -8,20 +8,20 @@
 
 - `src/pages/index.astro`：`/` 首页别名，渲染共享应用外壳。
 - `src/pages/home.astro`、`src/pages/works.astro`、`src/pages/canvas.astro`、`src/pages/os.astro`：工作室、文件夹、画布和 OS 路由入口。
-- `src/components/app/JustinAppShell.astro`：共享路由外壳与工作室、OS、文件夹、个人画布挂载点。
-- `src/components/app/studioAppRuntime.ts`：URL 驱动的 History API 导航、空间动画；返回复用已有首页记录。
-- `src/components/studio/`：程序化 Three.js 房间、三个内容入口、转椅动画、键盘/失败替代入口及本地时间光照插值。
-- `src/styles/global.css`：全局布局、启动屏幕动效、Dock 导航、个人画布、响应式规则和 OS 投影样式。
+- `src/presentation/ui/app/JustinAppShell.astro`：共享路由外壳与工作室、OS、文件夹、个人画布挂载点。
+- `src/app/studioAppRuntime.ts`：URL 驱动的 History API 导航与页面生命周期；`src/animation/` 执行空间过场。
+- `src/presentation/scene/studio/`：程序化 Three.js 房间与按需渲染；`src/presentation/ui/studio/` 提供键盘和失败替代入口；`src/config/studioTime.ts` 计算本地时间光照。
+- `src/presentation/ui/styles/`：共享外壳、投影、导航和响应式样式。
 - `src/justin-kit/components/macos-desktop/`：可复用的 macOS 风格桌面和窗口系统。
 - `src/justin-kit/components/symbol-dome-background/`：Justin OS 桌面背景的单面符号半球组件。
 - `public/os-desktop/`：文件驱动的 Justin OS 桌面内容。
-- `src/justin-kit/components/local-activity-status/`：本地活动运行时和监控。
-- `src/components/mine-canvas/`：仓库维护的七种卡片、无限画布浏览、手机阅读面板与本地拖动位置。
+- `src/justin-kit/components/local-activity-status/`：通用活动徽章和本机监控 CLI；本站 API 状态在 `src/data/stores/activity/`。
+- `src/content/canvas/published.ts` 与 `src/presentation/ui/canvas/`：仓库维护的七种卡片类型、无限画布浏览、手机阅读面板；本地位置在 `src/infrastructure/client/canvasPositions.ts`。
 
 ## 验证基线
 
-- `rtk npm run build`。
-- `rtk node --test tests/*.test.mjs`（App 外壳辅助逻辑）。
+- `rtk npm run build`、`rtk npm run check:boundaries`、`rtk npm run check:types`。
+- `rtk npm run test:unit` 与 `rtk npm run test:e2e`。
 - 交互密集的变更需要浏览器预览，包括直接刷新 `/`、`/home`、`/works`、`/canvas` 和 `/os`。
 - 本地活动变更需要环境和路由检查。
 
