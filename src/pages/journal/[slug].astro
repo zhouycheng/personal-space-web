@@ -1,6 +1,6 @@
 ---
-import JustinAppShell from "../../components/app/JustinAppShell.astro";
-import { journal } from "../../server/journal";
+import JustinAppShell from "../../presentation/ui/app/JustinAppShell.astro";
+import { journal } from "../../infrastructure/server/journal";
 const article=journal.articles.find(a=>a.slug===Astro.params.slug);
 if(!article)return new Response("日记不存在",{status:404});
 ---

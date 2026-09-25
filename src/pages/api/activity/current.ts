@@ -1,4 +1,4 @@
-import { getActivityStore } from "../../../lib/activity/store";
+import { getActivityStore } from "../../../data/stores/activity/store";
 
 export const prerender = false;
 

@@ -79,7 +79,7 @@
     "startedText": "开发周期：从 26 年 6 月开始",
     "preview": {
       "kind": "image",
-      "src": "/src/assets/projects/exercises-eagles-preview.svg",
+      "src": "/src/content/assets/projects/exercises-eagles-preview.svg",
       "alt": "QandA 软件预览图"
     },
     "links": []

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { StudioFailure, studioFailure, canRetryStudio } from '../src/components/studio/studioFailure.ts';
+import { StudioFailure, studioFailure, canRetryStudio } from '../src/application/studio/studioFailure.ts';
 
 test('failure classification preserves the original error and only retries rendering once', () => {
   const cause=new TypeError('texture context unavailable');

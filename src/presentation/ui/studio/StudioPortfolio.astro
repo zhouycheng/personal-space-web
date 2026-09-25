@@ -1,0 +1,93 @@
+---
+import { studioFiles } from "../../../data/selectors/studioFiles";
+import FrameLeanWorkbenchPreview from "../works/FrameLeanWorkbenchPreview.astro";
+import ProjectDownloadMenu from "../works/ProjectDownloadMenu.astro";
+const images = import.meta.glob<{default: {src:string}|string}>("/src/content/assets/projects/*.{svg,png,jpg,webp}",{eager:true});
+const imageUrl = (src: string) => { const image=images[src]?.default; return typeof image==="string"?image:image?.src; };
+---
+<section class="studio-gallery" data-studio-gallery aria-label="桌面文件夹">
+  <header class="gallery-header">
+    <button class="room-return" data-gallery-return>← 返回首页</button>
+    <div><p>来自桌面</p><h1>文件夹</h1></div>
+  </header>
+  <div class="gallery-viewport" tabindex="0" aria-label="文件卡片，滑动或使用左右方向键浏览" data-gallery-viewport>
+    <div class="gallery-track">
+      {studioFiles.map((file,index)=><article class="gallery-item" data-file-position={index===0?"current":"right"}>
+        <div class="gallery-file">
+        <button class="gallery-print" data-gallery-file={file.id} aria-haspopup="dialog" aria-label={`查看 ${file.title}`}>
+          <div class="gallery-art">
+            {file.kind==="resume"?<div class="resume-cover"><span>个人简历</span><strong>{file.resume.name}</strong><p>{file.resume.role}</p><div class="resume-cover-rule"></div><small>{file.resume.summary}</small><span>教育 / 技能 / 竞赛 / 项目</span></div>:file.project.preview.kind==="framelean-workbench"?<FrameLeanWorkbenchPreview alt={file.project.preview.alt}/>:file.id==="exercises-eagles"?<div class="study-cover" aria-label="QandA 刷题工具作品封面"><span>学 · 而时习之</span><strong>Q<span>&</span>A</strong><p>语文 / 英语 / Python</p><small>把复习，变成日常。</small></div>:<img src={imageUrl(file.project.preview.src!)} alt={file.project.preview.alt} draggable="false"/>}
+          </div>
+          <span class="gallery-print-meta"><span>{String(index+1).padStart(2,"0")}</span><span>{file.tags.slice(0,2).join(" / ")}</span></span>
+        </button>
+        <h2>{file.title}</h2><p>{file.summary}</p>
+        </div>
+      </article>)}
+    </div>
+  </div>
+  <footer class="gallery-footer"><p>{studioFiles.length} 个文件</p><span>滑动浏览 · 点击阅读</span></footer>
+  <dialog class="gallery-detail" data-gallery-detail aria-labelledby="gallery-detail-title">
+    <div class="gallery-detail-toolbar"><h2 id="gallery-detail-title" tabindex="-1" autofocus></h2><button class="gallery-detail-close" aria-label="关闭文件详情">✕</button></div>
+    {studioFiles.map(file=><section data-gallery-content={file.id} hidden>
+      <p class="gallery-tags">{file.tags.join(" · ")}</p>
+      {file.kind==="resume"?<div class="resume-body">
+        <p>意向岗位：{file.resume.role} · 年龄：{file.resume.age}</p>
+        <address><a href={`tel:${file.resume.phone}`}>{file.resume.phone}</a><a href={`mailto:${file.resume.email}`}>{file.resume.email}</a></address>
+        {file.resume.sections.map(section=><section><h3>{section.title}</h3>{section.paragraphs.map(paragraph=><p>{paragraph}</p>)}</section>)}
+      </div>:<>
+        <p class="gallery-description">{file.project.description}</p>
+        <p class="gallery-dates">{file.project.lastUpdatedText}<br/>{file.project.startedText}</p>
+        <div class="gallery-links">{file.project.links.map(link=><a href={link.href} target="_blank" rel="noreferrer">{link.label} ↗</a>)}
+          {file.project.downloads&&<ProjectDownloadMenu projectTitle={file.project.title} downloads={file.project.downloads}/>}
+        </div>
+      </>}
+    </section>)}
+  </dialog>
+</section>
+<script>
+  import { setupStudioGallery } from "./studioGallery";
+  setupStudioGallery(document.querySelector<HTMLElement>("[data-studio-gallery]")!);
+</script>
+<style>
+  .studio-gallery{--card-width:clamp(280px,38vw,460px);height:100%;color:#fff9e9;background:#17201999;display:grid;grid-template-rows:auto minmax(0,1fr) auto;-webkit-user-select:none;user-select:none}
+  :global(.app-page.is-active) .gallery-track{animation:files-enter 320ms ease-out both}
+  .gallery-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:32px 5vw;gap:20px}
+  .gallery-header div{grid-column:2;text-align:center}.gallery-header p{font-size:12px;margin:0 0 6px;opacity:.7}.gallery-header h1{font-size:26px;letter-spacing:4px;font-weight:500;margin:0}
+  button{font:inherit;cursor:pointer;color:inherit}.gallery-header button{justify-self:start;border:0;background:transparent;min-height:44px;padding:10px 0;opacity:.8;transition:opacity .2s}
+  .gallery-header button:hover{opacity:1}button:focus-visible{outline:3px solid #7799ee;outline-offset:6px}
+  .gallery-viewport{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-y pinch-zoom;min-height:0;outline-offset:-5px;cursor:grab}
+  .gallery-viewport.is-dragging{cursor:grabbing}.gallery-viewport.is-dragging button{cursor:grabbing}
+  .gallery-viewport::-webkit-scrollbar{display:none}
+  .gallery-track{display:flex;align-items:center;gap:64px;min-height:100%;box-sizing:border-box;width:max-content;padding:30px max(24px,calc((100vw - var(--card-width))/2));user-select:none}
+  .gallery-item{flex:0 0 var(--card-width);width:var(--card-width);text-align:center}
+  .gallery-item[data-file-position="left"]{--lean:-14deg}
+  .gallery-item[data-file-position="right"]{--lean:14deg}
+  .gallery-item[data-file-position="current"]{--lean:0deg;--file-scale:1;--file-lift:0px;--file-opacity:1;--file-shade:0}
+  .gallery-file{opacity:var(--file-opacity,.65);transform:translateY(var(--file-lift,18px)) rotateZ(var(--lean)) scale(var(--file-scale,.88));transition:opacity .32s,transform .32s cubic-bezier(.22,.61,.36,1)}
+  .gallery-print{display:block;position:relative;width:100%;border:0;border-radius:12px;padding:20px;background:#fffdf7;color:#51574f;box-shadow:2px 3px 0 #ded9cc,4px 6px 0 #f7f2e5,8px 20px 30px #10170e55;transition:box-shadow .25s}
+  .gallery-print::after{content:"";position:absolute;inset:0;border-radius:inherit;background:#172019;opacity:var(--file-shade,.18);pointer-events:none;transition:opacity .32s}
+  @media(hover:hover){.gallery-print:hover{box-shadow:2px 3px 0 #ded9cc,4px 6px 0 #f7f2e5,8px 28px 38px #10170e66}}
+  .gallery-print:focus-visible{box-shadow:8px 28px 38px #10170e66}
+  .gallery-art{height:clamp(200px,39svh,390px);overflow:hidden;border-radius:7px;background:#f1f2ee;display:grid;place-items:center}
+  .gallery-art img{width:100%;height:100%;object-fit:contain}.gallery-art :global(.framelean-preview){width:100%;height:100%}
+  .study-cover{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#e9eddf;color:#283c31}.study-cover>span{font-size:12px;letter-spacing:5px}.study-cover strong{font:italic 100px Georgia,serif;letter-spacing:-10px;margin:20px 0}.study-cover strong span{font-size:.6em;color:#82906e}.study-cover p{font:12px var(--mono);letter-spacing:2px;margin:0 0 14px}.study-cover small{font-size:12px}
+  .gallery-print-meta{display:flex;justify-content:space-between;gap:16px;margin-top:20px;font:11px var(--mono);letter-spacing:1px}
+  .gallery-item h2{margin:28px 0 10px;font-size:21px;font-weight:500}.gallery-file>p{font-size:13px;line-height:1.7;max-width:34em;margin:0 auto;opacity:.8}
+  .gallery-footer{padding:18px 20px max(30px,env(safe-area-inset-bottom));text-align:center}.gallery-footer p{font:12px var(--mono);letter-spacing:2px;opacity:.85;margin:0}.gallery-footer>span{display:block;margin-top:9px;font-size:11px;opacity:.65}
+  .gallery-detail{box-sizing:border-box;width:min(680px,calc(100vw - 32px));max-height:85svh;overflow:auto;overscroll-behavior:contain;border:0;border-radius:14px;padding:0 40px 40px;background:#fffdf7;color:#303b39;box-shadow:0 30px 100px #10170e88;-webkit-user-select:text;user-select:text}
+  .gallery-detail[open]{animation:file-open 220ms ease-out both}.gallery-detail.is-closing{animation:file-close 160ms ease-in both;pointer-events:none}
+  .gallery-detail::backdrop{background:#111a2266;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .gallery-detail-toolbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 0 18px;background:#fffdf7}
+  .gallery-detail-close{width:44px;height:44px;flex-shrink:0;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:#eeebe4;color:#303b39}
+  .gallery-detail-close:focus-visible{outline-offset:2px}
+  .gallery-detail h2{margin:0;font-size:30px;font-weight:500;outline:none}.gallery-tags,.gallery-dates{font-size:12px;line-height:1.8;color:#74796f}.gallery-description{white-space:pre-line;line-height:1.9;font-size:15px}.gallery-links{display:flex;align-items:center;flex-wrap:wrap;gap:12px 20px;margin-top:30px;color:#52614e}
+  .gallery-links>a{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
+  .resume-cover{box-sizing:border-box;width:100%;height:100%;padding:26px;text-align:left;display:flex;flex-direction:column;justify-content:center;background:#ebe8df;color:#303b39;gap:16px}.resume-cover>span{font-size:10px;letter-spacing:2px;color:#68706a}.resume-cover strong{font-size:clamp(30px,4vw,44px);font-weight:500;letter-spacing:5px}.resume-cover p{font-size:14px;margin:0;color:#52614e}.resume-cover small{font-size:12px;line-height:1.8;max-width:24em}.resume-cover-rule{height:2px;width:32px;background:#52614e}
+  .resume-body{font-size:15px;line-height:1.9;overflow-wrap:anywhere}.resume-body address{display:flex;flex-wrap:wrap;gap:4px 20px;font-style:normal;font-size:14px}.resume-body a{color:#52614e;min-height:44px;display:inline-flex;align-items:center}.resume-body h3{font-size:19px;margin:32px 0 12px}.resume-body p{margin:12px 0}
+  @media(max-width:640px){.studio-gallery{--card-width:78vw}.gallery-header{padding:20px;grid-template-columns:1fr auto}.gallery-header h1{font-size:20px}.gallery-file>p{font-size:12px}.gallery-track{gap:24px;padding-inline:calc((100vw - var(--card-width))/2)}.gallery-print{padding:14px}.gallery-item h2{margin-top:22px}.gallery-detail{padding:0 22px max(24px,env(safe-area-inset-bottom));max-height:calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}.gallery-detail h2{font-size:26px}.resume-cover{padding:22px;gap:12px}}
+  @media(max-height:640px){.gallery-header{padding-block:12px}.gallery-art{height:28svh;min-height:100px}.gallery-file>p{display:none}.gallery-footer{padding:10px}.gallery-item h2{font-size:18px;margin:12px 0 0}.gallery-track{padding-block:12px}.gallery-print-meta{margin-top:12px}.resume-cover{padding:12px;gap:6px}.resume-cover strong{font-size:24px}.resume-cover small,.resume-cover-rule,.resume-cover>span:last-child{display:none}.study-cover strong{font-size:44px;margin:6px 0}.study-cover>span,.study-cover small{display:none}.study-cover p{margin:0}}
+  @keyframes files-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes file-open{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes file-close{to{opacity:0;transform:translateY(8px) scale(.98)}}
+  @media(prefers-reduced-motion:reduce){.gallery-print,.gallery-file,.gallery-print::after{transition:none}:global(.app-page.is-active) .gallery-track,.gallery-detail[open]{animation:none}}
+</style>

@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import type { DesktopEntry, DesktopFileKind, DesktopIconVariant } from "./types";
+import type { DesktopEntry } from "./types";
 
 const DEVELOPMENT_DESKTOP_DIR = "public/os-desktop";
 const PRODUCTION_DESKTOP_DIR = "dist/client/os-desktop";

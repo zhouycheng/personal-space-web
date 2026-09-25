@@ -1,1 +1,1 @@
-export { GET, prerender } from "../../../justin-kit/components/local-activity-status/runtime/astro-stream";
+export { GET, prerender } from "../../../infrastructure/server/activityStream";

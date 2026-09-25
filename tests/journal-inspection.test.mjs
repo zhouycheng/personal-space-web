@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {journalSingle,constrainReading,readingLimits} from '../src/features/journal/inspection.ts';
+import {journalSingle,constrainReading,readingLimits} from '../src/application/journal/inspection.ts';
 test('journal fits two readable pages without requiring a landscape window',()=>{
   assert.equal(journalSingle(918,970),false);
   assert.equal(journalSingle(760,640),false);

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clockText, studioLighting } from '../src/components/studio/studioTime.ts';
-import { chairTurn, CHAIR_TURN_MS } from '../src/components/studio/chairMotion.ts';
-import { surfaceDistance, surfaceOpacity, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/components/studio/studioMotion.ts';
-import { ACTION_LABELS } from '../src/components/studio/studioState.ts';
+import { clockText, studioLighting } from '../src/config/studioTime.ts';
+import { chairTurn, CHAIR_TURN_MS } from '../src/animation/studio/chairMotion.ts';
+import { surfaceDistance, surfaceOpacity, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/animation/studio/studioMotion.ts';
+import { ACTION_LABELS } from '../src/contracts/studio.ts';
 
 test('room surface labels identify the canvas and portfolio', () => {
   assert.equal(ACTION_LABELS.canvas, '我的画布');

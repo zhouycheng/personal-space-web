@@ -62,9 +62,9 @@ rtk npm run monitor:activity
 
 ## 数据流与接口
 
-macOS 前台应用 → POST /api/activity/update → src/lib/activity 内存 TTL → GET /api/activity/current 或 SSE /api/activity/stream → 画布/徽章。
+macOS 前台应用 → POST /api/activity/update → `src/data/stores/activity/` 内存 TTL → GET /api/activity/current 或 SSE /api/activity/stream → 画布/徽章。
 
-项目 update/current 路由直接使用 src/lib/activity；stream 重导出组件运行时，运行时 store 复用同一存储。组件内 astro-update 保留可复用入口；修改时需区分实际项目调用方。
+本站 update/current 路由使用同一活动存储，stream 由 `src/infrastructure/server/activityStream.ts` 提供。Justin Kit 的状态徽章只消费公开快照，监控 CLI 负责采集与上报；本站文案规则在 `src/data/selectors/activityText.ts`，Kit 不依赖本站业务文件。
 
 POST 载荷：{ appName, state: "active" | "inactive", observedAt, sessionId }；Bearer token 鉴权。GET current 返回有效快照或 null。采集 2 秒，上报心跳 12 秒，请求超时 4 秒，服务端 TTL 25 秒。正常停止尽力发送 inactive，失败时等待服务端过期。
 

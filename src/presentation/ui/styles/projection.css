@@ -1,0 +1,411 @@
+.os-desktop {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.os-desktop {
+  overflow: hidden;
+  background: var(--blue);
+  filter: saturate(0.92);
+  transform: scale(1.018);
+  transition:
+    opacity 0.72s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.82s ease,
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.terminal-screen.is-desktop .os-desktop {
+  opacity: var(--desktop-opacity, 1);
+  pointer-events: auto;
+  filter: saturate(1) blur(var(--desktop-blur, 0px));
+  transform: scale(1);
+}
+
+.os-fullscreen-projection {
+  position: fixed;
+  z-index: 58;
+  left: var(--projection-left, 0);
+  top: var(--projection-top, 0);
+  width: var(--projection-width, 100vw);
+  height: var(--projection-height, 100vh);
+  overflow: hidden;
+  border-radius: var(--projection-radius, 0);
+  pointer-events: none;
+  opacity: var(--projection-opacity, 0);
+  visibility: hidden;
+  background: var(--blue);
+  filter: blur(var(--projection-blur, 0px)) saturate(1);
+  transform: translateZ(0);
+  transition:
+    opacity 0.18s linear,
+    visibility 0s linear 0.18s;
+}
+
+.os-fullscreen-projection.is-transitioning,
+.os-fullscreen-projection.is-moire-settling,
+.os-fullscreen-projection.is-settled {
+  visibility: visible;
+  transition:
+    opacity 0.18s linear,
+    visibility 0s linear 0s;
+}
+
+.os-fullscreen-projection.is-transitioning,
+.os-fullscreen-projection.is-moire-settling {
+  will-change: left, top, width, height, border-radius, opacity, filter;
+}
+
+.os-fullscreen-projection.is-settled {
+  pointer-events: auto;
+}
+
+.app-shell.is-home-suspended .os-fullscreen-projection {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.2s;
+}
+
+.app-shell.is-os-route-suspended .os-fullscreen-projection {
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+}
+
+.os-fullscreen-projection::after {
+  content: "";
+  position: absolute;
+  z-index: 40;
+  inset: -25%;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      14deg,
+      rgba(255, 255, 255, 0.28) 0,
+      rgba(255, 255, 255, 0.28) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    repeating-linear-gradient(
+      -11deg,
+      rgba(3, 44, 118, 0.18) 0,
+      rgba(3, 44, 118, 0.18) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  mix-blend-mode: screen;
+}
+
+.os-fullscreen-projection.is-transitioning::after {
+  opacity: var(--projection-moire-opacity, 0);
+  animation: terminal-moire-drift 0.42s linear infinite;
+}
+
+.os-fullscreen-projection.is-moire-settling::after {
+  animation:
+    terminal-moire-drift 0.42s linear infinite,
+    projection-moire-settle 1.2s ease-out forwards;
+}
+
+.os-fullscreen-projection .os-menu-bar {
+  opacity: 0;
+  transform: translateY(-0.24rem);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.os-fullscreen-projection.is-settled .os-menu-bar {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.os-menu-bar {
+  position: absolute;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: clamp(1.55rem, 2.6svh, 1.9rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 clamp(1rem, 1.75vw, 1.75rem);
+  color: rgba(236, 244, 255, 0.72);
+  font: 600 clamp(0.58rem, 0.82vw, 0.72rem) / 1 var(--mono);
+  text-shadow: 0 0.08rem 0.45rem rgba(6, 43, 112, 0.22);
+}
+
+.os-menu-group {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.82rem, 1.75vw, 1.45rem);
+  white-space: nowrap;
+}
+
+.os-menu-left {
+  overflow: visible;
+}
+
+.os-menu-left strong {
+  flex: 0 0 auto;
+  color: #ffe056;
+  font-family: "Brush Script MT", "Snell Roundhand", "Marker Felt", var(--mono);
+  font-size: clamp(0.78rem, 1vw, 0.95rem);
+  font-weight: 700;
+}
+
+.os-menu-right {
+  flex: 0 0 auto;
+  color: rgba(236, 244, 255, 0.58);
+  font-weight: 600;
+}
+
+.os-menu-item {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+  font: inherit;
+  text-shadow: inherit;
+}
+
+.os-menu-item:hover,
+.os-menu-item:focus-visible,
+.os-view-menu-root.is-open > .os-menu-item {
+  outline: 0;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.os-view-menu-root {
+  position: relative;
+}
+
+.os-view-menu {
+  position: absolute;
+  z-index: 90;
+  top: calc(100% + 0.55rem);
+  left: -0.7rem;
+  width: 10.5rem;
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.9rem;
+  padding: 0.45rem;
+  background: rgba(11, 12, 15, 0.76);
+  color: rgba(246, 247, 250, 0.9);
+  box-shadow:
+    0 1.2rem 2.6rem rgba(0, 16, 58, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(1.24);
+  -webkit-backdrop-filter: blur(18px) saturate(1.24);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-0.28rem) scale(0.98);
+  transform-origin: 1.8rem 0;
+  transition:
+    opacity 0.16s ease,
+    visibility 0s linear 0.16s,
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.os-view-menu-root.is-open .os-view-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.os-view-menu button {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0 0.65rem;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+  font: 760 0.76rem / 1 var(--sans);
+  text-align: left;
+}
+
+.os-view-menu button:hover,
+.os-view-menu button:focus-visible {
+  outline: 0;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@keyframes terminal-open-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.84);
+  }
+  34% {
+    opacity: 0.82;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes terminal-moire-drift {
+  0% {
+    transform: translate3d(-2%, 0, 0) rotate(0.001deg);
+  }
+  100% {
+    transform: translate3d(2%, -1%, 0) rotate(0.001deg);
+  }
+}
+
+@keyframes terminal-restore-shell {
+  0% {
+    filter: brightness(1.12) saturate(1.2);
+    transform: translateY(0.16rem) scale(0.996);
+  }
+  42% {
+    filter: brightness(1.24) saturate(1.28);
+    transform: translateY(-0.04rem) scale(1.004);
+  }
+  100% {
+    filter: brightness(1) saturate(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes terminal-restore-glow {
+  0% {
+    opacity: 0;
+    transform: translate3d(-18%, 0, 0) scale(0.86);
+  }
+  36% {
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(18%, 0, 0) scale(1.12);
+  }
+}
+
+@keyframes terminal-restore-scanlines {
+  0% {
+    opacity: 0.08;
+    transform: translateY(-0.2rem);
+  }
+  38% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 0.36;
+    transform: translateY(0);
+  }
+}
+
+@keyframes terminal-restore-ui {
+  0% {
+    opacity: 0;
+    filter: blur(0.24rem);
+    transform: translateY(0.5rem);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes terminal-restore-line {
+  0% {
+    opacity: 0;
+    transform: translateY(0.32rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes projection-moire-settle {
+  0% {
+    opacity: 0.18;
+  }
+  46% {
+    opacity: 0.12;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.laptop-base {
+  position: relative;
+  z-index: 4;
+  width: min(75rem, calc(100% + 3rem));
+  height: clamp(0.82rem, 1.45vw, 1.1rem);
+  margin-top: -0.06rem;
+  border-radius: 0 0 1rem 1rem;
+  background:
+    linear-gradient(180deg, #c6c8cc 0%, #9fa2a7 52%, #e7e8eb 54%, #9b9da2 100%);
+  box-shadow:
+    0 0.15rem 0 rgba(0, 0, 0, 0.2),
+    0 0.42rem 0.85rem rgba(31, 33, 39, 0.18);
+}
+
+.base-lip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: clamp(5.4rem, 9vw, 7.5rem);
+  height: clamp(0.28rem, 0.55vw, 0.38rem);
+  transform: translateX(-50%);
+  border-radius: 0 0 0.75rem 0.75rem;
+  background: linear-gradient(180deg, #777a81, #d7d8dc);
+  opacity: 0.86;
+}
+
+.laptop-shadow {
+  width: min(32rem, 38vw);
+  height: clamp(1rem, 2.8svh, 1.8rem);
+  margin-top: clamp(0.35rem, 0.9svh, 0.65rem);
+  border-radius: 50%;
+  background: rgba(54, 50, 38, 0.15);
+  filter: blur(1.2rem);
+}
+
+.launch-stage.is-camera-open .laptop-lid,
+.launch-stage.is-camera-collapsing .laptop-lid {
+  aspect-ratio: 409 / 260;
+  background: linear-gradient(180deg, #272933 0%, #20222a 72%, #181a20 100%);
+  box-shadow:
+    0 0.22rem 0 rgba(0, 0, 0, 0.32),
+    0 2rem 5.5rem rgba(33, 35, 44, 0.12);
+}
+
+.launch-stage.is-camera-open .laptop-base,
+.launch-stage.is-camera-open .laptop-shadow,
+.launch-stage.is-camera-collapsing .laptop-base,
+.launch-stage.is-camera-collapsing .laptop-shadow {
+  opacity: var(--shell-opacity, 0);
+  transform: none;
+}
+
+.launch-stage.is-camera-collapsing .laptop-lid {
+  background: linear-gradient(180deg, #272933 0%, #20222a 72%, #181a20 100%);
+  box-shadow:
+    0 0.22rem 0 rgba(0, 0, 0, 0.32),
+    0 2rem 5.5rem rgba(33, 35, 44, 0.12);
+}
