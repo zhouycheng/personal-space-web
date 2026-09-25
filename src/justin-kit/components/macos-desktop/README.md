@@ -60,7 +60,9 @@ public/os-desktop/
 - 显示设置持久化到 `justin-os-desktop-view-settings`。
 - 手动调整的窗口尺寸持久化到 `justin-os-window-sizes`。全屏框架和自动视口裁剪不会被保存。
 
-`MacOsDesktop.astro` 只输出桌面结构；`runtime/desktopRuntime.js` 管理图标和窗口生命周期，`desktopContent.js` 渲染文件内容，`windowFrames.js` 与 `windowGestures.js` 处理窗体几何和手势，`desktopPersistence.js` 负责浏览器本地设置和图标位置。
+`MacOsDesktop.astro` 只输出桌面结构；`runtime/desktopRuntime.js` 组装每个桌面实例和显示设置，`desktopIconLayout.js` 管理图标位置与碰撞，`desktopIconInteraction.js` 处理框选和拖动，`desktopWindowController.js` 管理窗口生命周期。`desktopContent.js` 渲染文件内容，`windowFrames.js` 与 `windowGestures.js` 处理窗体几何和手势，`desktopPersistence.js` 负责浏览器本地设置和图标位置。
+
+宿主如需为菜单或其他覆盖层留出图标空间，可在 `.macos-desktop` 上设置 `--macos-icon-safe-top` 和 `--macos-icon-safe-bottom`。组件只读取自己的图标层内边距，不依赖宿主的菜单或导航 DOM。样式分别位于 `macos-icons.css`、`macos-content.css` 和 `macos-display-controls.css`。
 - 重叠的图标通过 FLIP 弹跳动画推开。
 - 背景挂载 `symbol-dome-background`，在图标、窗口和菜单下方绘制符号半球。
 - 组件监听以下事件：
