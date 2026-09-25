@@ -18,14 +18,16 @@
 ## 架构边界
 
 - `src/pages/index.astro`、`src/pages/home.astro`、`src/pages/works.astro`、`src/pages/canvas.astro` 和 `src/pages/os.astro` 仅拥有路由入口。
-- `src/components/app/JustinAppShell.astro` 拥有共享 Dock 路由外壳和 OS 投影挂载点；`studioAppRuntime.ts` 协调导航、面板、房间与桌面状态。
-- `src/components/studio/` 拥有房间几何、相机、物件点击与 HTML 替代入口，不读取画布私有数据。
-- `src/components/journal/` 拥有共享场景中的日记本与阅读 UI；`src/content/journal/` 维护 Markdown，`scripts/journal-build.mjs` 在构建时生成固定分页和纹理，生成物不提交。
-- `src/styles/global.css` 拥有共享布局和动效样式。
+- `src/app/navigation.ts` 决定 URL 与历史；`src/app/studioAppRuntime.ts` 组装依赖和协调页面生命周期；`src/data/stores/studioClient.ts` 在每个页面实例内创建 Nano Stores。
+- `src/contracts/` 定义无展示框架依赖的内容与端口；`src/application/` 决定用户意图；`src/animation/` 持有过场计算；`src/presentation/scene/` 持有 Three.js 场景和资源释放。
+- `src/presentation/ui/` 持有 Astro/React 组件与样式；`src/presentation/interaction/` 持有 Three.js 拾取与独立手势规则。工作室 HTML 入口与 3D 拾取发送同一 `StudioIntent`。
+- `src/content/` 持有个人内容；`src/data/repositories/` 统一读取；`src/data/selectors/` 派生文件盒和作品视图。`src/infrastructure/` 持有浏览器存储和服务端适配。
+- `src/content/journal/` 维护 Markdown；普通 `dev`/`build` 由 `scripts/journal-content.mjs` 编译文字，`build:release` 再用 Chromium 生成固定书页。
+- `src/presentation/ui/styles/` 按外壳、投影和导航拆分共享样式。
 - `src/justin-kit/components/` 拥有可复用组件及其运行时文件。
 - `public/os-desktop/` 仅拥有文件驱动的桌面内容。
-- `src/pages/api/activity/` 拥有项目活动接口；update/current 直接使用共享存储，stream 重导出组件运行时。全局 CLI 与开发监听脚本共享采集和上报实现。
-- `src/components/mine-canvas/` 拥有画布浏览器、卡片组件和浏览器本地拖动位置逻辑。
+- `src/pages/api/activity/` 拥有项目活动接口；update/current 使用 `src/data/stores/activity/`，stream 使用 `src/infrastructure/server/activityStream.ts`。全局 CLI 与开发监听脚本共享采集和上报实现。
+- `src/content/canvas/published.ts` 拥有发布卡片，`src/presentation/ui/canvas/` 拥有浏览器与卡片组件，`src/infrastructure/client/canvasPositions.ts` 只保存位置。
 
 ## 命令
 
@@ -35,15 +37,20 @@
 rtk npm install
 rtk npm run dev
 rtk npm run build
+rtk npm run build:release
+rtk npm run check:boundaries
+rtk npm run check:types
+rtk npm run test:unit
+rtk npm run test:e2e
 rtk npm run preview
 rtk npm run monitor:activity
 ```
 
-Node 必须满足 `.node-version` 和 `package.json` engines 要求：`>=22.12.0`。
+开发和验证使用 `.node-version` 中的 Node 26.9.0；`package.json` engines 的最低要求为 `>=22.12.0`。
 
 ## 验证
 
-- 基线：`rtk npm run build`。
+- 基线：`rtk npm run build`、`rtk npm run check:boundaries` 和 `rtk npm run check:types`。发布书页另跑 `rtk npm run build:release`。
 - App 外壳辅助逻辑：`rtk node --test tests/*.test.mjs`。
 - UI 和动效变更需要在桌面和窄屏幕上进行浏览器预览。
 - 路由外壳变更需要对 `/`、`/home`、`/works`、`/canvas` 和 `/os` 进行直接加载、刷新、动画中途导航和浏览器后退/前进检查。

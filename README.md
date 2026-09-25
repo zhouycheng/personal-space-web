@@ -38,6 +38,10 @@ npm ci
 npm run dev
 ```
 
+普通开发和 `npm run build` 会直接从 Markdown 生成可阅读日记正文，不需要 Chromium。发布实体书前运行 `npm run journal:setup`，然后运行 `npm run build:release`。自动检查入口：`npm run check:boundaries`、`npm run check:types`、`npm run test:unit`、`npm run test:e2e`。
+
+简历、作品和文件盒顺序分别维护在 `src/content/site/resume.json`、`projects.json` 和 `studio-files.json`；画布发布内容在 `src/content/canvas/published.ts`，日记正文在 `src/content/journal/`。目录职责与依赖规则见[架构说明](docs/develop/architecture.md)。
+
 ## 活动监听器 CLI
 
 全局安装和配置仅支持 macOS：

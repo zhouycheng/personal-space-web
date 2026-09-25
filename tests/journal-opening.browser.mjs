@@ -16,7 +16,7 @@ try{
     const emptyLeftArea=action==='open'
       ? await sharp(await page.screenshot()).extract({left:200,top:420,width:30,height:100}).raw().toBuffer()
       : undefined;
-    await page.locator('[data-journal-'+action+']').evaluate(el=>el.click());
+    await page.locator('[data-journal-'+action+']').evaluate(el=>{if(el instanceof HTMLElement)el.click();});
     await page.clock.runFor(375);
     assert.equal(await phase(),action==='open'?'opening':'closing');
     const screenshot=await page.screenshot({path:'.workspace/journal-checks/'+action+'-midpoint.png'});
@@ -30,11 +30,11 @@ try{
     assert.equal(await phase(),action==='open'?'reading':'observing');
   }
   for(let i=0;i<3;i++){
-    await page.locator('[data-journal-open]').evaluate(el=>el.click());await page.clock.runFor(250);
+    await page.locator('[data-journal-open]').evaluate(el=>{if(el instanceof HTMLElement)el.click();});await page.clock.runFor(250);
     await page.keyboard.press('Escape');await page.clock.runFor(850);
     assert.equal(await phase(),'observing');
   }
-  await page.locator('[data-journal-reset]').evaluate(el=>el.click());await page.clock.runFor(32);
+  await page.locator('[data-journal-reset]').evaluate(el=>{if(el instanceof HTMLElement)el.click();});await page.clock.runFor(32);
   await page.mouse.move(620,440);await page.mouse.down();await page.mouse.move(620,660,{steps:20});await page.mouse.up();await page.clock.runFor(32);
   const side=await page.screenshot({path:'.workspace/journal-checks/closed-side.png'});
   const {data,info}=await sharp(side).extract({left:600,top:450,width:20,height:35}).raw().toBuffer({resolveWithObject:true});

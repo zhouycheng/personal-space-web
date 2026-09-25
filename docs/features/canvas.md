@@ -1,6 +1,6 @@
 # 我的画布
 
-画布使用 ReactFlow 展示仓库维护的卡片和连线。内容唯一来源是 `src/components/mine-canvas/mineCanvasData.ts`；Agent 通过项目技能 `justinweb-canvas-content` 修改内容、默认布局、样式和卡片组件，构建发布后生效。
+画布使用 ReactFlow 展示仓库维护的卡片和连线。发布内容唯一来源是 `src/content/canvas/published.ts`，经 `src/data/repositories/canvas.ts` 读取；Agent 通过项目技能 `justinweb-canvas-content` 修改内容、默认布局、样式和卡片组件，构建发布后生效。
 
 ## 浏览与位置
 
@@ -14,7 +14,7 @@
 
 ## 内容与资源
 
-数据类型见 `mineCanvasTypes.ts`，共用只读渲染器为 `CanvasCardContent.tsx`。HTML 字段只接受经审核的仓库内容。图片放在 `public/canvas/`。自定义卡片通过扩展类型和 React 渲染器实现。
+不依赖 ReactFlow 的内容类型见 `src/contracts/canvas.ts`，ReactFlow 适配类型在 `src/presentation/ui/canvas/flowTypes.ts`，只读渲染器为同目录的 `CanvasCardContent.tsx`。HTML 字段只接受经审核的仓库内容。图片放在 `public/canvas/`。自定义卡片通过扩展类型和 React 渲染器实现。
 
 画布没有数据库、会话、修订保存 API 或备份服务。健康接口检查静态画布结构及桌面内容。
 

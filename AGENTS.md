@@ -10,15 +10,17 @@ The application runs from the repository root using Astro 7 server output, the `
 
 ## Code Ownership
 
-- `src/pages/*.astro`: route entry points mounting the shared `src/components/app/JustinAppShell.astro` shell.
-- `src/app/navigation.ts`: route definitions and history decisions. `src/components/app/studioAppRuntime.ts`: navigation, spatial transitions, and page lifecycle coordination.
-- `src/components/studio/`: Three.js scene, camera, object interactions, lighting, portfolio, and accessible HTML entry points. The scene requests navigation through callbacks; canvas modules own canvas content.
-- `src/components/journal/`: book geometry and reading UI sharing the studio renderer. `src/features/journal/`: page mapping and reading anchors. `src/content/journal/`: published Markdown sources; `scripts/journal-build.mjs`: fixed pagination and image generation.
-- `src/components/mine-canvas/`: ReactFlow viewer, typed published content, shared card rendering and browser-local position overrides. Use `justinweb-canvas-content` for content, layout and card changes.
+- `src/pages/`: route and API entry points mounting `src/presentation/ui/app/JustinAppShell.astro`.
+- `src/app/`: dependency composition, URL navigation, and shell lifecycle. `src/contracts/` defines content, intent, and port types without UI or renderer dependencies.
+- `src/content/` owns published records and assets. `src/data/repositories/` reads them; `src/data/selectors/` derives portfolio and file views; `src/data/stores/` holds per-shell client state and the activity snapshot.
+- `src/application/` owns use cases and intent decisions. `src/presentation/scene/` owns Three.js objects and renderer disposal; `src/presentation/interaction/` maps gestures to user intent; `src/animation/` owns camera and projection timing. `src/config/` holds appearance and lighting parameters.
+- `src/presentation/ui/` owns Astro/React components, browser runtimes, and styles. `src/infrastructure/client/` owns browser storage; `src/infrastructure/server/` owns server data access and streams.
+- `src/content/journal/` owns Markdown. `scripts/journal-content.mjs` compiles text without Chromium; `scripts/journal-build.mjs` generates fixed pages for `build:release`.
+- `src/content/canvas/published.ts` owns canvas cards and IDs; `src/contracts/canvas.ts` defines plain content types. Use `justinweb-canvas-content` for content and layout changes.
 - `src/justin-kit/components/`: reusable components and their runtimes, maintained according to component READMEs. The `macos-desktop` component owns desktop and window behavior.
 - `public/os-desktop/`: file-driven desktop content, scanned here in development and from `dist/client/os-desktop/` in production.
-- `src/pages/api/activity/`, `src/lib/activity/`, and Justin Kit's `local-activity-status`: local activity endpoints, state, and monitoring. Trace each affected endpoint's actual call chain before editing.
-- `src/data/studioFiles.ts`: ordered file manifest shared by the 3D file box and reading view; references `src/data/projects.json` and `src/data/resume.json`. Shared layout lives in `src/styles/global.css`; domain styles stay with their components.
+- `src/pages/api/activity/`, `src/data/stores/activity/`, `src/infrastructure/server/activityStream.ts`, and Justin Kit's `local-activity-status` are the activity chain. Trace affected callers before editing.
+- `src/content/site/studio-files.json` sets file order. `src/data/selectors/studioFiles.ts` derives the file box and reading data from `projects.json` and `resume.json`. Shared styles live in `src/presentation/ui/styles/`.
 
 ## Interaction Contracts
 
@@ -43,8 +45,12 @@ Prefix shell commands with `rtk` unless debugging requires raw output. Run appli
 rtk npm install
 rtk npm run dev
 rtk npm run build
+rtk npm run build:release
+rtk npm run check:boundaries
+rtk npm run check:types
+rtk npm run test:unit
+rtk npm run test:e2e
 rtk npm run preview
-rtk node --test tests/*.test.mjs
 rtk npm run monitor:activity
 ```
 
@@ -52,8 +58,8 @@ rtk npm run monitor:activity
 
 ## Validation
 
-- Run `rtk npm run build` as the baseline. Run relevant Node tests for logic changes and the full suite for shared-flow changes. Report build and type-check results separately.
-- Install the pinned Playwright Chromium with `npm run journal:setup` before journal builds or pagination tests. Generated journal assets are local build output; edit Markdown and layout sources instead. Use temporary input, output, and asset directories for validation.
+- Run `rtk npm run build`, `rtk npm run check:boundaries`, and `rtk npm run check:types` as the baseline. Run relevant Node tests for logic changes and the full suite for shared-flow changes. Report build and type-check results separately.
+- Ordinary development and builds compile readable journal text without Chromium. Install the pinned Playwright Chromium with `npm run journal:setup` before `build:release` or pagination tests. Generated journal assets are local build output; edit Markdown and layout sources instead. Use temporary input, output, and asset directories for validation.
 - Check UI and animation changes on desktop and narrow viewports, including intermediate frames. For studio interactions, check dragging, clicking, hovering, entry, and return. Base touch and performance claims on checks using the relevant devices.
 - For routing or shell changes, check direct loading, refresh, back/forward, and mid-animation navigation across `/`, `/home`, `/works`, `/canvas`, and `/os`. Check viewport changes when transitions depend on dimensions.
 - For canvas changes, verify position restoration/reset, invalid storage fallback, content and edge validity, mobile reading, and static asset paths. For desktop scanning or deployment changes, verify built content and `/api/health`.
