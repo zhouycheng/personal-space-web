@@ -1,5 +1,5 @@
 # Stage 1: Build the Astro app
-FROM node:22.22.3-bookworm-slim AS builder
+FROM node:26.9.0-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -9,10 +9,10 @@ RUN npx playwright install --with-deps chromium
 
 COPY . .
 
-RUN npm run build
+RUN npm run build:release
 
 # Stage 2: Production runtime
-FROM node:22-alpine AS runner
+FROM node:26.9.0-bookworm-slim AS runner
 
 WORKDIR /app
 
@@ -27,6 +27,6 @@ ENV PORT=4321
 EXPOSE 4321
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:4321/api/health || exit 1
+  CMD node -e "fetch('http://127.0.0.1:4321/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["node", "dist/server/entry.mjs"]
