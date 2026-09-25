@@ -1,5 +1,5 @@
 import { getMacOsDesktopEntries } from "../../justin-kit/components/macos-desktop/runtime/desktop-scanner";
-import { mineCanvasSeed } from "../../components/mine-canvas/mineCanvasData";
+import { mineCanvasSeed } from "../../content/canvas/published";
 import { createHealthReport } from "../../server/health";
 
 export const prerender = false;

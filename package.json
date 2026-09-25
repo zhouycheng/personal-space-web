@@ -2,6 +2,7 @@
   "name": "astro-justin-web",
   "version": "1.0.0",
   "private": true,
+  "license": "Zlib",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"

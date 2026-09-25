@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="示例项目预览">
+  <rect width="960" height="540" fill="#f3f0e8"/>
+  <rect x="100" y="90" width="760" height="360" rx="24" fill="#002fa7"/>
+  <text x="480" y="285" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="48">YOUR PROJECT</text>
+</svg>

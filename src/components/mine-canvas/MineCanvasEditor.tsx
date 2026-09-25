@@ -2,7 +2,7 @@ import { Background, ReactFlow, Handle, Position, ConnectionMode, useNodesState,
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import '@xyflow/react/dist/style.css';
 import './mine-canvas.css';
-import { mineCanvasSeed } from './mineCanvasData';
+import { mineCanvasSeed } from '../../content/canvas/published';
 import type { MineCanvasNode, MineCanvasEdge } from './mineCanvasTypes';
 import { CanvasCardContent } from './CanvasCardContent';
 import { MineCanvasEdgeComponent } from './MineCanvasEdge';

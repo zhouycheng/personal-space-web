@@ -1,4 +1,4 @@
-import type { MineCanvasDocument } from "./mineCanvasTypes";
+import type { MineCanvasDocument } from "../../components/mine-canvas/mineCanvasTypes";
 
 // Published canvas content, revision 138.
 export const mineCanvasSeed: MineCanvasDocument = {

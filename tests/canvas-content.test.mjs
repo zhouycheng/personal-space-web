@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { mineCanvasSeed } from '../src/components/mine-canvas/mineCanvasData.ts';
+import { mineCanvasSeed } from '../src/content/canvas/published.ts';
 import { activityCopy } from '../src/components/mine-canvas/canvasActivity.ts';
 
 test('published canvas contains the four real cards and two connections', () => {
