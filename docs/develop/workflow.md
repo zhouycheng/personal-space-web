@@ -18,9 +18,9 @@
 ## 架构边界
 
 - `src/pages/index.astro`、`src/pages/home.astro`、`src/pages/works.astro`、`src/pages/canvas.astro` 和 `src/pages/os.astro` 仅拥有路由入口。
-- `src/app/navigation.ts` 决定 URL 与历史；`src/app/studioAppRuntime.ts` 组装依赖和协调页面生命周期；`src/data/stores/studioClient.ts` 在每个页面实例内创建 Nano Stores。
+- `src/app/navigation.ts` 决定 URL 与历史；`src/app/studioAppRuntime.ts` 组装依赖和协调页面生命周期；`src/presentation/ui/studio/explorePanel.ts` 管理探索弹窗与键盘焦点；`src/data/stores/studioClient.ts` 在每个页面实例内创建 Nano Stores。
 - `src/contracts/` 定义无展示框架依赖的内容与端口；`src/application/` 决定用户意图；`src/animation/` 持有过场计算；`src/presentation/scene/` 持有 Three.js 场景和资源释放。
-- `src/presentation/ui/` 持有 Astro/React 组件与样式；`src/presentation/interaction/` 持有 Three.js 拾取与独立手势规则。工作室 HTML 入口与 3D 拾取发送同一 `StudioIntent`。
+- `src/presentation/scene/studio/studioObjects.ts` 组装家具、设备和光照物件；`studioScene.ts` 管理渲染、相机与资源释放。`src/presentation/scene/journal/journalBookGeometry.ts` 构造实体书，`journalBook.ts` 管理阅读状态和纹理。`src/presentation/ui/` 持有 Astro/React 组件与样式；`src/presentation/interaction/` 持有 Three.js 拾取与独立手势规则。工作室 HTML 入口与 3D 拾取发送同一 `StudioIntent`。
 - `src/content/` 持有个人内容；`src/data/repositories/` 统一读取；`src/data/selectors/` 派生文件盒和作品视图。`src/infrastructure/` 持有浏览器存储和服务端适配。
 - `src/content/journal/` 维护 Markdown；普通 `dev`/`build` 由 `scripts/journal-content.mjs` 编译文字，`build:release` 再用 Chromium 生成固定书页。
 - `src/presentation/ui/styles/` 按外壳、投影和导航拆分共享样式。

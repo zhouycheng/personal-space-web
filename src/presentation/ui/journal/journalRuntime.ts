@@ -11,6 +11,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>ScenePort|undefi
   const events=new AbortController();
   let page=0,active=false,readingText=true,busy=false,single=false,saved:ReadingAnchor|null=null,entryToken=0,pageError='',textSlug='';
   let phase:JournalPhase='observing',zoom=1;
+  function syncInteraction(){scene()?.setJournalInteractionEnabled(!readingText&&!image.open);}
   try {saved=JSON.parse(localStorage.getItem('justin-journal-bookmark')??'null');}catch{/* Storage is optional. */}
   function article(){return book.articles.find(a=>a.slug===(book.pages[page]?.slug??textSlug))??book.articles.at(-1);}
   function requestedPage(path:string){
@@ -54,12 +55,13 @@ export function createJournalReader(root:HTMLElement, scene:()=>ScenePort|undefi
   }
   function setMode(value:boolean){
     readingText=value;text.hidden=!value;mode.textContent=value?'立体阅读':'文字阅读';
+    syncInteraction();
     q<HTMLButtonElement>('[data-journal-zoom]').disabled=value;
     update({page,single,busy,error:pageError,textures:0,phase,zoom});
     if(value){text.focus();const anchor=book.pages[page]?.anchors[0];if(anchor)text.querySelector(`#${CSS.escape(anchor)}`)?.scrollIntoView({block:'start'});}
   }
   function openRegion(item:JournalRegion){
-    if(item.kind==='image'){q<HTMLImageElement>('[data-journal-image] > img').src=item.href;q<HTMLImageElement>('[data-journal-image] > img').alt=item.label;image.showModal();return;}
+    if(item.kind==='image'){q<HTMLImageElement>('[data-journal-image] > img').src=item.href;q<HTMLImageElement>('[data-journal-image] > img').alt=item.label;image.showModal();syncInteraction();return;}
     const url=new URL(item.href,location.href);
     if(!['http:','https:','mailto:'].includes(url.protocol))return;
     if(url.origin===location.origin&&url.pathname.startsWith('/journal'))navigate(url.pathname+url.hash);
@@ -79,6 +81,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>ScenePort|undefi
     if(target.matches('[data-journal-zoom]')&&!busy)scene()?.zoomJournal(zoom+.25);
     if(target.matches('[data-journal-zoom-out]')&&!busy)scene()?.zoomJournal(zoom-.25);
   },{signal:events.signal});
+  image.addEventListener('close',syncInteraction,{signal:events.signal});
   window.addEventListener('keydown',event=>{
     if(!active||event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement)return;
     if(event.key==='Escape'){
@@ -101,6 +104,7 @@ export function createJournalReader(root:HTMLElement, scene:()=>ScenePort|undefi
     if(!current){fallback();return;}
     setMode(false);root.classList.add('is-entering');
     current.configureJournal(book,page,update,openRegion);
+    syncInteraction();
     current.prepareJournal(Boolean(journalSlug(new URL(path,location.origin).pathname)));
     await current.moveJournal(true,duration);
     if(token!==entryToken||!active)return;

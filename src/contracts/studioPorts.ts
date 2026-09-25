@@ -24,6 +24,7 @@ export interface ScenePort extends TransitionPort {
   toggleClock(): boolean;
   toggleDrawer(action: "drawer-top" | "drawer-middle" | "drawer-bottom"): boolean;
   configureJournal(book: JournalManifest, index: number, onReport: (state: BookReport) => void, onRegion: (region: JournalRegion) => void): void;
+  setJournalInteractionEnabled(value: boolean): void;
   hideJournal(): void;
   prepareJournal(reading: boolean): void;
   journalAvailable(): boolean;

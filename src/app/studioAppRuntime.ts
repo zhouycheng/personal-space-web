@@ -3,9 +3,9 @@ import { ACTION_LABELS, type StudioAction } from "../contracts/studio";
 import type { ScenePort } from "../contracts/studioPorts";
 import { canRetryStudio, studioFailure, type StudioFailure } from "../application/studio/studioFailure";
 import { studioLighting } from "../config/studioTime";
-import { stepRoomView, DEFAULT_ROOM_VIEW, type RoomView, type RoomViewAction } from "../animation/studio/studioMotion";
 import { beginSurfaceProjection, updateSurfaceProjection, clearSurfaceProjection } from "../animation/studio/surfaceProjection";
 import { createJournalReader } from "../presentation/ui/journal/journalRuntime";
+import { createExplorePanel } from "../presentation/ui/studio/explorePanel";
 import { studioFiles } from "../data/selectors/studioFiles";
 import { createStudioClientStore } from "../data/stores/studioClient";
 import { resolveStudioIntent } from "../application/studio/resolveIntent";
@@ -22,14 +22,6 @@ function init(shell: HTMLElement) {
   const returnButton = shell.querySelector<HTMLButtonElement>("[data-studio-return]")!;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const events = new AbortController();
-  const explore = studio.querySelector<HTMLButtonElement>("[data-studio-explore]")!;
-  const panel = studio.querySelector<HTMLDialogElement>(".studio-panel")!;
-  const panelTitle = panel.querySelector<HTMLElement>("#studio-panel-title")!;
-  const panelStatus = panel.querySelector<HTMLElement>("[data-studio-panel-status]")!;
-  const hint = studio.querySelector<HTMLElement>("[data-studio-hint]")!;
-  const tabs = [...panel.querySelectorAll<HTMLButtonElement>("[data-studio-tab]")];
-  const viewButtons = [...panel.querySelectorAll<HTMLButtonElement>('[data-studio-action^="zoom-"],[data-studio-action^="view-"],[data-studio-action="reset-view"]')];
-  let panelCloseTimer = 0;
   const initialPage = pageForPath(location.pathname);
   const model = createStudioClientStore(initialPage, studioStateForPage(initialPage));
   let historyPending = false;
@@ -37,6 +29,20 @@ function init(shell: HTMLElement) {
   let sceneLoading: Promise<void> | undefined;
   let sceneBlocked=false,lightweight=false;
   let savedScene:ReturnType<ScenePort["snapshot"]>|undefined;
+  const panelController = createExplorePanel({
+    studio, mount, reducedMotion: reduce, signal: events.signal,
+    scene: () => scene,
+    isRoom: () => model.page === "home" && model.state === "room",
+  });
+  const panel = panelController.element;
+  const explore = panelController.explore;
+  const openExplore = panelController.open;
+  const closeExplore = panelController.close;
+  const syncView = panelController.syncView;
+  const sceneAvailability = panelController.sceneAvailability;
+  const panelStatus = panelController.status;
+  const isOpen = () => model.state === "desktop" || model.state === "canvas";
+  const isMoving = () => model.state.startsWith("entering") || model.state.startsWith("returning");
   const retry=panel.querySelector<HTMLButtonElement>("[data-studio-retry]")!;
   const diagnostics=panel.querySelector<HTMLDetailsElement>("[data-studio-diagnostics]")!;
   const diagnosticText=diagnostics.querySelector<HTMLTextAreaElement>("textarea")!;
@@ -50,81 +56,6 @@ function init(shell: HTMLElement) {
     history.pushState({justinPage:'journal',from:model.page},'',path);
     if(model.page==='journal')journal.select(location.pathname+location.hash);else void applyRoute('journal');
   });
-  const isOpen = () => model.state === "desktop" || model.state === "canvas";
-  const isMoving = () => model.state.startsWith("entering") || model.state.startsWith("returning");
-  function selectPanelTab(id:string) {
-    for(const tab of tabs) {
-      const selected=tab.dataset.studioTab===id;
-      tab.setAttribute("aria-selected",String(selected));tab.tabIndex=selected?0:-1;
-      panel.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`)!.hidden=!selected;
-    }
-    panel.querySelector<HTMLElement>(".studio-panel-content")!.scrollTop=0;
-  }
-  function openExplore() {
-    if(model.page!=="home"||model.state!=="room")return;
-    clearTimeout(panelCloseTimer);panel.classList.remove("is-closing");
-    hint.hidden=true;selectPanelTab("places");
-    panel.querySelectorAll("details").forEach(detail=>detail.open=false);
-    scene?.setPointerEnabled(false);
-    if(!panel.open)panel.showModal();
-    explore.setAttribute("aria-expanded","true");panelTitle.focus();
-  }
-  function closeExplore(restoreFocus=true,immediate=false) {
-    clearTimeout(panelCloseTimer);
-    if(!panel.open)return;
-    const finish=()=>{
-      panel.classList.remove("is-closing");panel.close();
-      explore.setAttribute("aria-expanded","false");scene?.setPointerEnabled(true);
-      if(restoreFocus&&model.page==="home"&&model.state==="room")explore.focus();
-    };
-    if(immediate||reduce.matches)finish();
-    else {panel.classList.add("is-closing");panelCloseTimer=window.setTimeout(finish,160);}
-  }
-  function syncView(view:RoomView) {
-    const output=panel.querySelector<HTMLOutputElement>("[data-studio-zoom]")!;
-    const label=`${view.zoom.toFixed(2)}×`;
-    if(output.textContent!==label)output.textContent=label;
-    for(const button of viewButtons) {
-      const next=stepRoomView(view,button.dataset.studioAction as RoomViewAction);
-      const focused=document.activeElement===button;
-      button.disabled=button.dataset.studioAction!=="reset-view"&&next.zoom===view.zoom&&next.angle===view.angle&&next.elevation===view.elevation;
-      if(focused&&button.disabled)(button.closest("details")?.querySelector("summary")??output).focus({preventScroll:true});
-    }
-  }
-  function sceneAvailability(ready:boolean) {
-    tabs.filter(tab=>tab.dataset.studioTab!=="places").forEach(tab=>tab.hidden=!ready);
-    panelStatus.hidden=ready;
-    if(!ready)selectPanelTab("places");
-  }
-  explore.addEventListener("click",openExplore,{signal:events.signal});
-  panel.querySelector("[data-studio-close]")!.addEventListener("click",()=>closeExplore(),{signal:events.signal});
-  panel.addEventListener("cancel",event=>{event.preventDefault();closeExplore();},{signal:events.signal});
-  panel.addEventListener("keydown",event=>{
-    if(event.key!=="Tab")return;
-    const items=[...panel.querySelectorAll<HTMLElement>("button,a,summary,[tabindex]")].filter(item=>item.tabIndex>=0&&!item.matches(":disabled")&&item.checkVisibility());
-    const first=items[0],last=items.at(-1);
-    if(event.shiftKey&&(document.activeElement===first||document.activeElement===panelTitle)) {event.preventDefault();last?.focus();}
-    else if(!event.shiftKey&&document.activeElement===last) {event.preventDefault();first?.focus();}
-  },{signal:events.signal});
-  let backdropDown=false;
-  panel.addEventListener("pointerdown",event=>{backdropDown=event.target===panel&&outsidePanel(event);},{signal:events.signal});
-  panel.addEventListener("click",event=>{if(backdropDown&&event.target===panel&&outsidePanel(event))closeExplore();backdropDown=false;},{signal:events.signal});
-  function outsidePanel(event:MouseEvent) {
-    const rect=panel.getBoundingClientRect();
-    return event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom;
-  }
-  for(const tab of tabs) {
-    tab.addEventListener("click",()=>selectPanelTab(tab.dataset.studioTab!),{signal:events.signal});
-    tab.addEventListener("keydown",event=>{
-      if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
-      event.preventDefault();const visible=tabs.filter(item=>!item.hidden),index=visible.indexOf(tab);
-      const next=visible[event.key==="Home"?0:event.key==="End"?visible.length-1:(index+(event.key==="ArrowRight"?1:-1)+visible.length)%visible.length];
-      selectPanelTab(next.dataset.studioTab!);next.focus();
-    },{signal:events.signal});
-  }
-  mount.addEventListener("pointerup",()=>{hint.hidden=true;},{signal:events.signal});
-  mount.addEventListener("wheel",()=>{hint.hidden=true;},{signal:events.signal});
-  syncView(DEFAULT_ROOM_VIEW);
   function clearProjection() {
     for (const el of [desktop, personalCanvas]) {
       clearSurfaceProjection(el);
@@ -362,7 +293,7 @@ function init(shell: HTMLElement) {
   window.addEventListener("popstate", () => { historyPending = false; void applyRoute(pageForPath(location.pathname)); }, { signal: events.signal });
   document.addEventListener("visibilitychange", sync, { signal: events.signal });
   window.addEventListener("pagehide", event => {
-    closeExplore(false,true);clearTimeout(panelCloseTimer);
+    closeExplore(false,true);panelController.dispose();
     transition++;
     model.state = studioStateForPage(model.page);
     scene?.cancelTransition(); clearProjection(); scene?.setActive(false);
