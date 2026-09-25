@@ -1,0 +1,286 @@
+.framelean-preview {
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+  pointer-events: none;
+  --macos-window-titlebar-height: clamp(1.45rem, 7.5cqi, 3.35rem);
+  --macos-window-titlebar-padding: clamp(0.55rem, 2.25cqi, 1.1rem);
+  --macos-window-titlebar-gap: clamp(0.35rem, 1.4cqi, 0.8rem);
+  --macos-window-control-size: clamp(0.42rem, 1.72cqi, 0.88rem);
+  --macos-window-control-gap: clamp(0.22rem, 0.88cqi, 0.48rem);
+}
+
+.framelean-preview .macos-window {
+  border-color: rgba(35, 42, 58, 0.2);
+  border-radius: clamp(0.65rem, 2.55cqi, 1.2rem);
+  background: #ffffff;
+  box-shadow:
+    0 1.5rem 3.8rem rgba(38, 51, 84, 0.18),
+    0 0.12rem 0.32rem rgba(35, 48, 76, 0.12);
+}
+
+.framelean-preview .macos-window-titlebar {
+  background: #ffffff;
+}
+
+.framelean-preview .macos-window-body {
+  overflow: hidden;
+  background: #f3f6fc;
+}
+
+.framelean-title-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.45rem, 2.5cqi, 1.25rem);
+  color: #8d98aa;
+}
+
+.framelean-title-icon {
+  width: clamp(0.7rem, 2.5cqi, 1.5rem);
+  height: clamp(0.7rem, 2.5cqi, 1.5rem);
+  display: grid;
+  place-items: center;
+}
+
+.framelean-title-icon img,
+.framelean-task-action img,
+.framelean-thumbnail img,
+.framelean-dock-icon img,
+.framelean-primary-action img,
+.framelean-drag-handle img {
+  display: block;
+  object-fit: contain;
+}
+
+.framelean-title-icon--theme img {
+  width: clamp(0.7rem, 2.5cqi, 1.5rem);
+  height: clamp(0.7rem, 2.5cqi, 1.5rem);
+}
+
+.framelean-title-icon--notification img {
+  width: clamp(0.92rem, 3.7cqi, 2.05rem);
+  height: clamp(0.92rem, 3.7cqi, 2.05rem);
+  transform: translateY(-0.55cqi);
+}
+
+.framelean-app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) clamp(2.4rem, 9.3cqi, 4.65rem);
+  color: #111827;
+  background: #f3f6fc;
+}
+
+.framelean-workspace {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.65rem, 3cqi, 1.5rem);
+  padding: clamp(1rem, 4.55cqi, 2.25rem) clamp(0.8rem, 4cqi, 2rem);
+  background: #f3f6fc;
+}
+
+.framelean-task {
+  min-height: clamp(3.45rem, 13.2cqi, 6.6rem);
+  display: grid;
+  grid-template-columns: clamp(0.65rem, 2.25cqi, 1.15rem) clamp(1.65rem, 5.85cqi, 3.25rem) minmax(0, 1fr) clamp(1.25rem, 3.7cqi, 1.9rem) clamp(1.1rem, 3.2cqi, 1.65rem);
+  align-items: center;
+  gap: clamp(0.42rem, 1.8cqi, 0.9rem);
+  border: 1px solid #dce2eb;
+  border-radius: clamp(0.45rem, 1.5cqi, 0.78rem);
+  padding: clamp(0.45rem, 1.8cqi, 0.9rem) clamp(0.55rem, 2.2cqi, 1.1rem);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 0.16rem 0.35rem rgba(43, 55, 82, 0.09);
+}
+
+.framelean-drag-handle {
+  width: clamp(0.65rem, 2.25cqi, 1.15rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.framelean-drag-handle img {
+  width: clamp(0.75rem, 2.5cqi, 1.4rem);
+  height: clamp(0.75rem, 2.5cqi, 1.4rem);
+}
+
+.framelean-thumbnail {
+  width: clamp(1.65rem, 5.85cqi, 3.25rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: clamp(0.32rem, 1.05cqi, 0.55rem);
+}
+
+.framelean-thumbnail--video {
+  position: relative;
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, #0b0e14, #1b1d20 66%, #08090b);
+}
+
+.framelean-thumbnail--video::before,
+.framelean-thumbnail--video::after,
+.framelean-thumbnail--video span {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  height: 4%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.framelean-thumbnail--video::before {
+  top: 12%;
+}
+
+.framelean-thumbnail--video::after {
+  bottom: 10%;
+}
+
+.framelean-thumbnail--video span {
+  right: 42%;
+  bottom: 19%;
+}
+
+.framelean-thumbnail--audio {
+  color: #8f99aa;
+  background: #e7ecff;
+}
+
+.framelean-thumbnail--audio img {
+  width: clamp(0.65rem, 2.2cqi, 1.2rem);
+  height: clamp(0.65rem, 2.2cqi, 1.2rem);
+}
+
+.framelean-task-copy {
+  min-width: 0;
+  display: grid;
+  gap: clamp(0.25rem, 0.95cqi, 0.48rem);
+}
+
+.framelean-task-copy strong {
+  overflow: hidden;
+  color: #121827;
+  font: 780 clamp(0.42rem, 1.7cqi, 0.86rem) / 1.2 var(--sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.framelean-task-meta {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.45rem, 1.7cqi, 0.85rem);
+}
+
+.framelean-status {
+  border-radius: clamp(0.18rem, 0.55cqi, 0.28rem);
+  padding: clamp(0.14rem, 0.5cqi, 0.25rem) clamp(0.32rem, 1.05cqi, 0.52rem);
+  color: #1f1b00;
+  background: #e4c900;
+  font: 760 clamp(0.32rem, 1.08cqi, 0.55rem) / 1 var(--sans);
+  white-space: nowrap;
+}
+
+.framelean-size {
+  color: #94a0b3;
+  font: 650 clamp(0.34rem, 1.25cqi, 0.64rem) / 1 var(--sans);
+}
+
+.framelean-task-action {
+  display: grid;
+  place-items: center;
+  color: #8f9aad;
+}
+
+.framelean-task-action--play {
+  width: clamp(1.2rem, 3.7cqi, 1.9rem);
+  aspect-ratio: 1;
+}
+
+.framelean-task-action--play img {
+  width: clamp(0.9rem, 3.4cqi, 1.7rem);
+  height: clamp(0.9rem, 3.4cqi, 1.7rem);
+}
+
+.framelean-task-action--remove {
+  width: clamp(1rem, 3cqi, 1.55rem);
+  height: clamp(1rem, 3cqi, 1.55rem);
+  opacity: 0.62;
+}
+
+.framelean-task-action--remove img {
+  width: clamp(1.05rem, 3.8cqi, 2rem);
+  height: clamp(1.05rem, 3.8cqi, 2rem);
+}
+
+.framelean-dock {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 clamp(0.7rem, 3.8cqi, 1.9rem);
+  background: #ffffff;
+}
+
+.framelean-dock-side {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.7rem, 3.1cqi, 1.55rem);
+}
+
+.framelean-dock-side--end {
+  justify-content: flex-end;
+}
+
+.framelean-dock-icon {
+  width: clamp(0.9rem, 3.1cqi, 1.58rem);
+  height: clamp(0.9rem, 3.1cqi, 1.58rem);
+  display: grid;
+  place-items: center;
+}
+
+.framelean-dock-icon--add img,
+.framelean-dock-icon--delete img {
+  width: clamp(0.65rem, 2.35cqi, 1.2rem);
+  height: clamp(0.65rem, 2.35cqi, 1.2rem);
+}
+
+.framelean-dock-icon--select img {
+  width: clamp(0.9rem, 3.3cqi, 1.9rem);
+  height: clamp(0.9rem, 3.3cqi, 1.9rem);
+  transform: translateY(-0.12cqi);
+}
+
+.framelean-dock-icon--settings img {
+  width: clamp(0.82rem, 3cqi, 1.6rem);
+  height: clamp(0.82rem, 3cqi, 1.6rem);
+  transform: translateY(-0.08cqi);
+}
+
+.framelean-primary-action {
+  width: clamp(2.8rem, 10.4cqi, 5.2rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #2349ea;
+  box-shadow: 0 0.45rem 1.2rem rgba(35, 73, 234, 0.16);
+  transform: translateY(-22%);
+}
+
+.framelean-primary-action img {
+  width: clamp(1.12rem, 4.3cqi, 2.15rem);
+  height: clamp(1.12rem, 4.3cqi, 2.15rem);
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .framelean-preview * {
+    animation: none !important;
+  }
+}

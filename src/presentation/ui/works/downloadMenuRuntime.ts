@@ -14,6 +14,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-project-downloa
   const dataElement = root.querySelector<HTMLScriptElement>("[data-download-data]");
   if (!primary || !toggle || !label || !menu || !dataElement) continue;
   root.dataset.downloadReady = "true";
+  const projectTitle = root.dataset.projectTitle ?? "项目";
 
   let downloads: DownloadData;
   try {
@@ -33,13 +34,13 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-project-downloa
   if (defaultDownload) {
     label.textContent = platform === "macos" ? "下载 macOS" : "下载 Windows";
     primary.dataset.downloadHref = defaultDownload.href;
-    primary.setAttribute("aria-label", `${label.textContent}，FrameLean v${downloads.version}`);
+    primary.setAttribute("aria-label", `${label.textContent}，${projectTitle} v${downloads.version}`);
     primary.removeAttribute("aria-haspopup");
     primary.removeAttribute("aria-expanded");
     primary.removeAttribute("aria-controls");
   } else {
     label.textContent = "选择下载";
-    primary.setAttribute("aria-label", "选择 FrameLean 下载版本");
+    primary.setAttribute("aria-label", `选择 ${projectTitle} 下载版本`);
   }
 
   function setOpen(open: boolean) {
