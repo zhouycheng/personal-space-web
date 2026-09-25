@@ -25,6 +25,10 @@
 - `/os`：文件驱动的桌面与窗口。
 - `/journal`：带实体翻页效果的日记。
 
+## Fork 与授权
+
+网站自有代码使用 [Zlib](LICENSE)；真实简历、日记、头像、作品资料和其他个人内容保留权利，第三方材料沿用其原许可。Fork 后可修改网站代码并换成自己的资料，但须遵守 Zlib 对原始来源、修改版本和许可声明的要求。授权文件的适用范围见 [LICENSING.md](LICENSING.md)，个人内容见 [CONTENT-LICENSE.md](CONTENT-LICENSE.md)，第三方材料见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 ## 本地运行
 
 开发时使用 `.node-version` 指定的 Node.js 版本（当前为 `26.9.0`，运行要求 `>=22.12.0`）。

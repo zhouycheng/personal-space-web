@@ -1,0 +1,26 @@
+[
+  {
+    "id": "framelean",
+    "navLabel": "项目一",
+    "title": "示例项目一",
+    "tags": ["Web"],
+    "summary": "这里填写项目摘要。",
+    "description": "这里填写项目说明。",
+    "lastUpdatedText": "最近更新：请填写",
+    "startedText": "开发周期：请填写",
+    "preview": { "kind": "image", "src": "/src/content/assets/projects/example-preview.svg", "alt": "示例项目预览" },
+    "links": []
+  },
+  {
+    "id": "exercises-eagles",
+    "navLabel": "项目二",
+    "title": "示例项目二",
+    "tags": ["App"],
+    "summary": "这里填写第二个项目摘要。",
+    "description": "这里填写第二个项目说明。",
+    "lastUpdatedText": "最近更新：请填写",
+    "startedText": "开发周期：请填写",
+    "preview": { "kind": "image", "src": "/src/content/assets/projects/example-preview.svg", "alt": "示例项目预览" },
+    "links": []
+  }
+]

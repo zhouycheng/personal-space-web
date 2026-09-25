@@ -29,6 +29,8 @@ dist
 
 # playwright
 .playwright-cli/
+/test-results/
+/playwright-report/
 
 # local agent/workbench state
 .superpowers/

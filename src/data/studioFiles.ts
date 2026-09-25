@@ -1,5 +1,5 @@
-import projects from "./projects.json" with { type: "json" };
-import resume from "./resume.json" with { type: "json" };
+import projects from "../content/site/projects.json" with { type: "json" };
+import resume from "../content/site/resume.json" with { type: "json" };
 
 // This order is shared by the desk files and their reading view.
 const manifest = [

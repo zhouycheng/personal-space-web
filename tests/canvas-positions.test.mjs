@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parsePositions, applyPositions } from '../src/components/mine-canvas/canvasPositions.ts';
-import { mineCanvasSeed } from '../src/components/mine-canvas/mineCanvasData.ts';
+import { mineCanvasSeed } from '../src/content/canvas/published.ts';
 test('invalid storage falls back to defaults', () => {
   for (const input of [null, 'broken', 'null', '[]', '{"a":{"x":"1","y":2}}']) assert.deepEqual(parsePositions(input), {});
 });

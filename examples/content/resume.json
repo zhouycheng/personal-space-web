@@ -1,0 +1,11 @@
+{
+  "name": "示例开发者",
+  "role": "软件开发者",
+  "phone": "",
+  "email": "hello@example.com",
+  "age": 0,
+  "summary": "这里填写自己的经历与技能。",
+  "sections": [
+    { "title": "简介", "paragraphs": ["用自己的资料替换这一段文字。"] }
+  ]
+}
