@@ -5,14 +5,11 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { chromium } from "playwright";
-import { marked } from "marked";
-import matter from "gray-matter";
-import sanitize from "sanitize-html";
 import sharp from "sharp";
+import { compileJournalContent } from "./journal-content.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
-const escape = value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 async function files(dir) {
   const out = [];
   for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
@@ -27,7 +24,8 @@ export async function buildJournal(options = {}) {
   const outputDir = options.outputDir ?? path.join(root, "public/journal/generated");
   const manifestPath = options.manifestPath ?? path.join(root, "src/generated/journal.json");
   const assetsDir = options.assetsDir ?? path.join(root, "public/journal/assets");
-  const sources = (await files(sourceDir)).filter(p => p.endsWith(".md"));
+  const compiled = await compileJournalContent({ sourceDir });
+  const { sources, contentHash } = compiled;
   const inputs = [...sources, ...await files(path.join(root, "public/journal/fonts")), ...await files(assetsDir), path.join(root, "scripts/journal-page.css"), fileURLToPath(import.meta.url), path.join(root, "package-lock.json")];
   const digest = createHash("sha256");
   digest.update(options.channel ?? 'playwright-chromium');
@@ -43,20 +41,7 @@ export async function buildJournal(options = {}) {
       console.log(`Journal: ${cached.pages.length} cached pages`); return cached;
     }
   } catch { /* Missing or incomplete cache is rebuilt. */ }
-  const articles = [];
-  for (const file of sources) {
-    const { data, content } = matter(await readFile(file, "utf8"));
-    if (data.draft === true) continue;
-    const slug = path.basename(file, ".md");
-    if (!data.title || !data.pubDate || Number.isNaN(new Date(data.pubDate).valueOf())) throw new Error(`Invalid journal metadata: ${file}`);
-    const html = sanitize(marked.parse(content), {
-      allowedTags: [...sanitize.defaults.allowedTags, "img", "figure", "figcaption"],
-      allowedAttributes: { a: ["href", "title"], img: ["src", "alt", "title"], '*': ["id"] },
-      allowedSchemes: ["https", "http", "mailto"],
-    });
-    articles.push({ slug, title: String(data.title), description: String(data.description ?? ""), date: new Date(data.pubDate).toISOString().slice(0, 10), html, start: 0, count: 0 });
-  }
-  articles.sort((a, b) => a.date.localeCompare(b.date) || a.slug.localeCompare(b.slug));
+  const articles = compiled.articles;
   await mkdir(outputDir, { recursive: true });
   const css = await readFile(path.join(root, "scripts/journal-page.css"), "utf8");
   const server = createServer(async (req, res) => {
@@ -85,10 +70,10 @@ export async function buildJournal(options = {}) {
       await page.goto(origin);
       await page.evaluate(() => { window.PagedConfig = { auto: false }; });
       await page.addScriptTag({ path: path.resolve(path.dirname(require.resolve("pagedjs")), "../dist/paged.polyfill.js") });
-      const result = await page.evaluate(async ({ article, origin, hash }) => {
+      const result = await page.evaluate(async ({ article, origin }) => {
         const source = document.createElement("article");
         source.innerHTML = article.html;
-        for (const [i, el] of [...source.querySelectorAll("p,h1,h2,h3,h4,li,pre,figure,table,blockquote")].entries()) {
+        for (const el of source.querySelectorAll("p,h1,h2,h3,h4,li,pre,figure,table,blockquote")) {
           let hash=2166136261;
           for(const char of el.textContent)hash=Math.imul(hash^char.codePointAt(0),16777619)>>>0;
           const base=`${article.slug}-block-${hash.toString(16)}`;
@@ -150,7 +135,7 @@ export async function buildJournal(options = {}) {
           return { anchors: [...new Set([...content.querySelectorAll("[data-anchor]")].map(n => n.dataset.anchor))], text: content.textContent, regions };
         });
         return { html: article.html, info };
-      }, { article, origin, hash });
+      }, { article, origin });
       article.html = result.html;article.start = pages.length;article.count = result.info.length;
       for (let i = 0; i < result.info.length; i++) {
         const index = pages.length;
@@ -165,7 +150,7 @@ export async function buildJournal(options = {}) {
       }
       await page.close();
     }
-    const manifest = { version: 1, hash, width: 420, height: 594, articles, pages };
+    const manifest = { version: 1, hash, contentHash, width: 420, height: 594, articles, pages };
     await mkdir(path.dirname(manifestPath), { recursive: true });
     const json = JSON.stringify(manifest);
     const tempManifest = `${manifestPath}.${process.pid}.tmp`;

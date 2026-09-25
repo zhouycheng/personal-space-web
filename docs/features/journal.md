@@ -1,6 +1,6 @@
 # 实体日记本
 
-日记由 Markdown 源文、构建时分页产物和工作室内的 Three.js 书本组成。从抽屉拿起后先观察合拢的物件，再打开阅读；文字阅读提供可选择、复制的正文，也作为 WebGL 失败时的入口。
+日记由 Markdown 源文、无需 Chromium 的正文编译、可选的固定书页产物和工作室内的 Three.js 书本组成。从抽屉拿起后先观察合拢的物件，再打开阅读；文字阅读提供可选择、复制的正文，也作为缺少书页或 WebGL 失败时的入口。
 
 ## 内容与写作
 
@@ -8,15 +8,15 @@
 
 迁入源为旧站中的 `src/content/blog/20260527-记录和节奏.md`，保留原文件名、frontmatter 和正文。原站继续存在。本项目的 `/blog/[slug]` 返回 301 到 `/journal/[slug]`；这不会修改旧域名的响应。RSS 在 `/rss.xml`。
 
-新增文章后，开发服务器自动重新分页并刷新。正式构建自动生成全部已发布文章；缺失图片、字体、分页丢字或内容溢出会让构建失败。
+新增文章后，开发服务器自动重新编译正文并刷新。普通 `dev`/`build` 不启动 Chromium；已有书页与正文哈希匹配且资源齐全时沿用实体书，否则提供文字阅读。`build:release` 才生成全部书页；缺失图片、字体、分页丢字或内容溢出会让发布构建失败。
 
 ## 分页链路
 
-使用 `.node-version` 中记录的本地 Node 版本（当前为 26.9.0）、锁文件中的 Paged.js / Playwright 和本地 WOFF2 格式 Noto Serif SC 字体。首次安装依赖后运行 `npm run journal:setup` 下载 Chromium。Linux 构建环境使用 `npx playwright install --with-deps chromium`。Docker 仅在 Debian 构建阶段安装浏览器，运行阶段仍使用 Node Alpine。
+使用 `.node-version` 中记录的本地 Node 版本（当前为 26.9.0）、锁文件中的 Paged.js / Playwright 和本地 WOFF2 格式 Noto Serif SC 字体。普通构建运行 `scripts/journal-content.mjs` 解析并清洗 Markdown。发布构建前运行 `npm run journal:setup` 下载 Chromium；Linux 构建环境使用 `npx playwright install --with-deps chromium`。Docker 构建和运行阶段均固定使用 Node 26.9.0 Debian slim，只有构建阶段安装浏览器。
 
 `npm run journal:build` 将 Markdown 解析并清洗成受控 HTML，经 Paged.js 排成 420×594 CSS px 的书页。字体与图片解码完成后，由 Chromium 以 2× 像素截图，输出普通和高清 WebP。正文 16px，1.75 倍行高、450 字重；一级标题 24px，段距 12px，左右留白 38px。段落可跨页，标题避免孤立，图片适配纸面，代码按行续页，表格按行分割。
 
-输出位于被 Git 排除的 `public/journal/generated/` 与 `src/generated/journal.json`。清单包含文章、书页、稳定段落锚点、链接和图片区域。正文、资源、字体、排版脚本及锁文件共同参与内容哈希。失败时保留上一份完整清单，命令仍以错误退出；不得把旧清单当作成功的新构建。
+输出位于被 Git 排除的 `public/journal/generated/` 与 `src/generated/journal.json`。正文清单包含稳定 slug、日期与 HTML；实体书清单另包含书页、稳定段落锚点、链接和图片区域。正文哈希标识源文与编译器版本，书页哈希另覆盖资源、字体、排版脚本及锁文件。完整生成失败时保留上一份有效清单，命令仍以错误退出；普通构建在书页失配时安全回退文字阅读，不把旧书页当作新内容。
 
 字体位于 `public/journal/fonts/`，随附 OFL 许可证。文字阅读模式使用系统字体，不需要下载整份排版字体。
 
@@ -41,12 +41,15 @@
 ## 验证入口
 
 ```bash
-node --test tests/*.test.mjs
+npm run test:unit
+npm run build:release
+npm run test:e2e
 node tests/journal.browser.mjs
 node tests/journal-recovery.browser.mjs
 node tests/journal-opening.browser.mjs
 node tests/journal-transport.browser.mjs
 npm run build
+npm run check:boundaries
 npx tsc --noEmit
 ```
 
