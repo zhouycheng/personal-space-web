@@ -10,7 +10,9 @@
 
 - `SymbolDomeBackground.astro` 渲染背景容器和 Canvas。
 - `symbol-dome-background.css` 提供层级、铺满和动效偏好回退。
-- `symbol-dome-background.ts` 负责采样点、单面右转、海洋轻微闪动和鼠标轻微朝向。
+- `domeModel.ts` 生成固定种子的采样点并计算陆地与噪声。
+- `domeRenderer.ts` 绘制每帧的符号、颜色与轻微朝向。
+- `symbol-dome-background.ts` 管理 Canvas 尺寸、指针、可见性和动画帧生命周期。
 - `source-notes.md` 记录吸收的草图来源。
 
 ## 用法

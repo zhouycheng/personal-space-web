@@ -1,0 +1,217 @@
+.macos-desktop {
+  --macos-icon-art-size: 48px;
+  --macos-icon-label-size: 8.5px;
+  --macos-icon-label-max-height: 22px;
+  --macos-icon-cell-width: 72px;
+  --macos-icon-cell-height: 78px;
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    filter 0.36s ease;
+}
+
+.macos-desktop-icons,
+.macos-window-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.macos-desktop-icons {
+  z-index: 4;
+  inset: 0;
+  box-sizing: border-box;
+  padding-top: var(--macos-icon-safe-top, 0px);
+  padding-bottom: var(--macos-icon-safe-bottom, 0px);
+}
+
+.macos-selection-box {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0.5rem 1.3rem rgba(0, 26, 98, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateZ(0) scale(0.995);
+  transition:
+    opacity 0.1s ease,
+    transform 0.12s ease;
+}
+
+.macos-selection-box.is-active {
+  opacity: 1;
+  transform: translateZ(0) scale(1);
+}
+
+.macos-desktop-icon {
+  position: absolute;
+  width: var(--macos-icon-cell-width);
+  height: var(--macos-icon-cell-height);
+  display: grid;
+  grid-template-rows: var(--macos-icon-art-size) minmax(0, 1fr);
+  justify-items: center;
+  align-items: start;
+  gap: 5px;
+  border: 0;
+  border-radius: 14px;
+  padding: 6px 4px 4px;
+  background: transparent;
+  color: #ffffff;
+  cursor: default;
+  opacity: 0;
+  text-shadow: 0 1px 3px rgba(0, 29, 91, 0.38);
+  touch-action: none;
+  transition:
+    opacity 0.16s ease,
+    filter 0.18s ease,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.macos-desktop-icons.is-ready .macos-desktop-icon {
+  opacity: 1;
+}
+
+.macos-desktop-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0.5rem 1.2rem rgba(0, 37, 118, 0.08);
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity 0.18s ease,
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.macos-desktop-icon:hover::before,
+.macos-desktop-icon:focus-visible::before,
+.macos-desktop-icon.is-front::before,
+.macos-desktop-icon.is-dragging::before,
+.macos-desktop-icon.is-selected::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.macos-desktop-icon:hover,
+.macos-desktop-icon:focus-visible,
+.macos-desktop-icon.is-front,
+.macos-desktop-icon.is-selected {
+  filter: brightness(1.08);
+  outline: 0;
+}
+
+.macos-desktop-icon.is-bumping {
+  transition:
+    opacity 0.16s ease,
+    filter 0.18s ease,
+    transform 0.56s cubic-bezier(0.17, 1.42, 0.28, 1);
+}
+
+.macos-desktop-icon.is-dragging {
+  z-index: 90;
+  filter: brightness(1.12);
+  transform: scale(1.04);
+  transition: none;
+}
+
+.macos-desktop-icon.is-selected .macos-icon-art {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.18),
+    0 8px 14px rgba(0, 31, 105, 0.2);
+}
+
+.macos-desktop-icon.is-open .macos-icon-art {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    0 8px 14px rgba(0, 31, 105, 0.22);
+}
+
+.macos-desktop-icon.is-minimized {
+  opacity: 0.72;
+}
+
+.macos-icon-art,
+.macos-folder-icon-art {
+  position: relative;
+  width: var(--macos-icon-art-size);
+  height: var(--macos-icon-art-size);
+  display: block;
+  overflow: hidden;
+  border-radius: calc(var(--macos-icon-art-size) * 0.25);
+  flex: 0 0 auto;
+}
+
+.macos-desktop-icon--folder .macos-icon-art,
+.macos-folder-icon-art--folder {
+  background: linear-gradient(180deg, #ffe978 0%, #ffdd55 100%);
+  box-shadow:
+    inset 0 -1px 0 rgba(206, 158, 25, 0.12),
+    0 7px 11px rgba(0, 37, 118, 0.22);
+}
+
+.macos-desktop-icon--folder .macos-icon-art::before,
+.macos-folder-icon-art--folder::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--macos-icon-art-size) * 0.166);
+  top: 0;
+  width: calc(var(--macos-icon-art-size) * 0.395);
+  height: calc(var(--macos-icon-art-size) * 0.166);
+  border-radius: 0 0 2px 2px;
+  background: rgba(255, 248, 181, 0.92);
+}
+
+.macos-desktop-icon--html .macos-icon-art,
+.macos-desktop-icon--markdown .macos-icon-art,
+.macos-folder-icon-art--html,
+.macos-folder-icon-art--markdown {
+  border: 3px solid #b8d9ff;
+  border-radius: calc(var(--macos-icon-art-size) * 0.27);
+  background: #fbfbfb;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.75),
+    0 7px 11px rgba(0, 37, 118, 0.16);
+}
+
+.macos-file-badge {
+  position: absolute;
+  right: calc(var(--macos-icon-art-size) * 0.104);
+  bottom: calc(var(--macos-icon-art-size) * 0.104);
+  min-width: calc(var(--macos-icon-art-size) * 0.58);
+  border-radius: 4px;
+  padding: 3px 3px 2px;
+  background: #1b63be;
+  color: #ffffff;
+  font: 800 calc(var(--macos-icon-art-size) * 0.156) / 1 var(--mono);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.macos-desktop-label {
+  width: 100%;
+  max-height: var(--macos-icon-label-max-height);
+  color: #ffffff;
+  font: 500 var(--macos-icon-label-size) / 1.25 var(--mono);
+  letter-spacing: 0;
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}

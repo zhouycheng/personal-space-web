@@ -34,6 +34,37 @@ test("desktop icon opens a window and display settings remain usable", async ({ 
   await expect(page.getByText("图标大小")).toBeVisible();
 });
 
+test("desktop icons respect the host safe area and restore a dragged position", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Desktop drag is covered with a mouse here");
+  await page.goto("/os");
+  const icon = page.locator("[data-desktop-entry]").first();
+  await expect(icon).toBeVisible();
+  const id = await icon.getAttribute("data-desktop-entry");
+  const before = await icon.boundingBox();
+  const menu = await page.locator(".os-menu-bar").boundingBox();
+  expect(before).not.toBeNull();
+  expect(menu).not.toBeNull();
+  expect(before!.y).toBeGreaterThanOrEqual(menu!.y + menu!.height + 6);
+
+  const x = before!.x + before!.width / 2;
+  const y = before!.y + before!.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 120, y + 35, { steps: 12 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate((entryId) => {
+    const stored = JSON.parse(localStorage.getItem("justin-os-desktop-icon-layout") || "{}");
+    return stored[entryId!]?.left;
+  }, id)).toEqual(expect.any(Number));
+  const moved = await icon.boundingBox();
+  expect(Math.abs(moved!.x - before!.x)).toBeGreaterThan(25);
+  await page.reload();
+  await expect(icon).toBeVisible();
+  const restored = await icon.boundingBox();
+  expect(Math.abs(restored!.x - moved!.x)).toBeLessThan(2);
+  expect(Math.abs(restored!.y - moved!.y)).toBeLessThan(2);
+});
+
 test("canvas saves only moved positions and resets to the published layout", async ({ page, isMobile }) => {
   test.skip(isMobile, "Touch browsing is covered separately");
   await page.goto("/canvas");
