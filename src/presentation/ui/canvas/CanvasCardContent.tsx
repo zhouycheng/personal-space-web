@@ -1,35 +1,15 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useContext, useEffect, useState, type CSSProperties } from 'react';
 import type { MineCanvasNodeData } from '../../../contracts/canvas';
-import type { ActivitySnapshot } from '../../../contracts/activity';
 import { activityCopy, type ActivityState } from '../../../application/activity/canvasActivity';
+import { subscribeActivity } from '../../../infrastructure/client/activityClient';
+import { CanvasActivityContext } from './canvasActivityContext';
 
 function ActivityContent() {
   const [activity, setActivity] = useState<ActivityState>({ status: 'loading' });
+  const active = useContext(CanvasActivityContext);
   useEffect(() => {
-    const controller = new AbortController();
-    let pending = false;
-    const read = async () => {
-      if (document.hidden || pending) return;
-      pending = true;
-      try {
-        const response = await fetch('/api/activity/current', { signal: controller.signal });
-        if (!response.ok) throw new Error('Activity unavailable');
-        const snapshot: ActivitySnapshot | null = await response.json();
-        if (snapshot !== null && (typeof snapshot.appName !== 'string' || !Number.isFinite(snapshot.expiresAt))) throw new Error('Invalid activity');
-        if (!controller.signal.aborted) setActivity({ status: 'ready', snapshot });
-      } catch {
-        if (!controller.signal.aborted) setActivity({ status: 'error' });
-      } finally { pending = false; }
-    };
-    read(); const timer = setInterval(read, 12000);
-    document.addEventListener('visibilitychange', read);
-    return () => { controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', read); };
-  }, []);
-  useEffect(() => {
-    if (activity.status !== 'ready' || !activity.snapshot) return;
-    const timer = setTimeout(() => setActivity({ status: 'ready', snapshot: null }), Math.max(0, activity.snapshot.expiresAt - Date.now()));
-    return () => clearTimeout(timer);
-  }, [activity]);
+    if (active) return subscribeActivity(setActivity);
+  }, [active]);
   const copy = activityCopy(activity);
   return <div className="canvas-activity" role="status"><p>{copy.title}</p>{copy.detail && <p>{copy.detail}</p>}</div>;
 }

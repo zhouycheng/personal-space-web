@@ -9,12 +9,20 @@ export function createDesktopWindowController({
   applyViewSettings, flushViewSettingsSave, clampNumber,
 }) {
   const openWindows = new Map();
+  let active = true;
   let topWindowZ = 120;
   const SYSTEM_DISPLAY_CONTROLS_ID = displayControlsId;
   const WINDOW_SIZE_STORAGE_KEY = windowSizeStorageKey;
   const ICON_SIZE_RANGE = iconSizeRange;
   const LABEL_SIZE_RANGE = labelSizeRange;
   const DEFAULT_VIEW_SETTINGS = defaultViewSettings;
+  function syncContentActivity() {
+    const front = [...openWindows.values()].filter(state => !state.minimized).sort((a, b) => b.z - a.z)[0];
+    for (const state of openWindows.values()) {
+      if (active && state === front) state.content?.resume();
+      else state.content?.pause();
+    }
+  }
 
   function syncIconWindowState() {
     iconStateById.forEach((state, id) => {
@@ -36,6 +44,7 @@ export function createDesktopWindowController({
       candidate.el.classList.toggle("is-active", candidate.id === id);
     });
     syncIconWindowState();
+    syncContentActivity();
   }
 
   const windowFrames = createWindowFrames({ getWindowViewport, clamp, openWindows, storageKey: WINDOW_SIZE_STORAGE_KEY });
@@ -130,8 +139,8 @@ export function createDesktopWindowController({
     const state = createWindow(entry);
     openWindows.set(entry.id, state);
     windowLayer.append(state.el);
+    state.content = renderWindowContent(state);
     focusWindow(entry.id);
-    void renderWindowContent(state);
   }
 
   function getWindowKindLabel(entry) {
@@ -147,9 +156,12 @@ export function createDesktopWindowController({
   function closeWindow(id) {
     const state = openWindows.get(id);
     if (!state) return;
+    windowGestures.cancel();
+    state.content?.dispose();
     state.el.remove();
     openWindows.delete(id);
     syncIconWindowState();
+    syncContentActivity();
   }
 
   function minimizeWindow(id) {
@@ -158,6 +170,7 @@ export function createDesktopWindowController({
     state.minimized = true;
     state.el.hidden = true;
     syncIconWindowState();
+    syncContentActivity();
   }
 
   function toggleWindowFullscreen(id) {
@@ -200,7 +213,10 @@ export function createDesktopWindowController({
   }
 
   function clearWindowState() {
-    openWindows.forEach((state) => state.el.remove());
+    openWindows.forEach((state) => {
+      try { state.content?.dispose(); } catch (error) { console.error('Window cleanup failed', error); }
+      state.el.remove();
+    });
     openWindows.clear();
     windowFrames.resetCascade();
     windowGestures.cancel();
@@ -210,5 +226,10 @@ export function createDesktopWindowController({
   const windowGestures = createWindowGestureController({ focusWindow, openWindows, applyWindowFrame, clampWindowFrame, saveWindowSize });
   const renderWindowContent = createDesktopContentRenderer({ makeFileIcon, openWindow, getViewSettings, ICON_SIZE_RANGE, LABEL_SIZE_RANGE, DEFAULT_VIEW_SETTINGS, applyViewSettings, flushViewSettingsSave, clampNumber });
 
-  return { openWindow, openDisplayControlsWindow, clearWindowState, layoutWindowsForViewport, syncIconWindowState };
+  function setActive(next) {
+    active = next;
+    if (!active) windowGestures.cancel();
+    syncContentActivity();
+  }
+  return { openWindow, openDisplayControlsWindow, clearWindowState, layoutWindowsForViewport, syncIconWindowState, setActive, dispose: clearWindowState };
 }

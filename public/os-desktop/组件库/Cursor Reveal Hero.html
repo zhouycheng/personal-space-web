@@ -118,21 +118,33 @@
       const root = document.documentElement;
       let cursorX = window.innerWidth / 2;
       let cursorY = window.innerHeight / 2;
-      let pendingFrame = false;
+      let pendingFrame = 0;
+      let hostActive = window.parent === window;
+      const active = () => hostActive && !document.hidden;
 
       function commitCursorPosition() {
-        pendingFrame = false;
+        pendingFrame = 0;
+        if (!active()) return;
         root.style.setProperty("--cursor-x", `${cursorX}px`);
         root.style.setProperty("--cursor-y", `${cursorY}px`);
       }
 
       stage.addEventListener("pointermove", (event) => {
+        if (!active()) return;
         cursorX = event.clientX;
         cursorY = event.clientY;
         if (pendingFrame) return;
-        pendingFrame = true;
-        requestAnimationFrame(commitCursorPosition);
+        pendingFrame = requestAnimationFrame(commitCursorPosition);
       }, { passive: true });
+      const pause = () => { cancelAnimationFrame(pendingFrame); pendingFrame = 0; };
+      window.addEventListener("message", event => {
+        if (event.source !== parent || event.origin !== location.origin ||
+            event.data?.type !== "justin-kit:activity" || typeof event.data.active !== "boolean") return;
+        hostActive = event.data.active;
+        if (!active()) pause();
+      });
+      document.addEventListener("visibilitychange", () => { if (!active()) pause(); });
+      window.addEventListener("pagehide", pause);
     </script>
   </body>
 </html>

@@ -12,6 +12,9 @@ export function createDesktopIconInteraction({
   let selectionPendingPoint = null;
   let iconDragFrame = 0;
   let iconDragCommit = null;
+  const events = new AbortController();
+  let active = true;
+  let cancelGesture = () => {};
 
   function syncIconSelectionState() {
     iconStateById.forEach((state, id) => {
@@ -25,16 +28,14 @@ export function createDesktopIconInteraction({
     syncIconSelectionState();
   }
 
-  function getIconLayerPoint(event) {
-    const rect = iconLayer.getBoundingClientRect();
+  function getIconLayerPoint(event, rect) {
     return {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
     };
   }
 
-  function clampPointToDesktop(point) {
-    const bounds = getDesktopBounds();
+  function clampPointToDesktop(point, bounds) {
     return {
       x: clamp(point.x, bounds.left, bounds.right),
       y: clamp(point.y, bounds.top, bounds.bottom),
@@ -114,10 +115,7 @@ export function createDesktopIconInteraction({
     return clamp(value, min, max);
   }
 
-  function getClampedGroupDelta(states, startPositions, dx, dy) {
-    const bounds = getDesktopBounds();
-    const groupBounds = getStatesBounds(states, startPositions);
-
+  function getClampedGroupDelta(bounds, groupBounds, dx, dy) {
     return {
       dx: clampDelta(dx, bounds.left - groupBounds.left, bounds.right - groupBounds.right),
       dy: clampDelta(dy, bounds.top - groupBounds.top, bounds.bottom - groupBounds.bottom),
@@ -126,14 +124,17 @@ export function createDesktopIconInteraction({
 
   function bindDesktopSelection() {
     iconLayer.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
+      if (!active || event.button !== 0) return;
       const target = event.target;
       if (target instanceof Element && target.closest("[data-desktop-entry]")) return;
+      cancelGesture();
 
       event.preventDefault();
       clearIconSelection();
 
-      const startPoint = clampPointToDesktop(getIconLayerPoint(event));
+      const layerRect = iconLayer.getBoundingClientRect();
+      const desktopBounds = getDesktopBounds();
+      const startPoint = clampPointToDesktop(getIconLayerPoint(event, layerRect), desktopBounds);
       let currentPoint = startPoint;
       let didSelect = false;
       let holdReady = false;
@@ -168,7 +169,7 @@ export function createDesktopIconInteraction({
       };
 
       const scheduleSelectionMove = (moveEvent) => {
-        selectionPendingPoint = clampPointToDesktop(getIconLayerPoint(moveEvent));
+        selectionPendingPoint = clampPointToDesktop(getIconLayerPoint(moveEvent, layerRect), desktopBounds);
         if (selectionFrame) return;
         selectionFrame = window.requestAnimationFrame(commitSelectionMove);
       };
@@ -182,31 +183,46 @@ export function createDesktopIconInteraction({
       };
 
       const handleMove = (moveEvent) => {
+        if (moveEvent.pointerId !== event.pointerId) return;
         scheduleSelectionMove(moveEvent);
       };
 
       const handleUp = (upEvent) => {
+        if (upEvent.pointerId !== event.pointerId) return;
+        if (upEvent.type === "pointerup") scheduleSelectionMove(upEvent);
         flushSelectionMove();
+        cancelGesture();
+        if (!didSelect) clearIconSelection();
+      };
+      cancelGesture = () => {
+        cancelGesture = () => {};
         window.clearTimeout(holdTimer);
-        iconLayer.releasePointerCapture?.(upEvent.pointerId);
+        cancelAnimationFrame(selectionFrame);
+        selectionFrame = 0;
+        selectionPendingPoint = null;
         iconLayer.removeEventListener("pointermove", handleMove);
         iconLayer.removeEventListener("pointerup", handleUp);
         iconLayer.removeEventListener("pointercancel", handleUp);
+        iconLayer.removeEventListener("lostpointercapture", handleUp);
+        if (iconLayer.hasPointerCapture?.(event.pointerId)) iconLayer.releasePointerCapture(event.pointerId);
         document.body.classList.remove("is-macos-selecting");
         hideSelectionBox();
-
-        if (!didSelect) clearIconSelection();
       };
 
       iconLayer.addEventListener("pointermove", handleMove);
       iconLayer.addEventListener("pointerup", handleUp);
       iconLayer.addEventListener("pointercancel", handleUp);
-    });
+      iconLayer.addEventListener("lostpointercapture", handleUp);
+    }, { signal: events.signal });
   }
 
   function bindDesktopIcon(iconElement, id) {
+    iconElement.addEventListener('click', event => {
+      if (active && event.detail === 0) openWindow(id);
+    }, { signal: events.signal });
     iconElement.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
+      if (!active || event.button !== 0) return;
+      cancelGesture();
       const state = iconStateById.get(id);
       if (!state) return;
 
@@ -222,6 +238,8 @@ export function createDesktopIconInteraction({
           top: dragState.top,
         },
       ]));
+      const desktopBounds = getDesktopBounds();
+      const groupBounds = getStatesBounds(dragStates, startPositions);
       let didDrag = false;
 
       iconElement.setPointerCapture?.(event.pointerId);
@@ -234,14 +252,14 @@ export function createDesktopIconInteraction({
         document.body.classList.add("is-macos-icon-dragging");
 
         if (dragStates.length > 1) {
-          const delta = getClampedGroupDelta(dragStates, startPositions, dx, dy);
+          const delta = getClampedGroupDelta(desktopBounds, groupBounds, dx, dy);
           dragStates.forEach((dragState) => {
             const startPosition = startPositions.get(dragState.id);
             if (!startPosition) return;
             applyIconPosition(dragState, clampIconPosition({
               left: startPosition.left + delta.dx,
               top: startPosition.top + delta.dy,
-            }));
+            }, desktopBounds));
           });
           return;
         }
@@ -251,7 +269,7 @@ export function createDesktopIconInteraction({
         applyIconPosition(state, clampIconPosition({
           left: startPosition.left + dx,
           top: startPosition.top + dy,
-        }));
+        }, desktopBounds));
       };
 
       const commitIconDrag = () => {
@@ -262,6 +280,9 @@ export function createDesktopIconInteraction({
       };
 
       const scheduleIconDrag = (moveEvent) => {
+        // Crossing the threshold is gesture history, even when a later event in
+        // the same animation frame returns to the starting point.
+        didDrag ||= Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) >= DRAG_THRESHOLD;
         iconDragCommit = {
           dx: moveEvent.clientX - startX,
           dy: moveEvent.clientY - startY,
@@ -279,17 +300,16 @@ export function createDesktopIconInteraction({
       };
 
       const handleMove = (moveEvent) => {
+        if (moveEvent.pointerId !== event.pointerId) return;
         scheduleIconDrag(moveEvent);
       };
 
       const handleUp = (upEvent) => {
+        if (upEvent.pointerId !== event.pointerId) return;
+        if (upEvent.type !== "pointerup") { cancelGesture(); return; }
+        scheduleIconDrag(upEvent);
         flushIconDrag();
-        iconElement.releasePointerCapture?.(upEvent.pointerId);
-        iconElement.removeEventListener("pointermove", handleMove);
-        iconElement.removeEventListener("pointerup", handleUp);
-        iconElement.removeEventListener("pointercancel", handleUp);
-        document.body.classList.remove("is-macos-icon-dragging");
-        dragStates.forEach((dragState) => dragState.el.classList.remove("is-dragging"));
+        cancelGesture();
 
         if (!didDrag) {
           openWindow(id);
@@ -299,12 +319,33 @@ export function createDesktopIconInteraction({
         resolveIconCollisions(id, { animate: true });
         saveIconPositions();
       };
+      cancelGesture = () => {
+        cancelGesture = () => {};
+        cancelAnimationFrame(iconDragFrame);
+        iconDragFrame = 0;
+        iconDragCommit = null;
+        iconElement.removeEventListener("pointermove", handleMove);
+        iconElement.removeEventListener("pointerup", handleUp);
+        iconElement.removeEventListener("pointercancel", handleUp);
+        iconElement.removeEventListener("lostpointercapture", handleUp);
+        if (iconElement.hasPointerCapture?.(event.pointerId)) iconElement.releasePointerCapture(event.pointerId);
+        document.body.classList.remove("is-macos-icon-dragging");
+        dragStates.forEach((dragState) => dragState.el.classList.remove("is-dragging"));
+      };
 
       iconElement.addEventListener("pointermove", handleMove);
       iconElement.addEventListener("pointerup", handleUp);
       iconElement.addEventListener("pointercancel", handleUp);
-    });
+      iconElement.addEventListener("lostpointercapture", handleUp);
+    }, { signal: events.signal });
   }
 
-  return { bindDesktopIcon, bindDesktopSelection };
+  const cancel = () => cancelGesture();
+  window.addEventListener("blur", cancel, { signal: events.signal });
+  window.addEventListener("resize", cancel, { signal: events.signal });
+  return {
+    bindDesktopIcon, bindDesktopSelection,
+    setActive(next) { active = next; if (!active) cancel(); },
+    dispose() { cancel(); events.abort(); },
+  };
 }
