@@ -107,7 +107,11 @@ test('local time lighting interpolates dawn and dusk and wraps midnight continuo
   const at = (hour, minute = 0, second = 0) => studioLighting(new Date(2026, 8, 11, hour, minute, second));
   assert.equal(at(0).daylight, 0);
   assert.equal(at(12).daylight, 1);
-  assert.ok(at(6).daylight > at(5).daylight && at(6).daylight < at(7).daylight);
+  assert.equal(at(5, 30).daylight, 0);
+  assert.equal(at(5, 30).background, '#05070b');
+  assert.equal(at(20).background, '#05070b');
+  assert.equal(at(12).background, '#e7e3dc');
+  assert.ok(at(6, 30).daylight > at(6).daylight && at(6, 30).daylight < at(7).daylight);
   assert.ok(at(19).daylight < at(18).daylight && at(19).daylight > at(21).daylight);
   assert.deepEqual(at(23, 59, 59), at(0));
   assert.notEqual(at(18).background, at(12).background);

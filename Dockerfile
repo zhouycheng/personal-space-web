@@ -23,6 +23,7 @@ COPY --from=builder /app/dist ./dist
 
 ENV HOST=0.0.0.0
 ENV PORT=4321
+ENV NODE_ENV=production
 
 EXPOSE 4321
 

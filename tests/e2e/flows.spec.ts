@@ -84,7 +84,7 @@ test("canvas saves only moved positions and resets to the published layout", asy
   expect(await page.evaluate(() => localStorage.getItem("justin-canvas-positions-v1"))).toBeNull();
 });
 
-test("WebGL failure keeps keyboard content entry and journal HTML readable", async ({ page }) => {
+test("WebGL failure exposes a journal error with an independent exit", async ({ page }) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
@@ -100,8 +100,11 @@ test("WebGL failure keeps keyboard content entry and journal HTML readable", asy
   await page.locator('[data-studio-action="diary"]').focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/journal$/);
-  await expect(page.locator("[data-journal-text]")).toBeVisible();
-  await expect(page.locator("[data-journal-prose]").first()).toContainText("生活节奏");
+  await expect(page.locator("[data-journal-status]")).toBeVisible();
+  await expect(page.locator("[data-journal-status]")).toContainText(/三维|无法|不可用/);
+  await expect(page.locator("[data-journal-text], [data-journal-prose]")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/home$/);
 });
 
 test("published article, RSS, and health respond from the built server", async ({ request }) => {

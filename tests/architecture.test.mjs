@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { selectStudioFiles } from "../src/data/selectors/studioFiles.ts";
 import { selectPortfolioProjects } from "../src/data/selectors/portfolio.ts";
 import { createStudioClientStore } from "../src/data/stores/studioClient.ts";
-import { resolveStudioIntent } from "../src/application/studio/resolveIntent.ts";
+import { resolveStudioIntent, studioTargetsForIntent } from "../src/application/studio/resolveIntent.ts";
 
 test("one content repository feeds the room files and portfolio without presentation imports", () => {
   const repository = {
@@ -33,4 +33,18 @@ test("scene and HTML controls produce the same user intent command", () => {
   assert.deepEqual(resolveStudioIntent("computer"), { kind: "navigate", page: "os" });
   assert.deepEqual(resolveStudioIntent("diary"), { kind: "navigate", page: "journal" });
   assert.deepEqual(resolveStudioIntent("lamp"), { kind: "scene", action: "lamp" });
+});
+
+test("application target rules preserve independent drawers and make journal preparation idempotent", () => {
+  const initial = createStudioClientStore("home", "room").targets;
+  const lamp = studioTargetsForIntent(initial, "lamp");
+  assert.equal(lamp.lampOn, false);
+  assert.equal(initial.lampOn, true);
+  assert.equal(studioTargetsForIntent(lamp, "clock").showDate, true);
+  const middle = studioTargetsForIntent(lamp, "drawer-middle");
+  assert.deepEqual(middle.drawers, [false, true, false]);
+  const journal = studioTargetsForIntent(middle, "diary");
+  assert.deepEqual(journal.drawers, [true, true, false]);
+  assert.equal(studioTargetsForIntent(journal, "diary"), journal);
+  assert.equal(studioTargetsForIntent(journal, "zoom-in"), journal);
 });
