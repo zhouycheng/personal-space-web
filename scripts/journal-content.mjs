@@ -1,20 +1,21 @@
-import { createHash } from "node:crypto";
-import { readFile, readdir, mkdir, rename, writeFile, access } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { marked } from "marked";
 import sanitize from "sanitize-html";
-
-const root = fileURLToPath(new URL("../", import.meta.url));
+import { contentFingerprint } from "./journal/fingerprint.mjs";
+import { isMain, journalPaths, pageSize } from "./journal/paths.mjs";
+import { runtimeManifest, verifyCurrentPackage } from "./journal/package.mjs";
+import { writeAtomic } from "./journal/atomic.mjs";
 
 export async function journalSources(sourceDir) {
   const files = [];
   async function scan(directory) {
-    for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) await scan(file);
-      else if (file.endsWith(".md")) files.push(file);
+      else if (entry.isFile() && file.endsWith(".md")) files.push(file);
+      else if (entry.isSymbolicLink()) throw new Error(`Journal source symlinks are unsupported: ${file}`);
     }
   }
   await scan(sourceDir);
@@ -22,19 +23,18 @@ export async function journalSources(sourceDir) {
 }
 
 export async function compileJournalContent(options = {}) {
-  const sourceDir = options.sourceDir ?? path.join(root, "src/content/journal");
+  const { sourceDir } = journalPaths(options);
   const sources = await journalSources(sourceDir);
-  const digest = createHash("sha256");
-  digest.update(await readFile(fileURLToPath(import.meta.url)));
-  digest.update(await readFile(path.join(root, "package-lock.json")));
-  const articles = [];
-  for (const file of sources) {
-    const raw = await readFile(file, "utf8");
-    digest.update(path.relative(sourceDir, file)).update(raw);
+  const { contentHash, records } = await contentFingerprint(sourceDir, sources);
+  const articles = [], slugs = new Set();
+  for (const [file, raw] of records) {
     const { data, content } = matter(raw);
+    if (data.draft !== undefined && typeof data.draft !== "boolean") throw new Error(`Invalid journal draft flag: ${file}`);
     if (data.draft === true) continue;
     const slug = path.basename(file, ".md");
-    if (!data.title || !data.pubDate || Number.isNaN(new Date(data.pubDate).valueOf())) throw new Error(`Invalid journal metadata: ${file}`);
+    if (!slug || slugs.has(slug)) throw new Error(`Duplicate or invalid journal slug: ${slug}`);
+    slugs.add(slug);
+    if (typeof data.title !== "string" || !data.title.trim() || (data.description !== undefined && typeof data.description !== "string") || !data.pubDate || Number.isNaN(new Date(data.pubDate).valueOf())) throw new Error(`Invalid journal metadata: ${file}`);
     const html = sanitize(marked.parse(content), {
       allowedTags: [...sanitize.defaults.allowedTags, "img", "figure", "figcaption"],
       allowedAttributes: { a: ["href", "title"], img: ["src", "alt", "title"], "*": ["id"] },
@@ -43,37 +43,29 @@ export async function compileJournalContent(options = {}) {
     articles.push({ slug, title: String(data.title), description: String(data.description ?? ""), date: new Date(data.pubDate).toISOString().slice(0, 10), html, start: 0, count: 0 });
   }
   articles.sort((a, b) => a.date.localeCompare(b.date) || a.slug.localeCompare(b.slug));
-  return { articles, sources, contentHash: digest.digest("hex").slice(0, 20) };
+  return { articles, sources, contentHash };
 }
 
-async function writeAtomic(file, data) {
-  await mkdir(path.dirname(file), { recursive: true });
-  const temporary = `${file}.${process.pid}.tmp`;
-  await writeFile(temporary, data);
-  await rename(temporary, file);
-}
-
-/** Ordinary builds publish readable HTML and reuse only a complete matching book. */
+/** Development keeps non-journal routes available; production never publishes stale pages. */
 export async function prepareJournalContent(options = {}) {
-  const outputDir = options.outputDir ?? path.join(root, "public/journal/generated");
-  const manifestPath = options.manifestPath ?? path.join(root, "src/generated/journal.json");
-  const compiled = await compileJournalContent(options);
+  const paths = journalPaths(options);
+  let compiled, manifest;
   try {
-    const cached = JSON.parse(await readFile(manifestPath, "utf8"));
-    if (cached.contentHash === compiled.contentHash && cached.pages.length > 0) {
-      for (const page of cached.pages) {
-        await access(path.join(outputDir, path.basename(page.image)));
-        await access(path.join(outputDir, path.basename(page.thumbnail)));
-      }
-      return cached;
-    }
-  } catch { /* Missing or incomplete book falls back to text. */ }
-  const manifest = { version: 1, hash: compiled.contentHash, contentHash: compiled.contentHash, width: 420, height: 594, articles: compiled.articles, pages: [] };
-  const json = JSON.stringify(manifest);
-  await writeAtomic(manifestPath, json);
-  await writeAtomic(path.join(outputDir, "manifest.json"), json);
-  console.log(`Journal: ${compiled.articles.length} articles, text mode`);
+    compiled = await compileJournalContent(paths);
+    manifest = runtimeManifest(await verifyCurrentPackage(paths, compiled));
+  } catch (error) {
+    if (options.strict) throw error;
+    const availability = error.code === "JOURNAL_OUTDATED" ? "outdated" : error.code === "ENOENT" && compiled ? "missing" : "error";
+    manifest = { version: 2, hash: "", renderHash: "", contentHash: compiled?.contentHash ?? "", width: pageSize.width, height: pageSize.height,
+      availability, error: availability === "outdated" ? "日记内容已更新，书页需要重新生成。" : availability === "missing" ? "日记书页尚未生成。" : "日记书页暂时不可用，请重试或返回工作室。",
+      articles: (compiled?.articles ?? []).map(({ html: _html, ...article }) => article), pages: [] };
+    console.warn(`Journal ${availability}: ${error.message}`);
+  }
+  if (["ready", "empty"].includes(manifest.availability)) {
+    await writeAtomic(path.join(paths.outputDir, "manifest.json"), JSON.stringify(manifest));
+  }
+  await writeAtomic(paths.manifestPath, JSON.stringify(manifest));
   return manifest;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await prepareJournalContent();
+if (isMain(import.meta.url)) await prepareJournalContent({ strict: process.argv.includes("--strict") });

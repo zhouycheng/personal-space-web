@@ -2,13 +2,13 @@ import { prepareJournalContent } from "./journal-content.mjs";
 
 export default function journalIntegration() {
   return { name: "justin-journal", hooks: {
-    "astro:build:start": async () => { await prepareJournalContent(); },
+    "astro:build:start": async () => { await prepareJournalContent({ strict: true }); },
     "astro:server:setup": async ({ server }) => {
       await prepareJournalContent();
       let timer, running = Promise.resolve();
-      server.watcher.add(["src/content/journal", "public/journal/assets", "public/journal/fonts", "scripts/journal-page.css"]);
+      server.watcher.add(["src/content/journal", "public/journal/assets", "public/journal/fonts", "public/journal/generated/current.json", "scripts/journal", "scripts/journal-content.mjs", "scripts/journal-build.mjs", "scripts/journal-page.css"]);
       const update = file => {
-        if (!/src\/content\/journal\/|public\/journal\/(assets|fonts)\/|scripts\/journal-page\.css$/.test(file)) return;
+        if (!/src\/content\/journal\/|public\/journal\/(assets|fonts)\/|public\/journal\/generated\/current\.json$|scripts\/journal(?:\/|-)/.test(file)) return;
         clearTimeout(timer);
         timer = setTimeout(() => { running = running.catch(() => {}).then(async () => {
           await prepareJournalContent();server.ws.send({ type: "full-reload" });

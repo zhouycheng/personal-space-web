@@ -2,6 +2,8 @@ import { getMacOsDesktopEntries } from "../../justin-kit/components/macos-deskto
 import { getPublishedCanvas } from "../../data/repositories/canvas";
 import { canvasContentIsValid } from "../../data/selectors/canvas";
 import { createHealthReport } from "../../infrastructure/server/health";
+import { inspectJournalPackage } from "../../infrastructure/server/journalPackageHealth";
+import { journal } from "../../infrastructure/server/journal";
 
 export const prerender = false;
 
@@ -9,6 +11,8 @@ export async function GET() {
   const report = await createHealthReport({
     readDesktopEntries: () => getMacOsDesktopEntries({ strict: true }),
     checkCanvas: () => ({ ok: canvasContentIsValid(getPublishedCanvas()) }),
+    checkJournal: () => inspectJournalPackage({ production: import.meta.env.PROD, expected: journal }),
+    production: import.meta.env.PROD,
   });
 
   return new Response(JSON.stringify(report), {
