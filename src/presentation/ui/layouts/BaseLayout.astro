@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { siteIdentity } from '../../../data/repositories/siteIdentity';
 
 type Props = {
   title?: string;
@@ -7,8 +8,8 @@ type Props = {
 };
 
 const {
-  title = "Justin OS",
-  description = "Justin 的个人 OS 与组件库 Justin Kit。",
+  title = siteIdentity.brand,
+  description = siteIdentity.description,
 } = Astro.props;
 ---
 

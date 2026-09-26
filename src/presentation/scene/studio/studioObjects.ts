@@ -5,11 +5,12 @@ import { createStudioFurniture } from "./studioFurniture";
 import { createStudioDevices } from "./studioDevices";
 import { createStudioAtmosphere } from "./studioAtmosphere";
 
-export function createStudioObjects({ renderer, scene, room, studioFiles, materials, geometries, textures, cleanup }: {
+export function createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup }: {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   room: THREE.Group;
   studioFiles: readonly StudioSceneFile[];
+  computerLabel: string;
   materials: Set<THREE.Material>;
   geometries: Set<THREE.BufferGeometry>;
   textures: Set<THREE.Texture>;
@@ -19,7 +20,7 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, materi
   const { drawerActions, drawers, diary, chair, casters, chairWheels } =
     createStudioFurniture(scene, room, primitives, materials, textures, renderer);
   const { computerSurface, canvasSurface } =
-    createStudioDevices(primitives, studioFiles, renderer, materials, geometries, textures);
+    createStudioDevices(primitives, studioFiles, renderer, materials, geometries, textures, computerLabel);
   const { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient } =
     createStudioAtmosphere(scene, room, primitives, materials, textures, cleanup);
 

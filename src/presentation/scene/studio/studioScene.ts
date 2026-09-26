@@ -6,15 +6,19 @@ import type { studioLighting } from "../../../config/studioTime";
 import { smooth, surfaceDistance, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX } from "../../../animation/studio/studioMotion";
 import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
-import { StudioFailure, studioFailure } from "../../../application/studio/studioFailure";
+import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
 import { createJournalBook } from "../journal/journalBook";
-import type { JournalManifest, JournalRegion, BookReport } from "../../../contracts/journal";
+import { createActiveMotion } from "../../../animation/activeMotion";
+import type { OperationResult } from "../../../contracts/operation";
+import type { JournalManifest, JournalRegion, BookReport, JournalIntent } from "../../../contracts/journal";
 import { createStudioGestureController } from "../../interaction/studio/sceneGestures";
+import { createStudioBounds } from "../../interaction/studio/sceneBounds";
+import { disposeSafely } from "../../../infrastructure/client/dispose";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
-export function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = []) {
+export function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "") {
   const cleanup: (()=>void)[] = [];
   const canvas = document.createElement("canvas");
   let creationError="";
@@ -26,7 +30,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext();
     throw new StudioFailure("context", creationError || error);
   }
-  cleanup.push(()=>{renderer.dispose();if(!renderer.getContext().isContextLost())renderer.forceContextLoss();canvas.remove();});
+  cleanup.push(()=>disposeSafely([()=>renderer.dispose(),()=>{if(!renderer.getContext().isContextLost())renderer.forceContextLoss();},()=>canvas.remove()]));
   try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, lightweight?1:1.5));
   renderer.shadowMap.enabled = !lightweight;
@@ -44,11 +48,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
   const focus = new THREE.Vector3(-0.3, 1.05, -0.65);
   const events = new AbortController();
+  const bounds = createStudioBounds(mount, canvas, events.signal);
   cleanup.push(()=>events.abort());
   const materials = new Set<THREE.Material>();
   const geometries = new Set<THREE.BufferGeometry>();
   const textures = new Set<THREE.Texture>();
-  const releaseResources=()=>{geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());};
+  const releaseResources=()=>disposeSafely([...geometries,...materials,...textures].map(resource=>()=>resource.dispose()));
   cleanup.push(releaseResources);
   const tooltip = mount.querySelector<HTMLElement>("[data-studio-tooltip]")!;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -56,6 +61,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let destroyed = false;
   let failed = false;
   let frame = 0;
+  let processingInput = false, drawRequested = true;
   cleanup.push(()=>cancelAnimationFrame(frame));
   let ready=false;
   let shaderError:StudioFailure|undefined;
@@ -68,7 +74,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let targetAngle = angle, targetElevation = elevation;
   let cameraFrameTime: number | undefined;
   let zoomed = false;
-  let motion: { start: number; duration: number; sample: (progress:number) => void; enter: boolean; resolve: () => void } | undefined;
+  const motion = createActiveMotion();
   let chairElapsed: number | undefined;
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
@@ -77,16 +83,21 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chair, casters, chairWheels, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient,
-  } = createStudioObjects({ renderer, scene, room, studioFiles, materials, geometries, textures, cleanup });
+  } = createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup });
   let steamElapsed=0,steamFrameTime:number|undefined;
   let displayedTime="";
   let clockDate=new Date(),showDate=false;
   let lampOn=true,lampPower=2;
+  let lastLighting: { daylight: number; sun: number } | undefined;
 
   let journalBook:ReturnType<typeof createJournalBook>|undefined;
   let journalInteractionEnabled = true;
   let journalAmount=0,journalActive=false;
   const diaryRotation=new THREE.Quaternion(),diaryOrigin=new THREE.Vector3();
+  function showDiary(value:boolean) {
+    if(diary.visible===value)return;
+    diary.visible=value;renderer.shadowMap.needsUpdate=true;
+  }
   function poseJournal() {
     if(!journalBook||!journalActive)return;
     diary.getWorldPosition(diaryOrigin);diary.getWorldQuaternion(diaryRotation);
@@ -96,12 +107,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   cleanup.push(()=>journalBook?.dispose());
 
   function roomPosition() {
-    const aspect=Math.max(0.3,mount.clientWidth/Math.max(1,mount.clientHeight));
+    const rect=bounds.mount(),aspect=Math.max(0.3,rect.width/Math.max(1,rect.height));
     const distance=Math.max(8.5,8.5/aspect)/roomZoom;
     return new THREE.Vector3(Math.sin(angle)*distance,Math.sin(elevation)*distance,Math.cos(angle)*distance).add(roomLook());
   }
   function roomLook() {return focus.clone().lerp(new THREE.Vector3(-0.1,1.43,-1.25),smooth((roomZoom-1)/(ROOM_ZOOM_MAX-1)));}
-  function roomInteractive() {return active&&!failed&&!destroyed&&!motion&&!zoomed&&!mount.closest<HTMLElement>("[data-studio]")?.inert;}
+  function roomInteractive() {return active&&!failed&&!destroyed&&!motion.running&&!zoomed&&!mount.closest<HTMLElement>("[data-studio]")?.inert;}
   function setRoomCamera() {camera.position.copy(roomPosition());currentLook.copy(roomLook());camera.lookAt(currentLook);mount.dataset.cameraZoom=roomZoom.toFixed(4);mount.dataset.cameraAngle=angle.toFixed(4);mount.dataset.cameraElevation=elevation.toFixed(4);}
   function cameraMoving() {return angle!==targetAngle||elevation!==targetElevation||roomZoom!==targetZoom;}
   function stopCamera() {cameraFrameTime=undefined;targetZoom=roomZoom;targetAngle=angle;targetElevation=elevation;onViewChange({zoom:roomZoom,angle,elevation});}
@@ -117,11 +128,16 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function draw(now:number) {
     frame=0;
     if(!active||destroyed||failed) return;
-    if(cameraMoving()&&!motion&&!zoomed) {
+    processingInput=true;
+    try { gestures.flushMove(); } finally { processingInput=false; }
+    const cameraChanged=cameraMoving()&&!motion.running&&!zoomed;
+    const objectsChanged=chairElapsed!==undefined||drawers.some(drawer=>drawer.moving);
+    if(cameraChanged) {
       const elapsed=cameraFrameTime===undefined?0:now-cameraFrameTime;cameraFrameTime=now;
       roomZoom=roomCameraStep(roomZoom,targetZoom,elapsed);angle=roomCameraStep(angle,targetAngle,elapsed);elevation=roomCameraStep(elevation,targetElevation,elapsed);setRoomCamera();
     } else cameraFrameTime=undefined;
-    const steamActive=roomInteractive()&&!reducedMotion.matches;
+    const steamOpacity=THREE.MathUtils.smoothstep(lastLighting?.daylight??0,0.2,0.65);
+    const steamActive=roomInteractive()&&!reducedMotion.matches&&steamOpacity>0;
     steam.visible=steamActive;mount.dataset.steamActive=String(steamActive);
     if(steamActive) {
       steamElapsed+=steamFrameTime===undefined?0:Math.min(50,now-steamFrameTime);steamFrameTime=now;
@@ -129,12 +145,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         const puff=object as THREE.Sprite,t=(steamElapsed/3200+index/steam.children.length)%1;
         puff.position.set(Math.sin(t*7+index)*0.035*t,0.19+t*0.34,Math.cos(t*5+index)*0.025*t);
         puff.scale.set(0.025+t*0.085,0.065+t*0.18,1);
-        puff.material.opacity=Math.sin(t*Math.PI)*0.42;
+        puff.material.opacity=Math.sin(t*Math.PI)*0.42*steamOpacity;
         puff.material.rotation=Math.sin(t*4+index)*0.3;
       });
     } else steamFrameTime=undefined;
     // Steam never changes shadows; only moving solid objects need a fresh map.
-    if(chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))renderer.shadowMap.needsUpdate=true;
+    if(objectsChanged)renderer.shadowMap.needsUpdate=true;
     for(const drawer of drawers) {
       if(!drawer.moving) continue;
       drawer.elapsed+=drawer.frameTime===undefined?0:now-drawer.frameTime;drawer.frameTime=now;
@@ -153,17 +169,17 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       for(const wheel of chairWheels) wheel.group.rotation.x=(wheel.group.rotation.x+delta*wheel.pathRadius/0.085)%(Math.PI*2);
       if(turn.done) {chair.rotation.y=0;chairElapsed=undefined;chairFrameTime=undefined;}
     }
-    if(motion) {
-      const t=Math.min(1,(now-motion.start)/Math.max(1,motion.duration));
-      motion.sample(motion.enter?t:1-t);
-      if(t===1) {const done=motion.resolve;motion=undefined;done();}
-    }
+    const transitionChanged=motion.running;
+    motion.tick(now);
     const journalMoving=journalBook?.tick(now);
     poseJournal();
-    if(!render())return;
-    if(active&&!frame&&(motion||journalMoving||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
+    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||transitionChanged||journalMoving;
+    drawRequested=false;
+    if(paint&&!render())return;
+    if(active&&!frame&&(motion.running||journalMoving||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
-  function requestDraw() {if(active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
+  function requestInputFrame() {if(!processingInput&&active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
+  function requestDraw() {drawRequested=true;requestInputFrame();}
   function fail(error:StudioFailure) {
     if(destroyed||failed)return;
     failed=true;ready=false;clearHover();cancelAnimationFrame(frame);frame=0;
@@ -171,7 +187,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     mount.dataset.renderActive="false";mount.dataset.steamActive="false";
     // Three.js invalidates GPU handles and rebuilds them on restore; keep the
     // CPU-side geometry/material/texture objects alive for that re-upload.
-    motion?.resolve();motion=undefined;canvas.hidden=true;onFailure(error);
+    motion.cancel("scene-failed");canvas.hidden=true;onFailure(error);
   }
   function render() {
     if(destroyed||failed)return false;
@@ -179,10 +195,11 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       renderer.render(scene,camera);
       if(drawers[0].open&&diary.visible){
         const point=diary.localToWorld(new THREE.Vector3(0,.06,-.12)).project(camera);
-        mount.dataset.diaryTarget=`${(point.x+1)*mount.clientWidth/2},${(1-point.y)*mount.clientHeight/2}`;
+        const rect=bounds.mount();mount.dataset.diaryTarget=`${(point.x+1)*rect.width/2},${(1-point.y)*rect.height/2}`;
       }else delete mount.dataset.diaryTarget;
       if(renderer.getContext().isContextLost()) {fail(new StudioFailure("context-lost","WebGL context lost"));return false;}
       if(shaderError)throw shaderError;
+      journalBook?.afterRender();
     } catch(error) {fail(studioFailure(error,"render"));return false;}
     if(!ready) {ready=true;canvas.hidden=false;onReady();}
     return true;
@@ -205,14 +222,15 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     return {position,look,rotation:surface.getWorldQuaternion(new THREE.Quaternion())};
   }
   function resize() {
-    const w=mount.clientWidth,h=mount.clientHeight;if(!w||!h)return;
+    bounds.invalidate();
+    const {width:w,height:h}=bounds.mount();if(!w||!h)return;
     renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
-    clearHover();if(!zoomed&&!motion)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
+    clearHover();if(!zoomed&&!motion.running)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
   }
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mount);
   cleanup.push(()=>resizeObserver.disconnect());
   const gestures = createStudioGestureController({
-    canvas, camera, room, mount, tooltip, signal: events.signal,
+    canvas, camera, room, mount, tooltip, signal: events.signal, bounds,
     canInteract: roomInteractive,
     canPickJournal: () => drawers[0].open && !drawers[0].moving && diary.visible,
     onWheel: (deltaY, deltaMode, height) => changeZoom(wheelZoom(targetZoom, deltaY, deltaMode, height)),
@@ -221,10 +239,10 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       targetElevation = clampRoomElevation(targetElevation + dy * 0.0018);
       requestCamera();
     },
-    onAction, requestDraw,
+    onAction, requestDraw, requestInputFrame,
   });
   const clearHover = gestures.clearHover;
-  reducedMotion.addEventListener("change",()=>{clearHover();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;stopCamera();}if(!motion&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
+  reducedMotion.addEventListener("change",()=>{clearHover();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;stopCamera();}if(!motion.running&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
   canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();fail(new StudioFailure("context-lost",(event as WebGLContextEvent).statusMessage||"WebGL context lost"));},{signal:events.signal});
   canvas.addEventListener("webglcontextrestored",()=>{
     if(destroyed)return;
@@ -236,22 +254,27 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   },{signal:events.signal});
   setRoomCamera();resize();
   return {
-    configureJournal(book:JournalManifest,index:number,onReport:(state:BookReport)=>void,onRegion:(region:JournalRegion)=>void) {
+    configureJournal(book:JournalManifest,index:number,onReport:(state:BookReport)=>void,onRegion:(region:JournalRegion)=>void,onIntent:(intent:JournalIntent)=>void) {
       journalBook??=createJournalBook(renderer,scene,camera,requestDraw);
+      journalBook.configure(book,onReport,onRegion,onIntent);
       journalBook.setInteractionEnabled(journalInteractionEnabled);
-      journalBook.configure(book,onReport,onRegion);journalBook.setPage(index);journalBook.resize();
+      journalBook.setPage(index);journalBook.resize();
     },
-    setJournalInteractionEnabled(value:boolean){journalInteractionEnabled=value;journalBook?.setInteractionEnabled(value);},
-    moveJournal(enter:boolean,duration:number) {
-      if(!journalBook)return Promise.resolve();
-      if(failed||destroyed||!active)duration=0;
-      stopCamera();clearHover();motion?.resolve();motion=undefined;zoomed=true;
+    setJournalInteractionEnabled(value:boolean){
+      journalInteractionEnabled=value;journalBook?.setInteractionEnabled(value);
+      canvas.tabIndex=value?0:-1;
+      if(value)canvas.setAttribute("aria-keyshortcuts","Enter Space ArrowLeft ArrowRight PageUp PageDown Escape + - 0");
+      else canvas.removeAttribute("aria-keyshortcuts");
+    },
+    async moveJournal(enter:boolean,duration:number): Promise<OperationResult> {
+      if(!journalBook||failed||destroyed)return {status:"failed",code:"三维书本不可用",retryable:true};
+      stopCamera();clearHover();motion.cancel("superseded");zoomed=true;
       const drawer=drawers[0],drawerStart=drawer.group.position.z;
       const drawerEnd=-.68+.85,drawerDuration=Math.abs(drawerStart-drawerEnd)>.001&&duration?420:0;
       drawer.open=true;drawer.moving=false;drawer.to=.85;
       drawer.group.userData.label=ACTION_LABELS['drawer-top'].replace('打开','关闭');
       const total=duration+drawerDuration;
-      if(enter){journalActive=false;diary.visible=true;journalBook.activate(false);}
+      if(enter){journalActive=false;showDiary(true);journalBook.activate(false);}
       let transferred=!enter;
       const sample=(value:number)=>{
         const elapsed=value*total,drawerProgress=drawerDuration?Math.min(1,elapsed/drawerDuration):1;
@@ -260,34 +283,36 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         drawer.group.position.z=drawerZ;
         mount.dataset.journalDrawerReady=String(drawerProgress===1);
         if(drawerProgress<1)return;
-        if(!transferred){transferred=true;journalActive=true;diary.visible=false;journalBook!.activate(true);}
+        if(!transferred){transferred=true;journalActive=true;showDiary(false);journalBook!.activate(true);}
         const travel=duration?Math.min(1,(elapsed-drawerDuration)/duration):1;
         journalAmount=enter?travel:1-travel;poseJournal();
       };
       const finish=()=>{
         drawer.group.position.z=drawerEnd;mount.dataset.journalDrawerReady='true';
-        if(!enter){journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();}
+        if(!enter){journalActive=false;journalAmount=0;showDiary(true);journalBook?.activate(false);zoomed=false;setRoomCamera();}
         requestDraw();
       };
-      if(!total){sample(1);finish();return Promise.resolve();}
-      sample(0);
-      return new Promise<void>(resolve=>{motion={start:performance.now(),duration:total,sample,enter:true,resolve:()=>{finish();resolve();}};requestDraw();});
+      const task=motion.start(total,sample);requestDraw();
+      const result=await task;
+      if(result.status==="completed")finish();
+      return result;
     },
-    hideJournal() {journalActive=false;journalAmount=0;diary.visible=true;journalBook?.activate(false);zoomed=false;setRoomCamera();requestDraw();},
+    hideJournal() {journalActive=false;journalAmount=0;showDiary(true);journalBook?.activate(false);zoomed=false;setRoomCamera();requestDraw();},
     prepareJournal(reading:boolean){journalBook?.prepare(reading);},
     journalAvailable(){return !failed&&!destroyed;},
-    openJournal(value:boolean){return journalBook?.open(value,reducedMotion.matches||failed||destroyed||!active)??Promise.resolve();},
+    openJournal(value:boolean,preserveView=false):Promise<OperationResult>{return journalBook?.open(value,reducedMotion.matches,preserveView)??Promise.resolve({status:"failed",code:"三维书本尚未准备",retryable:true});},
+    journalReady():Promise<OperationResult>{return journalBook?.ready()??Promise.resolve({status:"failed",code:"三维书本尚未准备",retryable:true});},
+    cancelJournalPrefetch(){journalBook?.cancelPrefetch();},
     resetJournal(){journalBook?.resetView();},
     setJournalPage(index:number){journalBook?.setPage(index);},
     turnJournal(direction:1|-1){journalBook?.turn(direction,reducedMotion.matches);},
     zoomJournal(value:number){journalBook?.setZoom(value);poseJournal();},
-    retryJournal(){journalBook?.retry();},
     snapshot() {return {view:{zoom:targetZoom,angle:targetAngle,elevation:targetElevation},lampOn,showDate,drawers:drawers.map(drawer=>drawer.open)};},
     restore(snapshot:{view:RoomView;lampOn:boolean;showDate:boolean;drawers:boolean[]}) {
       roomZoom=targetZoom=snapshot.view.zoom;angle=targetAngle=snapshot.view.angle;elevation=targetElevation=snapshot.view.elevation;
-      if(lampOn!==snapshot.lampOn)this.toggleLamp();
-      if(showDate!==snapshot.showDate)this.toggleClock();
-      drawers.forEach((drawer,index)=>{if(drawer.open!==snapshot.drawers[index])this.toggleDrawer(drawer.action);drawer.moving=false;drawer.group.position.z=-0.68+drawer.to;});
+      this.setLampEnabled(snapshot.lampOn);
+      this.setClockMode(snapshot.showDate?"date":"time");
+      drawers.forEach((drawer,index)=>{this.setDrawerOpen(drawer.action,Boolean(snapshot.drawers[index]));drawer.moving=false;drawer.group.position.z=-0.68+drawer.to;});
       setRoomCamera();onViewChange(snapshot.view);requestDraw();
     },
     setPointerEnabled(value:boolean) {
@@ -296,27 +321,48 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         stopCamera();requestDraw();
       }
     },
-    setActive(value:boolean) {const wasActive=active;active=value;mount.dataset.renderActive=String(value&&!failed);if(!value) {journalBook?.cancel();stopCamera();steamFrameTime=undefined;steam.visible=false;mount.dataset.steamActive="false";cancelAnimationFrame(frame);frame=0;chairFrameTime=undefined;drawers.forEach(drawer=>drawer.frameTime=undefined);gestures.reset();if(!zoomed&&!motion)setRoomCamera();if(wasActive&&!failed&&!destroyed)render();}else requestDraw();},
+    setActive(value:boolean) {
+      const wasActive=active;
+      active=value;
+      mount.dataset.renderActive=String(value&&!failed);
+      if(value) {requestDraw();return;}
+      motion.pause();
+      journalBook?.pause();
+      // Preserve destinations while the page is hidden; only frame clocks pause.
+      cameraFrameTime=undefined;
+      steamFrameTime=undefined;
+      steam.visible=false;
+      mount.dataset.steamActive="false";
+      cancelAnimationFrame(frame);
+      frame=0;
+      chairFrameTime=undefined;
+      drawers.forEach(drawer=>drawer.frameTime=undefined);
+      gestures.reset();
+      if(!zoomed&&!motion.running)setRoomCamera();
+      if(wasActive&&!failed&&!destroyed)render();
+    },
     adjustView(action:RoomViewAction) {
       if(!roomInteractive())return;
       const next=stepRoomView({zoom:targetZoom,angle:targetAngle,elevation:targetElevation},action);
       targetZoom=next.zoom;targetAngle=next.angle;targetElevation=next.elevation;requestCamera();
     },
-    toggleDrawer(action:typeof drawerActions[number]) {
+    setDrawerOpen(action:typeof drawerActions[number],open:boolean) {
       const drawer=drawers.find(drawer=>drawer.action===action)!;
-      clearHover();drawer.open=!drawer.open;drawer.from=drawer.group.position.z+0.68;drawer.to=drawer.open?0.85:0;
+      if(drawer.open===open)return;
+      clearHover();drawer.open=open;drawer.from=drawer.group.position.z+0.68;drawer.to=drawer.open?0.85:0;
       drawer.elapsed=0;drawer.frameTime=undefined;drawer.moving=!reducedMotion.matches;
       if(!drawer.moving)drawer.group.position.z=-0.68+drawer.to;
       renderer.shadowMap.needsUpdate=true;
       drawer.group.userData.label=ACTION_LABELS[action].replace("打开",drawer.open?"关闭":"打开");
-      requestDraw();return drawer.open;
+      requestDraw();
     },
-    toggleLamp() {
-      clearHover();lampOn=!lampOn;lamp.intensity=lampOn?lampPower:0;
+    setLampEnabled(enabled:boolean) {
+      if(lampOn===enabled)return;
+      clearHover();lampOn=enabled;lamp.intensity=lampOn?lampPower:0;
       diffuserMaterial.emissiveIntensity=lampOn?1.5:0;diffuserMaterial.color.setHex(lampOn?0xffe3aa:0xc7c1b3);
-      lampModel.userData.label=lampOn?"关闭台灯":"开启台灯";requestDraw();return lampOn;
+      lampModel.userData.label=lampOn?"关闭台灯":"开启台灯";requestDraw();
     },
-    toggleClock() {clearHover();showDate=!showDate;clockDate=new Date();updateClock();return showDate;},
+    setClockMode(mode:"time"|"date") {const value=mode==="date";if(showDate===value)return;clearHover();showDate=value;clockDate=new Date();updateClock();},
     spinChair(reducedMotion=false) {
       if(failed||destroyed||chairElapsed!==undefined)return;
       if(reducedMotion) {chair.rotation.y=0;requestDraw();return;}
@@ -324,16 +370,19 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       chairElapsed=0;chairFrameTime=undefined;clearHover();requestDraw();
     },
     setLighting(light:ReturnType<typeof studioLighting>) {
-      renderer.shadowMap.needsUpdate=true;
-      sun.intensity=1.1+2.1*light.daylight;sun.color.setHex(light.sun);
-      ambient.intensity=1.35+1.25*light.daylight;lampPower=2.8*(1-light.daylight)+1.2;lamp.intensity=lampOn?lampPower:0;
+      if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun)return;
+      lastLighting={daylight:light.daylight,sun:light.sun};
+      const daylight=light.daylight*light.daylight;
+      sun.intensity=0.06+3.14*daylight;sun.color.setHex(light.sun);
+      ambient.intensity=0.18+2.42*daylight;lampPower=7-5.8*daylight;
+      lamp.intensity=lampOn?lampPower:0;
       requestDraw();
     },
     setTime(date:Date) {
       clockDate=date;updateClock();
     },
     moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number,rect:{left:number;top:number;width:number;height:number})=>void) {
-      stopCamera();motion?.resolve();zoomed=enter;
+      stopCamera();motion.cancel("superseded");zoomed=enter;
       clearHover();
       const surface=target==="computer"?computerSurface:canvasSurface;
       const view=surfaceView(surface);
@@ -350,18 +399,17 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         currentLook.copy(progress===0?roomLook():view.look);camera.updateMatrixWorld();
         const a=new THREE.Vector3(-width/2,height/2,0).applyMatrix4(surface.matrixWorld).project(camera);
         const b=new THREE.Vector3(width/2,-height/2,0).applyMatrix4(surface.matrixWorld).project(camera);
-        const bounds=mount.getBoundingClientRect();
-        update(progress,{left:bounds.left+(a.x+1)*bounds.width/2,top:bounds.top+(1-a.y)*bounds.height/2,width:(b.x-a.x)*bounds.width/2,height:(a.y-b.y)*bounds.height/2});
+        const rect=bounds.mount();
+        update(progress,{left:rect.left+(a.x+1)*rect.width/2,top:rect.top+(1-a.y)*rect.height/2,width:(b.x-a.x)*rect.width/2,height:(a.y-b.y)*rect.height/2});
       };
-      if(!duration||failed) {sample(enter?1:0);requestDraw();return Promise.resolve();}
-      sample(enter?0:1);
-      return new Promise<void>(resolve=>{motion={start:performance.now(),duration,sample,enter,resolve};requestDraw();});
+      if(failed||destroyed)return Promise.resolve<OperationResult>({status:"failed",code:"三维场景不可用",retryable:true});
+      const task=motion.start(duration,progress=>sample(enter?progress:1-progress));requestDraw();return task;
     },
-    cancelTransition() {stopCamera();clearHover();journalBook?.cancel();motion?.resolve();motion=undefined;zoomed=journalActive;setRoomCamera();requestDraw();},
-    dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();motion?.resolve();cleanup.reverse().forEach(dispose=>dispose());},
+    cancelTransition() {stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;setRoomCamera();requestDraw();},
+    dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
   };
   } catch(error) {
-    cleanup.reverse().forEach(dispose=>dispose());
+    disposeSafely(cleanup.reverse());
     throw studioFailure(error,"initialization");
   }
 }

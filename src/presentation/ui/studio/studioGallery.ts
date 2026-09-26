@@ -1,6 +1,11 @@
 import { canOpenFile, snapFileIndex, type FileGesture } from "../../interaction/studio/fileGesture";
+import { createDomInstances } from '../../../justin-kit/runtime/domInstances';
+
+const mounted = new WeakMap<HTMLElement, () => void>();
 
 export function setupStudioGallery(root: HTMLElement) {
+  const existing = mounted.get(root);
+  if (existing) return existing;
   const viewport = root.querySelector<HTMLElement>("[data-gallery-viewport]")!;
   const track = root.querySelector<HTMLElement>(".gallery-track")!;
   const dialog = root.querySelector<HTMLDialogElement>("[data-gallery-detail]")!;
@@ -16,11 +21,16 @@ export function setupStudioGallery(root: HTMLElement) {
   let wheelTimer = 0;
   let wheelDisplacement = 0;
   let wheelStart = 0;
-  const active = () => page.classList.contains("is-active") && !document.hidden;
+  let cachedStride: number | null = null;
+  let dragFrame = 0;
+  let dragPoint: { x: number; y: number; pointerId: number } | null = null;
+  let suspended = false;
+  let disposed = false;
+  const active = () => !disposed && !suspended && page.classList.contains("is-active") && !document.hidden;
   const browsing = () => active() && !dialog.open;
   const fileAt = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLButtonElement>("[data-gallery-file]") : null;
   const maximum = () => Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-  const stride = () => (cards[0]?.getBoundingClientRect().width ?? 0) + (parseFloat(getComputedStyle(track).gap) || 0);
+  const stride = () => cachedStride ??= (cards[0]?.getBoundingClientRect().width ?? 0) + (parseFloat(getComputedStyle(track).gap) || 0);
   function snap(index: number, immediate = false) {
     selectedIndex = Math.max(0, Math.min(cards.length - 1, index));
     cards.forEach((card, index) => {
@@ -33,9 +43,23 @@ export function setupStudioGallery(root: HTMLElement) {
   }
 
   function resetGesture() {
+    cancelAnimationFrame(dragFrame);
+    dragFrame = 0;
+    dragPoint = null;
     if (gesture && viewport.hasPointerCapture(gesture.pointerId)) viewport.releasePointerCapture(gesture.pointerId);
     gesture = null;
     viewport.classList.remove("is-dragging");
+  }
+  function applyDragPoint() {
+    dragFrame = 0;
+    const point = dragPoint;
+    dragPoint = null;
+    if (!point || !gesture || gesture.ended) return;
+    if (!gesture.moved) return;
+    viewport.classList.add("is-dragging");
+    if (!viewport.hasPointerCapture(point.pointerId)) viewport.setPointerCapture(point.pointerId);
+    const step = stride();
+    viewport.scrollLeft = gesture.scrollLeft + Math.max(-step, Math.min(step, gesture.x - point.x));
   }
   function stop() {
     clearTimeout(wheelTimer); wheelTimer = 0; wheelDisplacement = 0;
@@ -45,28 +69,30 @@ export function setupStudioGallery(root: HTMLElement) {
   viewport.addEventListener("pointerdown", event => {
     if (!browsing() || event.button !== 0 || !event.isPrimary) { resetGesture(); return; }
     stop();
+    stride();
     gesture = { id: fileAt(event.target)?.dataset.galleryFile, pointerId: event.pointerId,
       x: event.clientX, y: event.clientY, scrollLeft: viewport.scrollLeft, moved: false, ended: false };
   }, options);
   window.addEventListener("pointermove", event => {
     if (!gesture || gesture.ended || event.pointerId !== gesture.pointerId) return;
     if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 6) gesture.moved = true;
-    if (gesture.moved) {
-      viewport.classList.add("is-dragging");
-      if (!viewport.hasPointerCapture(event.pointerId)) viewport.setPointerCapture(event.pointerId);
-      viewport.scrollLeft = gesture.scrollLeft + Math.max(-stride(), Math.min(stride(), gesture.x - event.clientX));
-    }
+    dragPoint = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    if (!dragFrame) dragFrame = requestAnimationFrame(applyDragPoint);
   }, options);
   window.addEventListener("pointerup", event => {
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     gesture.moved ||= Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 6 ||
       Math.abs(viewport.scrollLeft - gesture.scrollLeft) > 6;
+    cancelAnimationFrame(dragFrame);
+    dragPoint = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    applyDragPoint();
     gesture.ended = true;
     if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
     viewport.classList.remove("is-dragging");
     if (gesture.moved) settle(gesture.x - event.clientX);
   }, options);
   window.addEventListener("pointercancel", () => { resetGesture(); if (browsing()) snap(selectedIndex); }, options);
+  window.addEventListener("blur", stop, options);
   viewport.addEventListener("dragstart", event => event.preventDefault(), options);
   viewport.addEventListener("wheel", event => {
     if (!browsing() || event.ctrlKey || event.metaKey) return;
@@ -137,11 +163,35 @@ export function setupStudioGallery(root: HTMLElement) {
   observer.observe(page, { attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", () => { stop(); if (active()) snap(selectedIndex, true); if (dialog.classList.contains("is-closing")) void close(true); }, options);
   reduce.addEventListener("change", () => { stop(); snap(selectedIndex, true); if (dialog.classList.contains("is-closing")) void close(true); }, options);
-  window.addEventListener("resize", () => { stop(); if (active()) snap(selectedIndex, true); }, options);
+  const layoutChanged = () => {
+    cachedStride = null;
+    stop();
+    if (active()) snap(selectedIndex, true);
+  };
+  const layoutObserver = new ResizeObserver(layoutChanged);
+  layoutObserver.observe(viewport);
+  if (cards[0]) layoutObserver.observe(cards[0]);
+  window.addEventListener("resize", layoutChanged, options);
   window.addEventListener("pagehide", event => {
+    suspended = true;
     stop(); void close(true);
-    if (!event.persisted) { observer.disconnect(); events.abort(); }
+    if (!event.persisted) dispose();
   }, options);
-  window.addEventListener("pageshow", () => { if (active()) snap(selectedIndex, true); }, options);
+  window.addEventListener("pageshow", () => { suspended = false; if (active()) snap(selectedIndex, true); }, options);
   if (active()) snap(selectedIndex, true);
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    stop();
+    closeToken++;
+    if (dialog.open) dialog.close();
+    observer.disconnect();
+    layoutObserver.disconnect();
+    events.abort();
+    mounted.delete(root);
+  }
+  mounted.set(root, dispose);
+  return dispose;
 }
+
+if (typeof document !== 'undefined') createDomInstances('[data-studio-gallery]', setupStudioGallery).init();

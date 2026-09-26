@@ -30,7 +30,7 @@ export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, pr
   // Angled desktop clock: one reusable texture, sourced from the visitor's clock.
   const deskClock=hotspot("clock");deskClock.position.set(0.67,1.572,-1.83);deskClock.rotation.y=-0.12;
   rounded(deskClock,[0.61,0.27,0.15],[0,0,0],charcoal,0.025);
-  const clockFace=label(deskClock,"",0.55,0.21,[0,0,0.079],"#101d1d","#b5edc7",0.63);
+  const clockFace=label(deskClock,"",0.55,0.21,[0,0,0.079],"#101d1d","#b5edc7",0.63,true);
   const clockTexture=(clockFace.material as THREE.MeshBasicMaterial).map!;
   const clockImage=clockTexture.image as HTMLCanvasElement;
   
@@ -65,10 +65,10 @@ export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, pr
   cylinder(shade,0.025,0.07,[0,-0.03,0],brass);
   const diffuserMaterial=material(0xffe3aa,0.5);diffuserMaterial.emissive.setHex(0xffce87);diffuserMaterial.emissiveIntensity=1.5;
   const diffuser=mesh(shade,new THREE.CircleGeometry(0.182,40),diffuserMaterial,0,-0.286,0);diffuser.rotation.x=Math.PI/2;diffuser.castShadow=false;
-  const lamp=new THREE.SpotLight(0xffdfb0,0,5,Math.PI/3.5,0.72,2);
+  const lamp=new THREE.SpotLight(0xffdfb0,0,6,Math.PI/2.4,0.88,2);
   lamp.position.copy(new THREE.Vector3(0,-0.315,0).applyQuaternion(shade.quaternion).add(head));lamp.target=lampTarget;
-  lamp.castShadow=true;lamp.shadow.mapSize.set(1024,1024);lamp.shadow.camera.near=0.05;lamp.shadow.camera.far=5;
-  lamp.shadow.bias=-0.0002;lamp.shadow.normalBias=0.008;scene.add(lamp);
+  lamp.castShadow=true;lamp.shadow.mapSize.set(1024,1024);lamp.shadow.camera.near=0.05;lamp.shadow.camera.far=6;
+  lamp.shadow.bias=-0.0002;lamp.shadow.normalBias=0.008;lamp.shadow.radius=2;scene.add(lamp);
   const ambient=new THREE.HemisphereLight(0xf5f2eb,0xa29b8d,2.6);scene.add(ambient);
   const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,2.5);sun.castShadow=true;
   cleanup.push(()=>{sun.shadow.map?.dispose();lamp.shadow.map?.dispose();});

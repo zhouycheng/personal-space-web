@@ -1,6 +1,8 @@
 import * as THREE from "three";
-import { ACTION_LABELS, type StudioAction } from "../../../contracts/studio";
+import type { StudioAction } from "../../../contracts/studio";
 import { createStudioPicker } from "./pickObject";
+import { createStudioHover } from "./sceneHover";
+import type { createStudioBounds } from "./sceneBounds";
 
 type GestureOptions = {
   canvas: HTMLCanvasElement;
@@ -9,58 +11,37 @@ type GestureOptions = {
   mount: HTMLElement;
   tooltip: HTMLElement;
   signal: AbortSignal;
+  bounds: ReturnType<typeof createStudioBounds>;
   canInteract: () => boolean;
   canPickJournal: () => boolean;
   onWheel: (deltaY: number, deltaMode: number, viewportHeight: number) => void;
   orbit: (dx: number, dy: number) => void;
   onAction: (action: StudioAction) => void;
   requestDraw: () => void;
+  requestInputFrame: () => void;
 };
 
 export function createStudioGestureController(options: GestureOptions) {
-  const { canvas, camera, room, mount, tooltip, signal, canInteract, canPickJournal,
-    onWheel, orbit, onAction, requestDraw } = options;
-  const pick = createStudioPicker(canvas, camera, room, canPickJournal);
-  const highlighted: { mesh: THREE.Mesh; original: THREE.Material | THREE.Material[]; glow: THREE.Material | THREE.Material[] }[] = [];
-  let hovering: THREE.Group | undefined;
+  const { canvas, camera, room, mount, tooltip, signal, bounds, canInteract, canPickJournal,
+    onWheel, orbit, onAction, requestDraw, requestInputFrame } = options;
+  const pick = createStudioPicker(canvas, camera, room, canPickJournal, bounds.canvas);
+  const hover = createStudioHover({ canvas, mount, tooltip, signal, bounds: bounds.mount, requestDraw });
+  const clearHover = hover.clear;
   let pointerEnabled = true;
-  let down: { pointerId: number; x: number; y: number; lastX: number; lastY: number; moved: boolean } | undefined;
+  let down: { pointerId: number; target: THREE.Group | undefined; x: number; y: number; lastX: number; lastY: number; moved: boolean } | undefined;
+  let pendingMove: PointerEvent | undefined;
 
-  function clearHover() {
-    for (const item of highlighted) {
-      item.mesh.material = item.original;
-      for (const material of [item.glow].flat()) material.dispose();
-    }
-    if (highlighted.length) requestDraw();
-    highlighted.length = 0;
-    hovering = undefined;
-    tooltip.hidden = true;
-    canvas.style.cursor = "grab";
-  }
-
-  function highlight(group: THREE.Group | undefined) {
-    hovering = group;
-    group?.traverse(object => {
-      if (!(object instanceof THREE.Mesh) || object.userData.hitProxy) return;
-      const original = object.material;
-      const glowMaterial = (material: THREE.Material) => {
-        const glow = material.clone();
-        if (glow instanceof THREE.MeshStandardMaterial) {
-          glow.emissive.setHex(0xe9f1ff);
-          glow.emissiveIntensity = 0.12;
-        }
-        return glow;
-      };
-      const glow = Array.isArray(original) ? original.map(glowMaterial) : glowMaterial(original);
-      highlighted.push({ mesh: object, original, glow });
-      object.material = glow;
-    });
-    requestDraw();
+  function discardMove() { pendingMove = undefined; }
+  function flushMove() {
+    const latest = pendingMove; pendingMove = undefined;
+    if (latest) processMove(latest);
   }
 
   function reset() {
-    if (down && canvas.hasPointerCapture(down.pointerId)) canvas.releasePointerCapture(down.pointerId);
+    discardMove();
+    const pointerId = down?.pointerId;
     down = undefined;
+    if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
     clearHover();
   }
 
@@ -68,21 +49,23 @@ export function createStudioGestureController(options: GestureOptions) {
     if (!pointerEnabled || !canInteract() || event.ctrlKey || event.metaKey || !event.deltaY) return;
     if (down) down.moved = true;
     event.preventDefault();
-    onWheel(event.deltaY, event.deltaMode, mount.clientHeight);
+    onWheel(event.deltaY, event.deltaMode, bounds.mount().height);
   }, { passive: false, signal });
 
   canvas.addEventListener("pointerdown", event => {
-    if (!pointerEnabled || !canInteract() || event.button !== 0) return;
+    if (!pointerEnabled || !canInteract() || event.button !== 0 || down) return;
+    discardMove(); bounds.invalidate();
     clearHover();
-    highlight(pick(event));
-    down = { pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+    hover.highlight(pick(event));
+    down = { pointerId: event.pointerId, target: hover.target, x: event.clientX, y: event.clientY,
       lastX: event.clientX, lastY: event.clientY, moved: false };
     canvas.setPointerCapture(event.pointerId);
   }, { signal });
 
-  canvas.addEventListener("pointermove", event => {
+  function processMove(event: PointerEvent) {
     if (!pointerEnabled || !canInteract()) return;
     if (down) {
+      if (down.pointerId !== event.pointerId) return;
       if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) down.moved = true;
       if (down.moved) {
         orbit(event.clientX - down.lastX, event.clientY - down.lastY);
@@ -91,33 +74,40 @@ export function createStudioGestureController(options: GestureOptions) {
       }
       return;
     }
-    const hit = pick(event);
-    if (hit !== hovering) { clearHover(); highlight(hit); }
-    if (hovering) {
-      tooltip.textContent = hovering.userData.label ?? ACTION_LABELS[hovering.userData.action as StudioAction];
-      tooltip.hidden = false;
-      const rect = mount.getBoundingClientRect();
-      tooltip.style.left = `${Math.max(8, Math.min(rect.width - tooltip.offsetWidth - 8, event.clientX - rect.left + 16))}px`;
-      tooltip.style.top = `${Math.max(8, event.clientY - rect.top - 34)}px`;
-      canvas.style.cursor = hovering.userData.action ? "pointer" : "help";
-    }
+    hover.show(pick(event), event.clientX, event.clientY);
+  }
+  canvas.addEventListener("pointermove", event => {
+    if (!pointerEnabled || !canInteract() || (down && down.pointerId !== event.pointerId)) return;
+    // Preserve gesture intent even when a pointer crosses the threshold and
+    // returns to its origin before the next frame consumes its latest position.
+    if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) down.moved = true;
+    pendingMove = event;
+    requestInputFrame();
   }, { signal });
 
   canvas.addEventListener("pointerup", event => {
-    const click = pointerEnabled && canInteract() && down && !down.moved;
+    if (down?.pointerId !== event.pointerId) return;
+    // The release coordinates are the final gesture sample, even before RAF.
+    discardMove(); processMove(event);
+    const target = down.target;
+    const click = pointerEnabled && canInteract() && !down.moved && Math.hypot(event.clientX-down.x,event.clientY-down.y) <= 6;
     down = undefined;
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     if (event.pointerType !== "mouse") clearHover();
     if (click) {
       const hit = pick(event);
-      if (hit?.userData.action) { clearHover(); onAction(hit.userData.action); }
+      if (hit === target && hit?.userData.action) { clearHover(); onAction(hit.userData.action); }
     }
   }, { signal });
   canvas.addEventListener("pointercancel", reset, { signal });
-  canvas.addEventListener("pointerleave", clearHover, { signal });
+  canvas.addEventListener("lostpointercapture", event => { if (down?.pointerId === event.pointerId) reset(); }, { signal });
+  window.addEventListener("blur", reset, { signal });
+  canvas.addEventListener("pointerleave", () => { if (!down) discardMove(); clearHover(); }, { signal });
+  signal.addEventListener("abort", reset, { once: true });
 
   return {
     clearHover,
+    flushMove,
     reset,
     setPointerEnabled(value: boolean) { pointerEnabled = value; if (!value) reset(); },
   };

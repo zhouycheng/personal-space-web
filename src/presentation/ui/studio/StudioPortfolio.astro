@@ -1,5 +1,5 @@
 ---
-import { studioFiles } from "../../../data/selectors/studioFiles";
+import { studioFiles } from "../../../app/siteContent";
 import FrameLeanWorkbenchPreview from "../works/FrameLeanWorkbenchPreview.astro";
 import ProjectDownloadMenu from "../works/ProjectDownloadMenu.astro";
 const images = import.meta.glob<{default: {src:string}|string}>("/src/content/assets/projects/*.{svg,png,jpg,webp}",{eager:true});

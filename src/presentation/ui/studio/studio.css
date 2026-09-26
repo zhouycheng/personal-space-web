@@ -5,7 +5,7 @@
 .studio-scene canvas {display:block;width:100%;height:100%;outline:none}
 .studio-scene canvas[hidden] {display:none}
 .studio-loading {position:absolute;top:48%;width:100%;text-align:center;color:inherit;font-size:14px}
-.studio-tooltip {position:absolute;pointer-events:none;z-index:3;padding:4px 0;color:inherit;font:500 14px var(--sans);letter-spacing:.04em;white-space:nowrap;text-shadow:0 1px 8px color-mix(in srgb,currentColor 15%,transparent)}
+.studio-tooltip {position:absolute;pointer-events:none;z-index:3;padding:4px 0;color:#fff;font:500 14px var(--sans);letter-spacing:.04em;white-space:nowrap}
 .studio-signature {position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:0;right:0;margin:0;text-align:center;font:16px var(--mono);letter-spacing:3px;pointer-events:none}
 .studio:not([data-state="room"]) .studio-signature {visibility:hidden}
 .studio-explore {position:absolute;bottom:max(80px,calc(env(safe-area-inset-bottom) + 56px));left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;flex-direction:column;width:280px}
