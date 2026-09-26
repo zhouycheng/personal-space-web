@@ -1,7 +1,6 @@
 import type { ProjectRecord, SiteContentRepository } from "../../contracts/content";
-import { publishedSite } from "../repositories/site.ts";
 
-export function selectPortfolioProjects(repository: Pick<SiteContentRepository, "projects"> = publishedSite) {
+export function selectPortfolioProjects(repository: Pick<SiteContentRepository, "projects">) {
   return repository.projects().map((project: ProjectRecord, index) => ({
     ...project,
     index,

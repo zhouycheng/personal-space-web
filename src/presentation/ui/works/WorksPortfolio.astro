@@ -3,6 +3,7 @@ import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
 import "./works.css";
 import { selectPortfolioProjects } from "../../../data/selectors/portfolio";
+import { publishedSite } from "../../../data/repositories/site";
 import FrameLeanWorkbenchPreview from "./FrameLeanWorkbenchPreview.astro";
 import ProjectBrandIcon from "./ProjectBrandIcon.astro";
 import ProjectDownloadMenu from "./ProjectDownloadMenu.astro";
@@ -28,7 +29,7 @@ function resolvePreviewAsset(path: string) {
   };
 }
 
-const portfolioProjects = selectPortfolioProjects().map((project) => {
+const portfolioProjects = selectPortfolioProjects(publishedSite).map((project) => {
   const previewAsset = project.preview.kind === "image"
     ? resolvePreviewAsset(project.preview.src)
     : null;

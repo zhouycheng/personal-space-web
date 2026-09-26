@@ -1,8 +1,9 @@
 ---
 import { ACTION_LABELS, DIARY_URL } from "../../../contracts/studio";
 import "./studio.css";
+import { siteIdentity } from '../../../data/repositories/siteIdentity';
 const destinations = [
-  {action:"computer",href:"/os",title:"Justin OS",hint:"打开电脑",icon:"M4 3h16v13H4z M2 20h20l-2-4H4z"},
+  {action:"computer",href:"/os",title:siteIdentity.brand,hint:"打开电脑",icon:"M4 3h16v13H4z M2 20h20l-2-4H4z"},
   {action:"works",href:"/works",title:"文件夹",hint:"作品、简历与更多文件",icon:"M3 7V4h7l2 3h9v13H3z"},
   {action:"canvas",href:"/canvas",title:"我的画布",hint:"想法与记录",icon:"M4 3h16v18H4z M8 8h8 M8 12h6 M8 16h4"},
   {action:"diary",href:DIARY_URL,title:"日记",hint:"翻开一本日记",icon:"M12 5v16 M12 5C8 2 3 3 3 3v16s5-1 9 2c4-3 9-2 9-2V3s-5-1-9 2"},
@@ -13,7 +14,7 @@ const destinations = [
     <p class="studio-loading" data-studio-status role="status">正在布置工作室…</p>
     <span class="studio-tooltip" data-studio-tooltip hidden></span>
   </div>
-  <p class="studio-signature">JUSTIN / PERSONAL SPACE</p>
+  <p class="studio-signature">{siteIdentity.signature}</p>
   <div class="studio-explore">
     <p class="studio-hint" data-studio-hint>拖动转动 · 点击物件探索</p>
     <button class="studio-explore-trigger" data-studio-explore aria-haspopup="dialog" aria-controls="studio-explore-panel" aria-expanded="false">

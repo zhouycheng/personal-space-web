@@ -3,7 +3,7 @@ import { studioPalette as palette, paletteHex } from "../../../config/studioPale
 import type { StudioSceneFile } from "../../../contracts/studio";
 import type { StudioPrimitives } from "./studioPrimitives";
 
-export function createStudioDevices(primitives: StudioPrimitives, studioFiles: readonly StudioSceneFile[], renderer: THREE.WebGLRenderer, materials: Set<THREE.Material>, geometries: Set<THREE.BufferGeometry>, textures: Set<THREE.Texture>) {
+export function createStudioDevices(primitives: StudioPrimitives, studioFiles: readonly StudioSceneFile[], renderer: THREE.WebGLRenderer, materials: Set<THREE.Material>, geometries: Set<THREE.BufferGeometry>, textures: Set<THREE.Texture>, computerLabel: string) {
   const { material, mesh, box, cylinder, rounded, hotspot, label,
     paper, aluminum, keycap, rubber, chrome } = primitives;
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
@@ -51,7 +51,9 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   const lid=new THREE.Group();computer.add(lid);lid.position.set(-0.2,1.505,-1.84);lid.rotation.x=-0.23;lid.scale.set(1.127,1.127,1);
   rounded(lid,[1.42,0.91,0.035],[0,0.455,0],aluminum,0.017);
   rounded(lid,[1.38,0.873,0.011],[0,0.455,0.022],keycap,0.005);
-  const computerSurface=label(lid,"Justin OS",1.31,0.81,[0,0.457,0.029]);
+  const computerSurface=label(lid,computerLabel,1.31,0.81,[0,0.457,0.029],"#002fa7","#fff9e9",0.156,true);
+  const screenGlow=new THREE.PointLight(0x4f72ff,0.18,0.9,2);
+  screenGlow.position.set(0,0.455,0.12);lid.add(screenGlow);
   rounded(lid,[0.18,0.041,0.007],[0,0.851,0.033],keycap,0.003);
   mesh(lid,new THREE.SphereGeometry(0.006,8,6),chrome,0,0.851,0.038);
   const hinge=cylinder(computer,0.027,1.32,[-0.2,1.5,-1.84],keycap);hinge.rotation.z=Math.PI/2;
@@ -67,8 +69,10 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   const tablet=hotspot("canvas");tablet.position.set(1.04,1.45,-1.1);
   rounded(tablet,[0.78,0.035,0.58],[0,0,0],aluminum,0.025);
   rounded(tablet,[0.755,0.006,0.555],[0,0.02,0],keycap,0.024);
-  const canvasSurface=label(tablet,"MY CANVAS",0.69,0.49,[0,0.024,0],"#fff9e9","#002fa7",0.16);
+  const canvasSurface=label(tablet,"MY CANVAS",0.69,0.49,[0,0.024,0],"#fff9e9","#002fa7",0.16,true);
   canvasSurface.rotation.x=-Math.PI/2;
+  const tabletGlow=new THREE.PointLight(0xfff5df,0.2,0.75,2);
+  tabletGlow.position.set(0,0.09,0);tablet.add(tabletGlow);
   cylinder(tablet,0.008,0.003,[0,0.025,-0.263],chrome);
   const pencil=cylinder(tablet,0.014,0.48,[0.43,0.005,0],paper);pencil.rotation.x=Math.PI/2;
   box(tablet,[0.004,0.012,0.055],[0.391,0,0],keycap);
@@ -114,7 +118,7 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
         positions.setX(vertex,Math.min(0.012,slot*0.08)*t*(1-t));
       }
       geometry.computeVertexNormals();geometries.add(geometry);sheet.geometry=geometry;
-      const sheetMaterial=new THREE.MeshStandardMaterial({map:(sheet.material as THREE.MeshBasicMaterial).map,side:THREE.DoubleSide,roughness:0.96});
+      const sheetMaterial=new THREE.MeshStandardMaterial({map:(sheet.material as THREE.MeshStandardMaterial).map,side:THREE.DoubleSide,roughness:0.96});
       materials.add(sheetMaterial);sheet.material=sheetMaterial;
       const image=sheetMaterial.map!.image as HTMLCanvasElement;
       const ctx=image.getContext("2d")!;

@@ -5,7 +5,7 @@ export type StudioAction = "computer" | "canvas" | "works" | "chair" | "lamp" | 
 export type StudioIntent = StudioAction;
 export const DIARY_URL = "/journal";
 export const ACTION_LABELS: Record<StudioAction, string> = {
-  computer: "进入 Justin OS", canvas: "我的画布",
+  computer: "打开电脑", canvas: "我的画布",
   works: "文件夹", chair: "转动座椅",
   lamp: "台灯开关", clock: "显示日期",
   "drawer-top": "打开第一层抽屉", "drawer-middle": "打开第二层抽屉", "drawer-bottom": "打开第三层抽屉",

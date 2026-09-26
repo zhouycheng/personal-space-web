@@ -1,11 +1,13 @@
 import type { AppPage } from "../contracts/navigation";
+import { siteIdentity } from '../data/repositories/siteIdentity.ts';
+import { pageTitle } from '../data/selectors/siteIdentity.ts';
 export type { AppPage } from "../contracts/navigation";
 
 export const NAV_ITEMS = [
   { page: "home", path: "/home", number: "01", label: "首页" },
   { page: "works", path: "/works", number: "02", label: "文件夹" },
   { page: "canvas", path: "/canvas", number: "03", label: "我的画布" },
-  { page: "os", path: "/os", number: "04", label: "Justin OS" },
+  { page: "os", path: "/os", number: "04", label: siteIdentity.brand },
 ] as const satisfies ReadonlyArray<{
   page: AppPage;
   path: string;
@@ -14,11 +16,11 @@ export const NAV_ITEMS = [
 }>;
 
 export const PAGE_TITLES: Record<AppPage, string> = {
-  home: "Justin OS",
-  works: "Justin OS - 文件夹",
-  os: "Justin OS",
-  canvas: "Justin OS - 我的画布",
-  journal: "Justin — 日记",
+  home: pageTitle(siteIdentity),
+  works: pageTitle(siteIdentity, '文件夹'),
+  os: pageTitle(siteIdentity),
+  canvas: pageTitle(siteIdentity, '我的画布'),
+  journal: siteIdentity.journalTitle,
 };
 
 export function normalizeAppPath(pathname: string) {
