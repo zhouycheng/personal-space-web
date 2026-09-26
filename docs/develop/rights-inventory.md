@@ -1,6 +1,6 @@
 # 发布内容与素材逐文件授权清单
 
-范围为当前 Git 跟踪的 `public/` 和 `src/content/` 文件。这里记录**本站授予的使用许可**，不凭文件名推断作者或外部素材来源；来源证据不足的素材不纳入 Zlib。`public/journal/generated/` 与 `src/generated/` 是未跟踪构建产物，随其正文、字体与其他输入各自的权利处理。
+范围为当前 Git 跟踪的 `public/` 和 `src/content/` 文件。这里记录**本站授予的使用许可**，不凭文件名推断作者或外部素材来源；来源证据不足的素材不纳入 Zlib。当前有效 `public/journal/generated/` 包纳入版本管理，页图与缩略图继承日记正文、字体和插图的授权边界；激活文件和 manifest 不改变内容许可。`src/generated/` 是本地派生投影。
 
 | 文件 | 本站许可边界 |
 | --- | --- |
@@ -34,5 +34,8 @@
 | `src/content/site/projects.json` | 个人作品介绍，保留权利 |
 | `src/content/site/resume.json` | 个人简历，保留权利 |
 | `src/content/site/studio-files.json` | 展示编排清单，保留权利 |
+| `src/content/site/site.json` | 个人站点名、署名和描述，保留权利 |
+| `public/journal/generated/current.json`、兼容 manifest、当前版本 manifest | 生成索引代码按 Zlib；所含个人元信息保留权利 |
+| `public/journal/generated/<renderHash>/pages/*.webp`、`thumbnails/*.webp` | 个人日记的派生图像，保留权利；第三方字体仍遵守 OFL |
 
 软件源码的 Zlib 许可见根目录 `LICENSE`；个人内容复用须参照 `CONTENT-LICENSE.md`。依赖和字体的第三方声明见 `THIRD_PARTY_NOTICES.md`。将来新增文件时同步更新本清单；本轮未取得外部素材的独立来源证明，因此没有把这些文件声明为可自由复用的第三方素材。

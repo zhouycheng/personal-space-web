@@ -30,6 +30,10 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 
 ## 组件边界
 
+`runtime/domInstances.ts` 按 DOM 实例登记初始化和清理，真实移除时释放，BFCache 保留实例。`runtime/elementActivity.ts` 观察可见祖先和页面活动状态；装饰组件自身的 `aria-hidden` 不代表停止绘制。
+
+组件的应用数据通过适配器注入。Kit 不导入本站内容、应用流程或 Store；活动状态组件使用通用订阅源，由应用组装共享连接。
+
 每个已提取组件包含：
 
 - 其 Astro 组件文件，

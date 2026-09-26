@@ -14,4 +14,6 @@
 | 2026-06-28 | Docker 全屏桌面从 `dist/client/os-desktop` 扫描，空目录由 `/api/health` 报告失败。 | Active | src/pages/api/health.ts |
 
 | 2026-09-24 | 画布采用仓库维护内容与组件、访客浏览及本地拖动位置；移除数据库与备份服务。 | Active | docs/features/canvas.md |
-| 2026-09-25 | 本站源码按 `contracts`、`content`、`data`、`application`、`presentation`、`animation` 和 `infrastructure` 分层；旧生产目录退出。普通构建发布日记正文，实体书由 `build:release` 生成。 | Active | docs/develop/architecture.md |
+| 2026-09-25 | 本站源码按 `contracts`、`content`、`data`、`application`、`presentation`、`animation` 和 `infrastructure` 分层；旧生产目录退出。 | Active | docs/develop/architecture.md |
+| 2026-09-27 | 日记仅使用真实 3D 书页，故障提供独立退出和重试。普通 dev/build 不启动 Chromium，验证仓库中的当前不可变书页包；完整发布显式生成。 | Active | docs/features/journal.md |
+| 2026-09-27 | 应用拥有稳定目标状态；动画只采样和取消；页面资源按实例暂停、恢复、销毁。性能收益必须区分 B0/B1/B2 并提供同口径三次测量。 | Active | docs/develop/architecture.md；docs/features/journal.md |
