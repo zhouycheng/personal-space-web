@@ -1,28 +1,62 @@
 export function createDesktopContentRenderer(context) {
   const { makeFileIcon, openWindow, ICON_SIZE_RANGE, LABEL_SIZE_RANGE, DEFAULT_VIEW_SETTINGS, applyViewSettings, flushViewSettingsSave, clampNumber } = context;
-  async function renderWindowContent(state) {
+  function renderWindowContent(state) {
     const entry = state.entry;
+    let active = false;
+    let disposed = false;
+    let completed = false;
+    let generation = 0;
+    let controller = null;
+    let iframe = null;
+    function notifyFrame() {
+      if (iframe && new URL(iframe.src, location.href).origin === location.origin) {
+        iframe.contentWindow?.postMessage({ type: "justin-kit:activity", active: active && !disposed }, location.origin);
+      }
+    }
+    const instance = {
+      resume() {
+        if (disposed || active) return;
+        active = true;
+        notifyFrame();
+        if (entry.window.renderer === "markdown" && !completed) void loadMarkdown();
+      },
+      pause() {
+        active = false;
+        generation++;
+        controller?.abort();
+        controller = null;
+        notifyFrame();
+      },
+      dispose() {
+        if (disposed) return;
+        instance.pause();
+        disposed = true;
+        iframe?.removeEventListener("load", notifyFrame);
+        state.body.replaceChildren();
+      },
+    };
     state.body.className = "macos-window-body";
     state.body.replaceChildren();
 
     if (entry.window.renderer === "folder") {
       renderFolderWindow(state);
-      return;
+      return instance;
     }
 
     if (entry.window.renderer === "display-controls") {
       renderDisplayControlsWindow(state);
-      return;
+      return instance;
     }
 
     if (entry.window.renderer === "html" && entry.window.contentUrl) {
       state.body.classList.add("macos-window-body--iframe");
-      const iframe = document.createElement("iframe");
+      iframe = document.createElement("iframe");
       iframe.title = entry.window.title;
       iframe.src = entry.window.contentUrl;
       iframe.loading = "eager";
+      iframe.addEventListener("load", notifyFrame);
       state.body.append(iframe);
-      return;
+      return instance;
     }
 
     if (entry.window.renderer === "markdown" && entry.window.contentUrl) {
@@ -32,19 +66,29 @@ export function createDesktopContentRenderer(context) {
       loading.textContent = "Loading...";
       state.body.append(loading);
 
+    }
+    async function loadMarkdown() {
+      const request = ++generation;
+      controller = new AbortController();
+      const current = () => !disposed && active && request === generation && state.el.isConnected;
       try {
-        const response = await fetch(entry.window.contentUrl);
+        const response = await fetch(entry.window.contentUrl, { signal: controller.signal });
         if (!response.ok) throw new Error(`Failed to load ${entry.window.contentUrl}`);
         const markdown = await response.text();
-        if (!state.el.isConnected) return;
+        if (!current()) return;
+        completed = true;
         state.body.replaceChildren(renderTrustedMarkdown(markdown));
       } catch {
+        if (!current()) return;
         const failed = document.createElement("p");
         failed.className = "macos-window-loading";
         failed.textContent = "Unable to load file.";
         state.body.replaceChildren(failed);
+      } finally {
+        if (request === generation) controller = null;
       }
     }
+    return instance;
   }
 
   function renderFolderWindow(state) {

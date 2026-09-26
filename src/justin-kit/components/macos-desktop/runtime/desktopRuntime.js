@@ -2,6 +2,8 @@
   import { createDesktopIconLayout } from "./desktopIconLayout.js";
   import { createDesktopWindowController } from "./desktopWindowController.js";
   import { readViewSettings as loadViewSettings, saveViewSettings as persistViewSettings } from "./desktopPersistence.js";
+  import { createDomInstances } from "../../../runtime/domInstances";
+  import { observeElementActivity } from "../../../runtime/elementActivity";
   (() => {
     const VIEW_SETTINGS_KEY = "justin-os-desktop-view-settings";
     const WINDOW_SIZE_STORAGE_KEY = "justin-os-window-sizes";
@@ -33,9 +35,7 @@
       },
     };
 
-    document.querySelectorAll("[data-macos-desktop]").forEach((desktopRoot) => {
-      initMacOsDesktop(desktopRoot);
-    });
+    createDomInstances("[data-macos-desktop]", initMacOsDesktop).init();
 
     function initMacOsDesktop(root) {
       const dataElement = root.querySelector("[data-macos-desktop-data]");
@@ -54,6 +54,8 @@
 
       let desktopLayoutFrame = 0;
       let viewSettingsSaveTimer = 0;
+      const events = new AbortController();
+      let active = false;
       const iconLayout = createDesktopIconLayout({
         iconLayer, iconStateById, storageKey, getIconMetrics: () => iconMetrics, clamp,
       });
@@ -101,10 +103,22 @@
       layoutDesktopIcons();
       windows.syncIconWindowState();
 
-      window.addEventListener("resize", scheduleDesktopLayout);
-      window.addEventListener("justin-os-desktop:clear-windows", windows.clearWindowState);
-      window.addEventListener("justin-os-desktop:open-display-controls", windows.openDisplayControlsWindow);
-      window.addEventListener("justin-os-desktop:arrange-icons", () => arrangeDesktopIcons({ animate: true }));
+      window.addEventListener("resize", scheduleDesktopLayout, { signal: events.signal });
+      window.addEventListener("justin-os-desktop:clear-windows", windows.clearWindowState, { signal: events.signal });
+      window.addEventListener("justin-os-desktop:open-display-controls", windows.openDisplayControlsWindow, { signal: events.signal });
+      window.addEventListener("justin-os-desktop:arrange-icons", () => arrangeDesktopIcons({ animate: true }), { signal: events.signal });
+      const stopActivity = observeElementActivity(root, next => {
+        active = next;
+        windows.setActive(next);
+        iconInteraction.setActive(next);
+        if (next) scheduleDesktopLayout();
+        else {
+          iconLayout.stopAnimations();
+          cancelAnimationFrame(desktopLayoutFrame);
+          desktopLayoutFrame = 0;
+          flushViewSettingsSave();
+        }
+      });
 
       function readDesktopConfig(element) {
         try {
@@ -135,7 +149,7 @@
       }
 
       function scheduleDesktopLayout() {
-        if (desktopLayoutFrame) return;
+        if (!active || desktopLayoutFrame) return;
         desktopLayoutFrame = window.requestAnimationFrame(() => {
           desktopLayoutFrame = 0;
           layoutDesktopIcons();
@@ -202,8 +216,14 @@
         if (options.persist) scheduleSaveViewSettings();
         if (options.relayout) layoutDesktopIcons({ animate: Boolean(options.animate) });
       }
-
-
-
+      return () => {
+        stopActivity();
+        events.abort();
+        cancelAnimationFrame(desktopLayoutFrame);
+        flushViewSettingsSave();
+        iconInteraction.dispose();
+        iconLayout.stopAnimations();
+        windows.dispose();
+      };
     }
   })();

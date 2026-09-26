@@ -1,3 +1,7 @@
+import { observeElementActivity } from '../../runtime/elementActivity';
+import { createDomInstances } from '../../runtime/domInstances';
+
+const mounted = new WeakMap<HTMLElement, () => void>();
 type CursorState = {
   x: number;
   y: number;
@@ -33,9 +37,8 @@ function applyCursorState(element: HTMLElement, state: CursorState) {
 }
 
 export function initCursorRevealHero(element: HTMLElement) {
-  if (element.dataset.cursorRevealBound === "true") {
-    return () => {};
-  }
+  const existing = mounted.get(element);
+  if (existing) return existing;
 
   element.dataset.cursorRevealBound = "true";
 
@@ -45,11 +48,13 @@ export function initCursorRevealHero(element: HTMLElement) {
   const target: CursorState = { ...INITIAL_STATE };
   let frameId: number | null = null;
   let active = false;
+  let available = false;
+  let disposed = false;
 
   const supportsMask = () => pointerQuery.matches && !reducedMotionQuery.matches;
 
   const queueFrame = () => {
-    if (frameId !== null) return;
+    if (!available || disposed || frameId !== null) return;
     frameId = window.requestAnimationFrame(animate);
   };
 
@@ -63,6 +68,8 @@ export function initCursorRevealHero(element: HTMLElement) {
     setActive(false);
 
     if (immediate) {
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+      frameId = null;
       Object.assign(current, INITIAL_STATE);
       applyCursorState(element, current);
       return;
@@ -88,7 +95,7 @@ export function initCursorRevealHero(element: HTMLElement) {
   };
 
   const updateTargetFromPointer = (event: PointerEvent, opacity: number) => {
-    if (!supportsMask() || (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen")) {
+    if (!available || !supportsMask() || (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen")) {
       return;
     }
 
@@ -121,19 +128,32 @@ export function initCursorRevealHero(element: HTMLElement) {
       reset(true);
     }
   };
+  const handleLeave = () => reset(false);
+  const handleBlur = () => reset(true);
+  const stopActivity = observeElementActivity(element, next => {
+    available = next;
+    if (!next) reset(true);
+  });
 
   element.addEventListener("pointermove", handlePointerMove, { passive: true });
   element.addEventListener("pointerdown", handlePointerDown);
   element.addEventListener("pointerup", handlePointerUp);
-  element.addEventListener("pointerleave", () => reset(false));
-  window.addEventListener("blur", () => reset(false));
+  element.addEventListener("pointerleave", handleLeave);
+  element.addEventListener("pointercancel", handleBlur);
+  window.addEventListener("blur", handleBlur);
   pointerQuery.addEventListener("change", handleCapabilityChange);
   reducedMotionQuery.addEventListener("change", handleCapabilityChange);
 
-  return () => {
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    stopActivity();
     element.removeEventListener("pointermove", handlePointerMove);
     element.removeEventListener("pointerdown", handlePointerDown);
     element.removeEventListener("pointerup", handlePointerUp);
+    element.removeEventListener("pointerleave", handleLeave);
+    element.removeEventListener("pointercancel", handleBlur);
+    window.removeEventListener("blur", handleBlur);
     pointerQuery.removeEventListener("change", handleCapabilityChange);
     reducedMotionQuery.removeEventListener("change", handleCapabilityChange);
 
@@ -143,19 +163,12 @@ export function initCursorRevealHero(element: HTMLElement) {
 
     delete element.dataset.cursorRevealBound;
     delete element.dataset.cursorActive;
+    mounted.delete(element);
   };
+  mounted.set(element, dispose);
+  return dispose;
 }
 
-export function initCursorRevealHeroes() {
-  document
-    .querySelectorAll<HTMLElement>("[data-cursor-reveal-hero]")
-    .forEach((element) => initCursorRevealHero(element));
-}
-
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initCursorRevealHeroes, { once: true });
-  } else {
-    initCursorRevealHeroes();
-  }
-}
+const instances = createDomInstances('[data-cursor-reveal-hero]', initCursorRevealHero);
+export const initCursorRevealHeroes = () => instances.init();
+if (typeof document !== 'undefined') initCursorRevealHeroes();

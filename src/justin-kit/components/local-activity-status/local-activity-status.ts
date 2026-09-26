@@ -1,82 +1,46 @@
-import type { ActivitySnapshot } from "./runtime/types";
+import type { ActivitySnapshot } from './runtime/types';
+import { getBrowserActivitySource, type ActivitySource, type ActivityUpdate } from './runtime/activitySource';
+import { observeElementActivity } from '../../runtime/elementActivity';
+import { createDomInstances } from '../../runtime/domInstances';
 
 function formatMeta(snapshot: ActivitySnapshot | null) {
-  if (!snapshot) {
-    return "SSE connected";
-  }
-
-  const observedAt = new Date(snapshot.observedAt);
-  return `${snapshot.appName} · ${observedAt.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  if (!snapshot) return 'SSE connected';
+  return `${snapshot.appName} · ${new Date(snapshot.observedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-export function initLocalActivityStatusBadge(element: HTMLElement) {
-  if (element.dataset.localActivityBound === "true") {
-    return () => {};
+const mounted = new WeakMap<HTMLElement, () => void>();
+export function initLocalActivityStatusBadge(element: HTMLElement, suppliedSource?: ActivitySource) {
+  const existing = mounted.get(element);
+  if (existing) return existing;
+  const text = element.querySelector<HTMLElement>('[data-activity-status-text]');
+  const meta = element.querySelector<HTMLElement>('[data-activity-status-meta]');
+  const source = suppliedSource ?? getBrowserActivitySource(element.dataset.streamUrl || '/api/activity/stream');
+  let unsubscribe: (() => void) | undefined;
+  let disposed = false;
+  function update(state: ActivityUpdate) {
+    const snapshot = state.status === 'ready' ? state.snapshot : null;
+    element.dataset.state = state.status === 'loading' ? 'connecting' : state.status === 'error' ? 'error' : snapshot ? 'active' : 'idle';
+    if (text) text.textContent = state.status === 'error' ? element.dataset.offlineText || 'Local monitor offline' :
+      snapshot ? snapshot.text ?? snapshot.appName : element.dataset.idleText || 'Waiting for local monitor';
+    if (meta) meta.textContent = state.status === 'error' ? 'Reconnecting' : state.status === 'loading' ? 'Connecting' : formatMeta(snapshot);
   }
-
-  element.dataset.localActivityBound = "true";
-
-  const textElement = element.querySelector<HTMLElement>("[data-activity-status-text]");
-  const metaElement = element.querySelector<HTMLElement>("[data-activity-status-meta]");
-  const streamUrl = element.dataset.streamUrl || "/api/activity/stream";
-  const idleText = element.dataset.idleText || "Waiting for local monitor";
-  const offlineText = element.dataset.offlineText || "Local monitor offline";
-  let source: EventSource | null = null;
-
-  const setState = (state: "connecting" | "active" | "idle" | "error", text: string, meta: string) => {
-    element.dataset.state = state;
-    if (textElement) textElement.textContent = text;
-    if (metaElement) metaElement.textContent = meta;
-  };
-
-  try {
-    source = new EventSource(streamUrl);
-  } catch {
-    setState("error", offlineText, "EventSource unavailable");
-    return () => {};
-  }
-
-  source.onopen = () => {
-    setState("idle", idleText, "SSE connected");
-  };
-
-  source.onmessage = (event) => {
-    try {
-      const snapshot = JSON.parse(event.data) as ActivitySnapshot | null;
-      if (!snapshot) {
-        setState("idle", idleText, formatMeta(null));
-        return;
-      }
-
-      setState("active", snapshot.text ?? snapshot.appName, formatMeta(snapshot));
-    } catch {
-      setState("error", offlineText, "Malformed activity event");
-    }
-  };
-
-  source.onerror = () => {
-    setState("error", offlineText, "Reconnecting");
-  };
-
-  return () => {
-    source?.close();
+  const stopActivity = observeElementActivity(element, active => {
+    if (active && !unsubscribe) unsubscribe = source.subscribe(update);
+    if (!active) { unsubscribe?.(); unsubscribe = undefined; }
+  });
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    stopActivity();
+    unsubscribe?.();
+    mounted.delete(element);
     delete element.dataset.localActivityBound;
   };
+  mounted.set(element, dispose);
+  element.dataset.localActivityBound = 'true';
+  return dispose;
 }
 
-export function initLocalActivityStatusBadges() {
-  document
-    .querySelectorAll<HTMLElement>("[data-local-activity-status]")
-    .forEach((element) => initLocalActivityStatusBadge(element));
-}
-
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initLocalActivityStatusBadges, { once: true });
-  } else {
-    initLocalActivityStatusBadges();
-  }
-}
+const instances = createDomInstances('[data-local-activity-status]', element => initLocalActivityStatusBadge(element));
+export const initLocalActivityStatusBadges = () => instances.init();
+if (typeof document !== 'undefined') initLocalActivityStatusBadges();

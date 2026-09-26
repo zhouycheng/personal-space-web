@@ -31,6 +31,12 @@ import MacOsWindowFrame from "/src/justin-kit/components/macos-desktop/MacOsWind
 
 省略 `title` 和 `kind` 时保留无文字标题栏。可通过 `titlebar-actions` 命名插槽添加纯展示的标题栏内容；三色控制点在嵌入式窗体中不进入键盘焦点。
 
+## 窗口内容生命周期
+
+内容实例提供 `pause`、`resume`、`dispose`。关闭、清空桌面或移除组件共用清理路径；Markdown 请求在暂停和销毁时取消，迟到响应不能写回旧窗口。
+
+自有 iframe 接收 `{ type: "justin-kit:activity", active: boolean }` 消息。接收方必须同时验证 `event.source === parent` 和同源 `event.origin`；最小化与离开桌面暂停任务，恢复复用同一文档。未知 HTML 不因闲置被刷新或卸载。
+
 ## 桌面目录
 
 默认扫描器读取：

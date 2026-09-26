@@ -1,7 +1,6 @@
-(() => {
-    const roots = document.querySelectorAll("[data-works-portfolio]");
+import { createDomInstances } from '../../../justin-kit/runtime/domInstances';
 
-    roots.forEach((root) => {
+createDomInstances('[data-works-portfolio]', root => {
       const viewport = root.querySelector("[data-project-viewport]");
       const track = root.querySelector("[data-project-track]");
       const page = root.closest(".app-page");
@@ -24,9 +23,12 @@
       let isAnimating = false;
       let touchStartY = 0;
       let routeActive = isRouteActive();
+      let suspended = false;
+      const events = new AbortController();
+      const options = { signal: events.signal };
 
       function isRouteActive() {
-        return !page || page.classList.contains("is-active");
+        return !document.hidden && (!page || page.classList.contains("is-active"));
       }
 
       function clamp(value, min, max) {
@@ -100,7 +102,7 @@
           if (!routeActive) return;
           const index = Number(tab.getAttribute("data-project-index") ?? "0");
           goToProject(index);
-        });
+        }, options);
       });
 
       viewport.addEventListener("keydown", (event) => {
@@ -124,14 +126,14 @@
           event.preventDefault();
           goToProject(panels.length - 1);
         }
-      });
+      }, options);
 
-      viewport.addEventListener("wheel", handleWheel, { passive: false });
+      viewport.addEventListener("wheel", handleWheel, { ...options, passive: false });
 
       viewport.addEventListener("touchstart", (event) => {
         if (!routeActive) return;
         touchStartY = event.touches[0]?.clientY ?? 0;
-      }, { passive: true });
+      }, { ...options, passive: true });
 
       viewport.addEventListener("touchmove", (event) => {
         if (!routeActive) return;
@@ -142,7 +144,7 @@
         event.preventDefault();
         moveByDirection(delta > 0 ? 1 : -1);
         touchStartY = 0;
-      }, { passive: false });
+      }, { ...options, passive: false });
 
       window.addEventListener("resize", () => {
         if (!routeActive) return;
@@ -151,18 +153,27 @@
           resizeFrame = 0;
           setActiveProject(activeIndex);
         });
-      });
+      }, options);
 
-      if (page) {
-        const pageObserver = new MutationObserver(() => {
-          const nextRouteActive = isRouteActive();
-          if (nextRouteActive === routeActive) return;
-          routeActive = nextRouteActive;
-          if (routeActive) setActiveProject(activeIndex);
-        });
-        pageObserver.observe(page, { attributes: true, attributeFilter: ["class"] });
+      function stop() {
+        clearTimeout(unlockTimer);
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = unlockTimer = wheelIntent = wheelDirection = touchStartY = 0;
+        isAnimating = false;
+        track.classList.remove('is-animating');
       }
+      function updateActivity() {
+        routeActive = !suspended && isRouteActive();
+        if (routeActive) setActiveProject(activeIndex);
+        else stop();
+      }
+      const pageObserver = new MutationObserver(updateActivity);
+      if (page) pageObserver.observe(page, { attributes: true, attributeFilter: ['class'] });
+      document.addEventListener('visibilitychange', updateActivity, options);
+      window.addEventListener('pagehide', () => { suspended = true; updateActivity(); }, options);
+      window.addEventListener('pageshow', () => { suspended = false; updateActivity(); }, options);
+      viewport.addEventListener('touchcancel', () => { touchStartY = 0; }, options);
 
       setActiveProject(0);
-    });
-  })();
+      return () => { stop(); events.abort(); pageObserver.disconnect(); };
+}).init();

@@ -6,6 +6,23 @@ const ICON_ROW_GAP = 10;
 const ICON_SAFE_SIDE = 10;
 
 export function createDesktopIconLayout({ iconLayer, iconStateById, storageKey, getIconMetrics, clamp }) {
+  const frames = new Set();
+  const timers = new Set();
+  function later(callback, delay) {
+    const timer = window.setTimeout(() => { timers.delete(timer); callback(); }, delay);
+    timers.add(timer);
+  }
+  function stopAnimations() {
+    frames.forEach(frame => cancelAnimationFrame(frame));
+    timers.forEach(timer => clearTimeout(timer));
+    frames.clear();
+    timers.clear();
+    iconStateById.forEach(({ el }) => {
+      el.classList.remove('is-bumping');
+      el.style.transition = '';
+      el.style.transform = '';
+    });
+  }
   function getIconViewport() {
     const rect = iconLayer.getBoundingClientRect();
     return {
@@ -30,8 +47,7 @@ export function createDesktopIconLayout({ iconLayer, iconStateById, storageKey, 
     };
   }
 
-  function clampIconPosition(position) {
-    const bounds = getDesktopBounds();
+  function clampIconPosition(position, bounds = getDesktopBounds()) {
     return {
       left: clamp(position.left, bounds.left, Math.max(bounds.left, bounds.right - getIconMetrics().width)),
       top: clamp(position.top, bounds.top, Math.max(bounds.top, bounds.bottom - getIconMetrics().height)),
@@ -112,12 +128,14 @@ export function createDesktopIconLayout({ iconLayer, iconStateById, storageKey, 
     icon.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${options.scale || 1.045})`;
     icon.getBoundingClientRect();
 
-    window.requestAnimationFrame(() => {
+    const frame = window.requestAnimationFrame(() => {
+      frames.delete(frame);
       icon.style.transition = "transform 560ms cubic-bezier(0.17, 1.42, 0.28, 1)";
       icon.style.transform = "";
     });
+    frames.add(frame);
 
-    window.setTimeout(() => {
+    later(() => {
       icon.classList.remove("is-bumping");
       icon.style.transition = "";
       icon.style.transform = "";
@@ -215,12 +233,13 @@ export function createDesktopIconLayout({ iconLayer, iconStateById, storageKey, 
 
     bumped.forEach((icon) => {
       icon.classList.add("is-bumping");
-      window.setTimeout(() => icon.classList.remove("is-bumping"), 360);
+      later(() => icon.classList.remove("is-bumping"), 360);
     });
   }
 
   return {
     getDesktopBounds, clampIconPosition, layoutDesktopIcons, applyIconPosition,
     resolveIconCollisions, saveIconPositions, getIconBox, boxesOverlap, arrangeDesktopIcons,
+    stopAnimations,
   };
 }

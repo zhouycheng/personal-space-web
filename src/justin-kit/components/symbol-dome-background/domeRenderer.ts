@@ -1,4 +1,4 @@
-import { LAND, OCEAN, STAR, clamp, landValue, mixRgb, noise, wrap01, type DomePoint } from "./domeModel";
+import { LAND, OCEAN, STAR, clamp, landValue, mixRgb, noise, wrap01, type DomePoint } from "./domeModel.ts";
 
 type DomeFrameState = {
   width: number;
@@ -31,8 +31,13 @@ export function drawDomeFrame(
 
   const targetLookX = hasPointer ? clamp((pointerX - cx) / (radiusX * 1.05), -1, 1) : 0;
   const targetLookY = hasPointer ? clamp((pointerY - (cy - radiusY * 0.48)) / (radiusY * 0.85), -1, 1) : 0;
-  lookX += (targetLookX - lookX) * 0.035;
-  lookY += (targetLookY - lookY) * 0.035;
+  if (reducedMotion) {
+    lookX = targetLookX;
+    lookY = targetLookY;
+  } else {
+    lookX += (targetLookX - lookX) * 0.035;
+    lookY += (targetLookY - lookY) * 0.035;
+  }
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -64,7 +69,7 @@ export function drawDomeFrame(
     const pointerDistance = Math.hypot(x - pointerX, y - pointerY);
     const hover = pointerInside ? clamp(1 - pointerDistance / 118, 0, 1) : 0;
     const fontSize = (5.8 + rowScale * 4.75) * (1 - hover * 0.34);
-    const oceanFlicker = isLand ? 0 : Math.sin(now * 0.0014 + point.wave + surfaceU * 9) * 0.035;
+    const oceanFlicker = isLand || reducedMotion ? 0 : Math.sin(now * 0.0014 + point.wave + surfaceU * 9) * 0.035;
     const landAlpha = 0.54 + localNoise * 0.12 + Math.max(0, land - landThreshold) * 0.18;
     const oceanAlpha = 0.15 + localNoise * 0.12 + oceanFlicker;
     const alpha = (isLand ? landAlpha : oceanAlpha) * edgeFade * topFade * point.base * (1 - hover * 0.45);
@@ -77,5 +82,6 @@ export function drawDomeFrame(
     ctx.fillText(glyph, x, y);
     ctx.restore();
   });
-  return { rotation, lookX, lookY };
+  return { rotation, lookX, lookY,
+    settling: Math.abs(targetLookX - lookX) > .0001 || Math.abs(targetLookY - lookY) > .0001 };
 }

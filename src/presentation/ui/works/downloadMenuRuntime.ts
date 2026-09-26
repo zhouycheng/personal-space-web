@@ -1,19 +1,22 @@
 import { detectDownloadPlatform, selectDefaultDownload } from "../../../data/selectors/downloadPlatform.mjs";
+import { createDomInstances } from '../../../justin-kit/runtime/domInstances';
+import { observeElementActivity } from '../../../justin-kit/runtime/elementActivity';
 
 type DownloadData = {
   version?: string;
   packages: Parameters<typeof selectDefaultDownload>[0];
 };
 
-for (const root of document.querySelectorAll<HTMLElement>("[data-project-download]")) {
-  if (root.dataset.downloadReady === "true") continue;
+createDomInstances('[data-project-download]', root => {
   const primary = root.querySelector<HTMLButtonElement>("[data-download-primary]");
   const toggle = root.querySelector<HTMLButtonElement>("[data-download-toggle]");
   const label = root.querySelector<HTMLElement>("[data-download-label]");
   const menu = root.querySelector<HTMLElement>("[data-download-menu]");
   const dataElement = root.querySelector<HTMLScriptElement>("[data-download-data]");
-  if (!primary || !toggle || !label || !menu || !dataElement) continue;
+  if (!primary || !toggle || !label || !menu || !dataElement) return;
   root.dataset.downloadReady = "true";
+  const events = new AbortController();
+  const options = { signal: events.signal };
   const projectTitle = root.dataset.projectTitle ?? "项目";
 
   let downloads: DownloadData;
@@ -54,15 +57,17 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-project-downloa
     const href = primary.dataset.downloadHref;
     if (href) window.location.assign(href);
     else setOpen(menu.hidden);
-  });
-  toggle.addEventListener("click", () => setOpen(menu.hidden));
-  menu.querySelectorAll("a").forEach(link => link.addEventListener("click", () => setOpen(false)));
+  }, options);
+  toggle.addEventListener("click", () => setOpen(menu.hidden), options);
+  menu.querySelectorAll("a").forEach(link => link.addEventListener("click", () => setOpen(false), options));
   document.addEventListener("click", event => {
     if (!menu.hidden && event.target instanceof Node && !root.contains(event.target)) setOpen(false);
-  });
+  }, options);
   document.addEventListener("keydown", event => {
     if (event.key !== "Escape" || menu.hidden) return;
     setOpen(false);
     toggle.focus();
-  });
-}
+  }, options);
+  const stopActivity = observeElementActivity(root, active => { if (!active) setOpen(false); });
+  return () => { stopActivity(); events.abort(); delete root.dataset.downloadReady; };
+}).init();

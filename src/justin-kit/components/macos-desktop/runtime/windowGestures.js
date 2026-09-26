@@ -9,6 +9,7 @@ export function createWindowGestureController(context) {
     event.preventDefault();
     focusWindow(state.id);
     activeWindowGesture = {
+      pointerId: event.pointerId,
       type: "drag",
       id: state.id,
       startX: event.clientX,
@@ -20,7 +21,9 @@ export function createWindowGestureController(context) {
     };
     document.body.classList.add("is-macos-window-gesturing");
     window.addEventListener("pointermove", handleWindowGestureMove);
-    window.addEventListener("pointerup", endWindowGesture, { once: true });
+    window.addEventListener("pointerup", endWindowGesture);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("blur", cancel);
   }
 
   function startWindowResize(event, state) {
@@ -29,6 +32,7 @@ export function createWindowGestureController(context) {
     event.stopPropagation();
     focusWindow(state.id);
     activeWindowGesture = {
+      pointerId: event.pointerId,
       type: "resize",
       id: state.id,
       startX: event.clientX,
@@ -40,7 +44,9 @@ export function createWindowGestureController(context) {
     };
     document.body.classList.add("is-macos-window-gesturing", "is-macos-window-resizing");
     window.addEventListener("pointermove", handleWindowGestureMove);
-    window.addEventListener("pointerup", endWindowGesture, { once: true });
+    window.addEventListener("pointerup", endWindowGesture);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("blur", cancel);
   }
 
   function applyWindowGestureMove(event) {
@@ -73,6 +79,7 @@ export function createWindowGestureController(context) {
   }
 
   function handleWindowGestureMove(event) {
+    if (event.pointerId !== activeWindowGesture?.pointerId) return;
     windowGestureEvent = {
       clientX: event.clientX,
       clientY: event.clientY,
@@ -89,14 +96,14 @@ export function createWindowGestureController(context) {
     commitWindowGestureMove();
   }
 
-  function endWindowGesture() {
+  function endWindowGesture(event) {
+    if (event.pointerId !== activeWindowGesture?.pointerId) return;
+    windowGestureEvent = { clientX: event.clientX, clientY: event.clientY };
     flushWindowGestureMove();
     if (activeWindowGesture?.type === "resize") {
       saveWindowSize(openWindows.get(activeWindowGesture.id));
     }
-    activeWindowGesture = null;
-    document.body.classList.remove("is-macos-window-gesturing", "is-macos-window-resizing");
-    window.removeEventListener("pointermove", handleWindowGestureMove);
+    cancel();
   }
   function cancel() {
     if (windowGestureFrame) window.cancelAnimationFrame(windowGestureFrame);
@@ -105,6 +112,9 @@ export function createWindowGestureController(context) {
     activeWindowGesture = null;
     document.body.classList.remove("is-macos-window-gesturing", "is-macos-window-resizing");
     window.removeEventListener("pointermove", handleWindowGestureMove);
+    window.removeEventListener("pointerup", endWindowGesture);
+    window.removeEventListener("pointercancel", cancel);
+    window.removeEventListener("blur", cancel);
   }
   return { startDrag: startWindowDrag, startResize: startWindowResize, cancel };
 }

@@ -1,5 +1,5 @@
 import { Background, ReactFlow, Handle, Position, ConnectionMode, useNodesState, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import '@xyflow/react/dist/style.css';
 import './mine-canvas.css';
 import { getPublishedCanvas } from '../../../data/repositories/canvas';
@@ -8,72 +8,96 @@ import { CanvasCardContent } from './CanvasCardContent';
 import { MineCanvasEdgeComponent } from './MineCanvasEdge';
 import { inferHandlePair } from '../../interaction/canvas/mineCanvasGeometry';
 import { applyPositions, parsePositions, POSITION_KEY, type Positions } from '../../../infrastructure/client/canvasPositions';
+import type { CanvasSession } from './canvasSession';
+import { CanvasViewControls } from './CanvasViewControls';
 
-function Card({ data }: NodeProps<MineCanvasNode>) {
+const Card = memo(function Card({ data }: NodeProps<MineCanvasNode>) {
   return <article className={`canvas-card canvas-card--${data.kind}`} style={{ '--card-accent': data.accent } as CSSProperties}>
     <div className="canvas-card-body">{data.kind === 'monitor' && <small className="canvas-monitor-label">笔记本窗口监听器</small>}{!['businesscard', 'quote'].includes(data.kind) && <h2>{data.title}</h2>}<CanvasCardContent data={data} /></div>
     {[Position.Top, Position.Right, Position.Bottom, Position.Left].map(position => <Handle key={position} id={position} type="source" position={position} isConnectable={false} />)}
   </article>;
-}
+});
 const nodeTypes = { mine: Card }, edgeTypes = { mineCurve: MineCanvasEdgeComponent };
 const mineCanvasSeed = getPublishedCanvas();
 const defaults = mineCanvasSeed.nodes;
+const defaultIds = new Set(defaults.map(node => node.id));
 function readPositions() { try { return parsePositions(localStorage.getItem(POSITION_KEY)); } catch { return {}; } }
 const duration = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240;
 
-export default function MineCanvasEditor() {
-  const overrides = useRef<Positions>(readPositions());
-  const [nodes, setNodes, onNodesChange] = useNodesState<MineCanvasNode>(applyPositions(defaults, overrides.current));
+export default function MineCanvasEditor({ active, session }: { active: boolean; session: CanvasSession }) {
+  const [initialPositions] = useState(() => session.positions ??= readPositions());
+  const overrides = useRef<Positions>(initialPositions);
+  const [initialNodes] = useState(() => applyPositions(defaults, initialPositions));
+  const [nodes, setNodes, onNodesChange] = useNodesState<MineCanvasNode>(initialNodes);
   const [instance, setInstance] = useState<ReactFlowInstance<MineCanvasNode, MineCanvasEdge> | null>(null);
   const [drawer, setDrawer] = useState(false);
-  const [zoom, setZoom] = useState(100), [storageMessage, setStorageMessage] = useState('');
+  const [storageMessage, setStorageMessage] = useState('');
   const wrap = useRef<HTMLDivElement>(null);
   const contentButton = useRef<HTMLButtonElement>(null), sidebar = useRef<HTMLElement>(null);
   const dragging = useRef(false);
-  const edges: MineCanvasEdge[] = mineCanvasSeed.edges.map(edge => {
-    const source = nodes.find(n => n.id === edge.source), target = nodes.find(n => n.id === edge.target);
+  const dragTimer = useRef(0);
+  const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+  const edges: MineCanvasEdge[] = useMemo(() => mineCanvasSeed.edges.map(edge => {
+    const source = nodeById.get(edge.source), target = nodeById.get(edge.target);
     const pair = source && target ? inferHandlePair(
       { x: source.position.x + source.data.width / 2, y: source.position.y + source.data.height / 2 },
       { x: target.position.x + target.data.width / 2, y: target.position.y + target.data.height / 2 },
     ) : { sourceHandle: 'right', targetHandle: 'left' };
     return { ...edge, ...pair, selectable: false, reconnectable: false };
-  });
-  const fit = () => { void instance?.fitView({ padding: .18, duration: duration(), minZoom: .08, maxZoom: 1 }); };
+  }), [nodeById]);
+  const fit = useCallback(() => { void instance?.fitView({ padding: .18, duration: duration(), minZoom: .08, maxZoom: 1 }); }, [instance]);
   useEffect(() => {
-    if (!instance || !wrap.current) return;
+    if (!active || !instance || !wrap.current) return;
     let frame = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => { void instance.fitView({ padding: .18, duration: 0, minZoom: .08, maxZoom: 1 }); });
+      frame = requestAnimationFrame(() => {
+        if (!wrap.current?.clientWidth || !wrap.current.clientHeight) return;
+        if (session.viewport) void instance.setViewport(session.viewport, { duration: 0 });
+        else void instance.fitView({ padding: .18, duration: 0, minZoom: .08, maxZoom: 1 });
+      });
     });
     observer.observe(wrap.current);
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
-  }, [instance]);
+  }, [active, instance, session]);
   useEffect(() => {
-    const page = document.getElementById('page-canvas');
-    if (!page) return;
-    const observer = new MutationObserver(() => {
-      if (!page.classList.contains('is-active')) setDrawer(false);
-    });
-    observer.observe(page, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
+    if (!active) {
+      setDrawer(false);
+      clearTimeout(dragTimer.current);
+      dragging.current = false;
+    }
+    return () => clearTimeout(dragTimer.current);
+  }, [active]);
   useEffect(() => { if (drawer) sidebar.current?.querySelector<HTMLButtonElement>('button')?.focus(); }, [drawer]);
   const closeDrawer = () => { setDrawer(false); contentButton.current?.focus(); };
-  const focus = (node: MineCanvasNode) => {
+  const focus = useCallback((node: MineCanvasNode) => {
     setDrawer(false);
     void instance?.fitView({ nodes: [{ id: node.id }], padding: .3, minZoom: .1, maxZoom: 1, duration: duration() });
     requestAnimationFrame(() => wrap.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(node.id)}"]`)?.focus());
-  };
-  const savePosition = (node: MineCanvasNode) => {
+  }, [instance]);
+  const savePosition = useCallback((node: MineCanvasNode) => {
     overrides.current[node.id] = { ...node.position };
-    const ids = new Set(defaults.map(n => n.id));
-    overrides.current = Object.fromEntries(Object.entries(overrides.current).filter(([id]) => ids.has(id)));
+    overrides.current = Object.fromEntries(Object.entries(overrides.current).filter(([id]) => defaultIds.has(id)));
+    session.positions = overrides.current;
     try { localStorage.setItem(POSITION_KEY, JSON.stringify(overrides.current)); setStorageMessage(''); }
     catch { setStorageMessage('浏览器无法保存位置，本次仍可浏览。'); }
-  };
+  }, [session]);
+  const startDrag = useCallback(() => { dragging.current = true; }, []);
+  const stopDrag = useCallback((_: unknown, node: MineCanvasNode) => {
+    savePosition(node);
+    dragTimer.current = window.setTimeout(() => { dragging.current = false; }, 0);
+  }, [savePosition]);
+  const doubleClickNode = useCallback((event: ReactMouseEvent, node: MineCanvasNode) => {
+    event.stopPropagation();
+    if (!dragging.current) focus(node);
+  }, [focus]);
+  const rememberViewport = useCallback((_: unknown, viewport: { x: number; y: number; zoom: number }) => {
+    session.viewport = viewport;
+  }, [session]);
   const reset = () => {
     overrides.current = {};
+    session.positions = {};
+    session.viewport = undefined;
     try { localStorage.removeItem(POSITION_KEY); } catch {}
     setNodes(defaults.map(n => ({ ...n }))); requestAnimationFrame(fit);
   };
@@ -98,26 +122,24 @@ export default function MineCanvasEditor() {
     }}>
       <ReactFlow<MineCanvasNode, MineCanvasEdge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
         onInit={setInstance} onNodesChange={onNodesChange}
-        onNodeDragStart={() => { dragging.current = true; }}
-        onNodeDragStop={(_, node) => { savePosition(node); setTimeout(() => { dragging.current = false; }, 0); }}
-        onNodeDoubleClick={(event, node) => { event.stopPropagation(); if (!dragging.current) focus(node); }}
+        onNodeDragStart={startDrag}
+        onNodeDragStop={stopDrag}
+        onNodeDoubleClick={doubleClickNode}
         nodeDragThreshold={5}
         onKeyDown={event => {
           const element = (event.target as HTMLElement).closest<HTMLElement>('.react-flow__node');
           if (element?.dataset.id && (event.key === 'Enter' || event.key === ' ')) {
-            const node = nodes.find(n => n.id === element.dataset.id);
+            const node = nodeById.get(element.dataset.id);
             if (node) { event.preventDefault(); focus(node); }
           }
         }}
-        onMove={(_, viewport) => setZoom(Math.round(viewport.zoom * 100))}
+        onMove={rememberViewport}
         nodesConnectable={false} edgesReconnectable={false} connectionMode={ConnectionMode.Loose}
-        deleteKeyCode={null} nodesFocusable nodesDraggable panOnDrag zoomOnPinch zoomOnScroll zoomOnDoubleClick={false}
-        minZoom={.08} maxZoom={2} fitView fitViewOptions={{ padding: .18, minZoom: .08, maxZoom: 1 }} proOptions={{ hideAttribution: true }}>
+        deleteKeyCode={null} nodesFocusable nodesDraggable={active} autoPanOnNodeDrag={active} panOnDrag={active} zoomOnPinch={active} zoomOnScroll={active} zoomOnDoubleClick={false}
+        defaultViewport={session.viewport} minZoom={.08} maxZoom={2} fitView={!session.viewport} fitViewOptions={{ padding: .18, minZoom: .08, maxZoom: 1 }} proOptions={{ hideAttribution: true }}>
         <Background gap={28} size={1} color="#c8cbd3" />
+        <CanvasViewControls onFit={fit} />
       </ReactFlow>
-    </div>
-    <div className="canvas-view-controls" aria-label="画布视角">
-      <button onClick={fit}>查看全图</button><button aria-label="缩小" onClick={() => void instance?.zoomOut()}>−</button><output>{zoom}%</output><button aria-label="放大" onClick={() => void instance?.zoomIn()}>＋</button>
     </div>
     {storageMessage && <p className="canvas-storage-message" role="status">{storageMessage}</p>}
   </div>;
