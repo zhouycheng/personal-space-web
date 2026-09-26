@@ -15,7 +15,7 @@ The application runs from the repository root using Astro 7 server output, the `
 - `src/content/` owns published records and assets. `src/data/repositories/` reads them; `src/data/selectors/` derives portfolio and file views; `src/data/stores/` holds per-shell client state and the activity snapshot.
 - `src/application/` owns use cases and intent decisions. `src/presentation/scene/` owns Three.js objects and renderer disposal; `src/presentation/interaction/` maps gestures to user intent; `src/animation/` owns camera and projection timing. `src/config/` holds appearance and lighting parameters.
 - `src/presentation/ui/` owns Astro/React components, browser runtimes, and styles. `src/infrastructure/client/` owns browser storage; `src/infrastructure/server/` owns server data access and streams.
-- `src/content/journal/` owns Markdown. `scripts/journal-content.mjs` compiles text without Chromium; `scripts/journal-build.mjs` generates fixed pages for `build:release`.
+- `src/content/journal/` owns Markdown. `scripts/journal/` owns fingerprints, compilation and immutable book packages. `current.json` is the sole activation pointer; track the active validated package. Runtime manifests contain metadata and page regions, never full HTML.
 - `src/content/canvas/published.ts` owns canvas cards and IDs; `src/contracts/canvas.ts` defines plain content types. Use `justinweb-canvas-content` for content and layout changes.
 - `src/justin-kit/components/`: reusable components and their runtimes, maintained according to component READMEs. The `macos-desktop` component owns desktop and window behavior.
 - `public/os-desktop/`: file-driven desktop content, scanned here in development and from `dist/client/os-desktop/` in production.
@@ -25,7 +25,7 @@ The application runs from the repository root using Astro 7 server output, the `
 ## Interaction Contracts
 
 - `/home` opens the studio, `/works` the file collection, `/canvas` the personal canvas, and `/os` Justin OS. The client normalizes `/` to `/home`.
-- `/journal` and `/journal/[slug]` open the diary. Preserve stable article slugs, physical front/back page order, fixed pagination across devices, and HTML reading access when WebGL fails. Page turns do not push browser history.
+- `/journal` and `/journal/[slug]` open the 3D-only diary. Preserve stable slugs, physical front/back order and fixed pagination across devices. A WebGL or resource failure must expose an independent error, retry and exit UI. Page turns do not push history.
 - The URL determines the stable page and updates when navigation starts. Animation handles the visual transition. Returning to the studio reuses a known home history entry or replaces the current entry.
 - The studio uses a freestanding desk-and-chair composition: the computer opens OS, the flat iPad opens the canvas, and the upright file box opens the file collection. File details require a separate activation; reject retargeted scene clicks and drag gestures. The signature overlays the bottom of the scene.
 - Keep the computer and iPad fixed. The camera first faces the screen, then approaches it as live content fades in over the screen and expands to fullscreen. Reverse this sequence on return.
@@ -59,7 +59,9 @@ rtk npm run monitor:activity
 ## Validation
 
 - Run `rtk npm run build`, `rtk npm run check:boundaries`, and `rtk npm run check:types` as the baseline. Run relevant Node tests for logic changes and the full suite for shared-flow changes. Report build and type-check results separately.
-- Ordinary development and builds compile readable journal text without Chromium. Install the pinned Playwright Chromium with `npm run journal:setup` before `build:release` or pagination tests. Generated journal assets are local build output; edit Markdown and layout sources instead. Use temporary input, output, and asset directories for validation.
+- Ordinary development and builds validate the pregenerated journal package without Chromium. Development reports missing/outdated books; production builds fail on missing, corrupt or stale packages. Install pinned Chromium with `journal:setup` before explicit `journal:build`, `build:release` or `test:journal:render`. Update the active package allowlist in `.gitignore` when publishing changed content. Use isolated directories for generation tests.
+- `test:unit` never launches a browser. `test:e2e` uses the existing production build and unified Playwright fixtures; `test:e2e:release` builds first. Record browser/environment failures separately from passes. Keep traces, screenshots and performance raw data in `.workspace/`.
+- Capture B0/B1/B2 under matching conditions and compare three repeats. A software WebGL backend, mobile emulation and JS heap do not establish device FPS or total GPU memory.
 - Check UI and animation changes on desktop and narrow viewports, including intermediate frames. For studio interactions, check dragging, clicking, hovering, entry, and return. Base touch and performance claims on checks using the relevant devices.
 - For routing or shell changes, check direct loading, refresh, back/forward, and mid-animation navigation across `/`, `/home`, `/works`, `/canvas`, and `/os`. Check viewport changes when transitions depend on dimensions.
 - For canvas changes, verify position restoration/reset, invalid storage fallback, content and edge validity, mobile reading, and static asset paths. For desktop scanning or deployment changes, verify built content and `/api/health`.

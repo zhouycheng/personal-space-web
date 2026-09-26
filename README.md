@@ -38,7 +38,9 @@ npm ci
 npm run dev
 ```
 
-普通开发和 `npm run build` 会直接从 Markdown 生成可阅读日记正文，不需要 Chromium。发布实体书前运行 `npm run journal:setup`，然后运行 `npm run build:release`。自动检查入口：`npm run check:boundaries`、`npm run check:types`、`npm run test:unit`、`npm run test:e2e`。
+普通开发和 `npm run build` 使用仓库中的有效 3D 日记书页包，不需要 Chromium。开发时缺包或内容已更新会显示明确状态；生产构建遇到缺包、损坏或过期直接失败。修改日记后运行 `npm run journal:setup`（首次安装分页浏览器）和 `npm run journal:build`，更新当前包与 `.gitignore` 中的版本登记。完整发布检查使用 `npm run build:release`。日记仅提供 3D 阅读，失败时可以重试或返回首页。
+
+自动检查入口：`check:boundaries`、`check:types`、`test:unit`。分页、无浏览器启动和浏览器交互分别运行 `test:journal:render`、`test:startup:no-browser`、`test:e2e`；后者使用已构建站点。`test:e2e:release` 先生成和构建再测试。性能测量使用 `test:performance`，详细约束见 [日记说明](docs/features/journal.md)。
 
 简历、作品和文件盒顺序分别维护在 `src/content/site/resume.json`、`projects.json` 和 `studio-files.json`；画布发布内容在 `src/content/canvas/published.ts`，日记正文在 `src/content/journal/`。目录职责与依赖规则见[架构说明](docs/develop/architecture.md)。
 
