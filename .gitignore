@@ -70,6 +70,9 @@ next-env.d.ts
 /design/
 /output/
 
-# Reproducible journal pagination artifacts
-/public/journal/generated/
+# Keep the active validated book; old local versions and temporary output stay local.
+/public/journal/generated/*
+!/public/journal/generated/current.json
+!/public/journal/generated/manifest.json
+!/public/journal/generated/5abf564fcdd6ed6ece64/
 /src/generated/journal.json

@@ -1,4 +1,3 @@
-export type { JournalPhase } from '../../contracts/journal';
 export const readingLimits = { yaw: 25 * Math.PI / 180, pitch: 15 * Math.PI / 180 };
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 export function journalSingle(width: number, height: number) {

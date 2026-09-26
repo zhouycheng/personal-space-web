@@ -1,0 +1,10 @@
+{
+  "brand": "Justin OS",
+  "author": "Justin",
+  "description": "Justin 的个人 OS 与组件库 Justin Kit。",
+  "signature": "JUSTIN / PERSONAL SPACE",
+  "journalTitle": "Justin 日记",
+  "journalDescription": "找到属于自己的节奏",
+  "pageTitleTemplate": "{brand} - {page}",
+  "articleTitleTemplate": "{article} — {journal}"
+}

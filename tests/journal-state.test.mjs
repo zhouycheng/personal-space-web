@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spreadFor, turnFaces, resolveReadingPage, journalSlug } from '../src/application/journal/book-state.ts';
+import { resolveReadingPage, journalSlug } from '../src/application/journal/book-state.ts';
+import { spreadFor, turnFaces } from '../src/data/selectors/journalPages.ts';
 import { pageForPath, pathForPage, historyAction, studioStateForPage, NAV_ITEMS } from '../src/app/navigation.ts';
 
 test('a physical right leaf has the current right and next left faces',()=>{
@@ -25,11 +26,12 @@ test('deep links beat other bookmarks; stable anchors survive repagination',()=>
   assert.equal(resolveReadingPage(book,undefined,{slug:'old',anchor:'p3',page:0}),2);
   assert.equal(resolveReadingPage(book,undefined,{slug:'old',page:99}),2);
   assert.equal(resolveReadingPage(book,undefined,{slug:'deleted',page:99}),3);
+  assert.equal(resolveReadingPage(book,'missing'),-1);
 });
 test('journal paths preserve original Unicode slugs without adding a dock item',()=>{
   assert.equal(pageForPath('/journal/20260527-%E8%AE%B0%E5%BD%95/'),'journal');
   assert.equal(journalSlug('/journal/20260527-%E8%AE%B0%E5%BD%95/'),'20260527-记录');
-  assert.equal(journalSlug('/journal/%ZZ'),undefined);
+  assert.equal(journalSlug('/journal/%ZZ'),'%ZZ');
   assert.equal(pathForPage('journal'),'/journal');
   assert.equal(studioStateForPage('journal'),'journal');
   assert.equal(historyAction('journal','home',{justinPage:'journal',from:'home'}),'back');

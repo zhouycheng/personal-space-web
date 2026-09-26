@@ -33,11 +33,23 @@ export type ProjectRecord = {
 export type ResumeRecord = {
   name: string;
   role: string;
+  tags?: string[];
   phone: string;
   email: string;
   age: number;
   summary: string;
   sections: { title: string; paragraphs: string[] }[];
+};
+
+export type SiteIdentity = {
+  brand: string;
+  author: string;
+  description: string;
+  signature: string;
+  journalTitle: string;
+  journalDescription: string;
+  pageTitleTemplate: string;
+  articleTitleTemplate: string;
 };
 
 export type StudioFileEntry =
