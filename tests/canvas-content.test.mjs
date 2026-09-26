@@ -3,6 +3,22 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { mineCanvasSeed } from '../src/content/canvas/published.ts';
 import { activityCopy } from '../src/application/activity/canvasActivity.ts';
+import { canvasContentIsValid } from '../src/data/selectors/canvas.ts';
+
+test('canvas validation rejects invalid geometry, kinds and references', () => {
+  assert.equal(canvasContentIsValid(mineCanvasSeed), true);
+  for (const mutate of [
+    value => { value.nodes[0].position.x = NaN; },
+    value => { value.nodes[0].data.kind = 'unknown'; },
+    value => { value.nodes[1].id = value.nodes[0].id; },
+    value => { value.edges[0].target = 'missing'; },
+    value => { value.nodes[0] = null; },
+  ]) {
+    const invalid = structuredClone(mineCanvasSeed);
+    mutate(invalid);
+    assert.equal(canvasContentIsValid(invalid), false);
+  }
+});
 
 test('published canvas contains the four real cards and two connections', () => {
   assert.equal(mineCanvasSeed.nodes.length,4);
