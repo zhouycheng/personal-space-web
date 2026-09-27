@@ -19,7 +19,9 @@
 
 Tailscale 中创建 GitHub OIDC 联邦身份，issuer 使用 `https://token.actions.githubusercontent.com`，权限只选 `auth_keys`，设备 tag 只选 `tag:ci`。使用 GitHub 当前显示的不可变 environment subject，并通过 custom claim rules 精确限制仓库、`production` environment 和 `refs/heads/main`。将生成的 Client ID 和 Audience 保存到 GitHub environment secrets `TS_OAUTH_CLIENT_ID` 和 `TS_AUDIENCE`；不要把具体身份 subject、Client ID 或 Audience 写入本仓库。
 
-发布镜像使用 `GITHUB_TOKEN` 和 `packages: write`。首次发布后，在 GitHub Packages 中把 `personal-space-web` Container package 设为 Public，供服务器匿名拉取。workflow 会退出 GHCR 登录，再匿名拉取刚发布的 digest；如果包仍是 private，该 job 会失败并阻止服务器部署。镜像只包含 Dockerfile 构建产物和生产依赖；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。不要把运行时凭据写入 Docker build 参数或镜像。
+发布镜像使用 `GITHUB_TOKEN` 和 `packages: write`。将 `personal-space-web` Container package 设为 Private，并确认 `personal-space-web` 仓库具有该 package 的 GitHub Actions 访问权限。部署 job 使用单独的 `GITHUB_TOKEN`、`packages: read`，经 Tailscale SSH 标准输入把镜像摘要、GitHub actor 和短期 token 传给 root 管理的入口；服务器在 `/run` 建立仅 root 可读的临时 Docker 配置，拉取摘要后随命令退出清除。token 不作为命令行参数、不会保存到服务器，也不会写入日志或镜像。发布 job 在保持 GHCR 登录时拉取新摘要以验证私有包权限。不要创建长期 PAT 来替代 job token。
+
+GitHub 官方提示：如果公开仓库获准访问私有 package，该仓库的 fork workflow 可能也能读取该 package。JustinSpace 源仓库当前为 Public，因此私有可见性阻止匿名 registry 拉取，但不应将它视为对公开源码 fork 的保密边界。镜像不得包含运行时秘密；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。
 
 ## Tailnet 策略
 
@@ -65,7 +67,7 @@ sudo install -o root -g root -m 0440 scripts/deploy/deployctl.sudoers /etc/sudoe
 sudo visudo -cf /etc/sudoers.d/deployctl
 ```
 
-为 JustinSpace 登记唯一允许的镜像仓库、Compose 目录、项目、服务和镜像环境变量：
+为 JustinSpace 登记唯一允许的镜像仓库、registry、Compose 目录、项目、服务和镜像环境变量：
 
 ```bash
 sudo install -o root -g root -m 0600 scripts/deploy/targets/justinspace.conf.example /etc/deployctl/targets/justinspace.conf
@@ -91,14 +93,16 @@ sudo 列表只应包含 `/usr/local/sbin/deployctl`。部署账号只可使用�
 
 ## 增加其他项目或 CI 来源
 
-部署来源是 OCI 镜像仓库，不限定代码托管或 CI 平台。GitHub、Gitee 或其他 CI 需要：构建并推送 OCI 镜像、取得不可变 `repository@sha256:...` 摘要、通过 Tailscale SSH 调用入口。仓库、Compose 目录、Compose 服务和镜像变量由服务器 root 在 `/etc/deployctl/targets/<目标>.conf` 单独登记；CI 不能自行扩展 allowlist。私有 registry 的拉取凭据应由管理员放在 root 专属 Docker 配置中，不能传给 `deploy` 用户或写进镜像。
+部署来源是 OCI 镜像仓库，不限定代码托管或 CI 平台。GitHub、Gitee 或其他 CI 需要：构建并推送 OCI 镜像、取得不可变 `repository@sha256:...` 摘要、通过 Tailscale SSH 调用入口。仓库、registry、Compose 目录、Compose 服务和镜像变量由服务器 root 在 `/etc/deployctl/targets/<目标>.conf` 单独登记；CI 不能自行扩展 allowlist。私有 registry 凭据只在部署时通过标准输入传给 root 管理的入口，保存在 `/run` 的临时 Docker 配置中并在命令结束时清除；不能传给 `deploy` 用户的命令参数或写入镜像。
 
 通用调用形态：
 
 ```bash
-printf '%s\n' "$IMAGE_DIGEST" | tailscale ssh "deploy@$TAILSCALE_SERVER" \
+printf '%s\n%s\n%s\n' "$IMAGE_DIGEST" "$REGISTRY_USERNAME" "$REGISTRY_TOKEN" | tailscale ssh "deploy@$TAILSCALE_SERVER" \
   'sudo -n /usr/local/sbin/deployctl deploy <target>'
 ```
+
+回滚调用将用户名和 token 两行通过标准输入发送，并固定执行 `sudo -n /usr/local/sbin/deployctl rollback <target>`。部署端不接受 CI 传入的 shell 命令、Compose 路径、registry host 或任意镜像仓库。
 
 不同 CI 使用各自的 OIDC 或短期 Tailscale 认证，并将节点限制为 `tag:ci`；若某平台不能可靠地提供短期身份，就先为它单独评估认证方式，不要把长期私钥放进仓库。
 

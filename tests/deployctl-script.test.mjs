@@ -25,13 +25,21 @@ test("rejects mutable tags and malformed image references", () => {
   assert.doesNotMatch(result.stderr, /must run as root/);
 });
 
-test("rejects extra stdin after the image digest", () => {
+test("rejects extra stdin after the registry credentials", () => {
   const image = "registry.example:5000/team/site@sha256:" + "a".repeat(64);
-  const result = run(["deploy", "justinspace"], `${image}\nunexpected\n`);
+  const result = run(["deploy", "justinspace"], `${image}\nzhouycheng\ntoken\nunexpected\n`);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /unexpected extra input/);
   assert.doesNotMatch(result.stderr, /must run as root/);
+});
+
+test("reads an immutable image reference and short-lived registry credentials", () => {
+  const image = "ghcr.io/zhouycheng/personal-space-web@sha256:" + "a".repeat(64);
+  const result = run(["deploy", "justinspace"], `${image}\nzhouycheng\ntoken\n`);
+
+  assert.notEqual(result.status, 0);
+  assert.doesNotMatch(result.stderr, /expected|invalid|unexpected/);
 });
 
 test("accepts rollback only with a registered-target-shaped identifier", () => {
