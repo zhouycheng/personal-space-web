@@ -18,14 +18,14 @@ export const mineCanvasSeed: MineCanvasDocument = {
       },
       "data": {
         "kind": "monitor",
-        "title": "我正在使用",
+        "title": "笔记本窗口监听器",
         "accent": "#059669",
         "width": 320,
-        "height": 140
+        "height": 120
       },
       "style": {
         "width": 320,
-        "height": 140
+        "height": 120
       }
     },
     {
@@ -102,8 +102,8 @@ export const mineCanvasSeed: MineCanvasDocument = {
         "accent": "#002FA7",
         "width": 280,
         "height": 166,
-        "name": "开发者",
-        "intro": "项目与开发记录",
+        "name": "Justin",
+        "intro": "来点咖啡和Token，我还能熬！",
         "tags": [
           "INTJ",
           "Flutter",
@@ -126,7 +126,7 @@ export const mineCanvasSeed: MineCanvasDocument = {
       },
       "data": {
         "kind": "quote",
-        "title": "新引用卡",
+        "title": "引用卡",
         "contentHtml": "<p>发生的一切都是必然的</p>",
         "author": "巴鲁赫·斯宾诺莎",
         "accent": "#3f79d8",

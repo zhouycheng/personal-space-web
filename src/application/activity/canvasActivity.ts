@@ -10,7 +10,7 @@ export function activityCopy(state: ActivityState, now = Date.now()) {
   if (state.status === 'error') return { title: '暂时无法获取状态', detail: '' };
   const snapshot = state.snapshot;
   if (!snapshot || snapshot.expiresAt <= now) {
-    return { title: '好像关机了', detail: '应该是睡觉去了，反正电脑是关的' };
+    return { title: '好像关机了', detail: '应该是睡觉去了' };
   }
-  return { title: snapshot.appName, detail: snapshot.text ?? '正在使用' };
+  return { title: snapshot.appName, detail: snapshot.text ?? '' };
 }
