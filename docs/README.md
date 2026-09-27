@@ -1,6 +1,6 @@
-# JustinWeb 文档
+# JustinSpace 文档
 
-此文件夹汇总 JustinWeb 的项目文档。当前运行时、路由和数据边界以仓库根目录的 Astro 应用为准。
+此文件夹汇总 JustinSpace 的项目文档。当前运行时、路由和数据边界以仓库根目录的 Astro 应用为准。
 
 ## 当前状态
 
@@ -19,12 +19,13 @@
 - `Cursor Reveal Hero`、`Local Activity Status` 和 `Symbol Dome Background` 为已提取组件。
 - Justin OS 桌面背景使用单面符号半球，并保留纯克莱因蓝 `#002FA7` 基底。
 - 本地活动 API 路由、监控脚本和徽章组件已接入 Justin Kit，启动页当前保留独立的本地活动集成入口。
-- 基于 ReactFlow 的只读空间画布支持七种卡片、移动阅读和浏览器本地位置；内容通过 `justinweb-canvas-content` 技能在仓库维护，详见 [画布说明](features/canvas.md)。
+- 基于 ReactFlow 的只读空间画布支持七种卡片、移动阅读和浏览器本地位置；内容通过 `justinspace-canvas-content` 技能在仓库维护，详见 [画布说明](features/canvas.md)。
 - 生产全屏桌面扫描构建后的 `dist/client/os-desktop`，健康检查会检测空桌面和无效画布内容。
 
 ## 文档索引
 
 - [架构与目录](develop/architecture.md)：当前源码归属、依赖方向及维护验证入口。
+- [自动部署](develop/deployment.md)：GHCR、Tailscale SSH、GitHub OIDC、受限部署入口与其他 CI 来源接入。
 - [项目历史](../CHANGELOG.md)：按日期整理的版本、重构和验收摘要。
 - [发布内容与素材授权清单](develop/rights-inventory.md)：当前跟踪文件的代码、个人内容和第三方字体边界。
 

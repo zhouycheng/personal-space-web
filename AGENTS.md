@@ -1,4 +1,4 @@
-# JustinWeb Agent Instructions
+# JustinSpace Agent Instructions
 
 ## Runtime
 
@@ -16,7 +16,7 @@ The application runs from the repository root using Astro 7 server output, the `
 - `src/application/` owns use cases and intent decisions. `src/presentation/scene/` owns Three.js objects and renderer disposal; `src/presentation/interaction/` maps gestures to user intent; `src/animation/` owns camera and projection timing. `src/config/` holds appearance and lighting parameters.
 - `src/presentation/ui/` owns Astro/React components, browser runtimes, and styles. `src/infrastructure/client/` owns browser storage; `src/infrastructure/server/` owns server data access and streams.
 - `src/content/journal/` owns Markdown. `scripts/journal/` owns fingerprints, compilation and immutable book packages. `current.json` is the sole activation pointer; track the active validated package. Runtime manifests contain metadata and page regions, never full HTML.
-- `src/content/canvas/published.ts` owns canvas cards and IDs; `src/contracts/canvas.ts` defines plain content types. Use `justinweb-canvas-content` for content and layout changes.
+- `src/content/canvas/published.ts` owns canvas cards and IDs; `src/contracts/canvas.ts` defines plain content types. Use `justinspace-canvas-content` for content and layout changes.
 - `src/justin-kit/components/`: reusable components and their runtimes, maintained according to component READMEs. The `macos-desktop` component owns desktop and window behavior.
 - `public/os-desktop/`: file-driven desktop content, scanned here in development and from `dist/client/os-desktop/` in production.
 - `src/pages/api/activity/`, `src/data/stores/activity/`, `src/infrastructure/server/activityStream.ts`, and Justin Kit's `local-activity-status` are the activity chain. Trace affected callers before editing.

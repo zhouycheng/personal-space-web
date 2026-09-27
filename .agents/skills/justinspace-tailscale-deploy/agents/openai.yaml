@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinSpace Tailscale Deploy"
+  short_description: "Deploy JustinSpace to a private server through Tailscale."
+  default_prompt: "Use $justinspace-tailscale-deploy to deploy the current JustinSpace revision through Tailscale and verify its public domain."

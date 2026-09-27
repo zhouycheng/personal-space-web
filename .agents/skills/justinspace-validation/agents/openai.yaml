@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinSpace Validation"
+  short_description: "Validate JustinSpace tests, builds, types, runtime, and UI behavior."
+  default_prompt: "Use $justinspace-validation to plan, run, or review validation for this JustinSpace change."

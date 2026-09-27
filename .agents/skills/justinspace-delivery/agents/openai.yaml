@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinSpace Delivery"
+  short_description: "Calibrate docs and prepare requested commit or PR handoff."
+  default_prompt: "Use $justinspace-delivery to prepare the requested handoff for this validated JustinSpace work."

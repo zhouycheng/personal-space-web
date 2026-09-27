@@ -1,4 +1,4 @@
-# JustinWeb 架构与目录
+# JustinSpace 架构与目录
 
 Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工作室和日记实体书。稳定页面状态由 URL 决定；访客侧临时状态由每次挂载创建的 Nano Stores 与组件内状态持有。
 
@@ -36,7 +36,7 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 ## 变更与验证
 
 - 改简历、作品或文件顺序：编辑 `src/content/site/`，运行 `test:unit`、`build` 和相关浏览器流程。
-- 改画布发布内容：使用 `justinweb-canvas-content`，保持卡片 ID 和边端点有效，并验证本地位置恢复/重置。
+- 改画布发布内容：使用 `justinspace-canvas-content`，保持卡片 ID 和边端点有效，并验证本地位置恢复/重置。
 - 改模型：保持 `ScenePort`；对照相同相机、视口和光照的重构前后画面，并检查 WebGL 失败入口及 GPU 释放。
 - 改过场：只改 `src/animation/` 或场景实现，检查中断时的 URL、返回、监听器和资源状态。
 - 改日记：先 `journal:build` 生成书页，再用 `journal:verify` 和 `build` 验证源、当前版本及 dist 一致；异常路径用隔离目录测试。

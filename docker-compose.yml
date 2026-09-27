@@ -1,10 +1,11 @@
 services:
-  justinweb:
+  justinspace:
+    image: ${JUSTINSPACE_IMAGE:-justinspace:local}
     build:
       context: .
-    container_name: justinweb
+    container_name: justinspace
     ports:
-      - "4321:4321"
+      - "127.0.0.1:4321:4321"
     environment:
       - HOST=0.0.0.0
       - PORT=4321

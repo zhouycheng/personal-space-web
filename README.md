@@ -1,7 +1,7 @@
-<p align="center"><strong>JustinWeb 是一个以交互式 3D 工作室为入口的个人空间网站</strong></p>
+<p align="center"><strong>JustinSpace 是一个以交互式 3D 工作室为入口的个人空间网站</strong></p>
 
 <p align="center">
-  <img src="docs/images/justinweb-homepage.png" alt="JustinWeb 三维工作室首页" width="100%">
+  <img src="docs/images/justinspace-homepage.png" alt="JustinSpace 三维工作室首页" width="100%">
 </p>
 
 <p align="center">
@@ -43,6 +43,10 @@ npm run dev
 自动检查入口：`check:boundaries`、`check:types`、`test:unit`。分页、无浏览器启动和浏览器交互分别运行 `test:journal:render`、`test:startup:no-browser`、`test:e2e`；后者使用已构建站点。`test:e2e:release` 先生成和构建再测试。性能测量使用 `test:performance`，详细约束见 [日记说明](docs/features/journal.md)。
 
 简历、作品和文件盒顺序分别维护在 `src/content/site/resume.json`、`projects.json` 和 `studio-files.json`；画布发布内容在 `src/content/canvas/published.ts`，日记正文在 `src/content/journal/`。目录职责与依赖规则见[架构说明](docs/develop/architecture.md)。
+
+## 自动部署
+
+GitHub Actions 在 PR 和 `main` 推送时运行检查；检查通过的 `main` 提交会构建 GHCR 镜像，并经 Tailscale SSH 自动部署。服务器上的通用受限部署入口可供其他 CI 来源复用，配置步骤见[部署说明](docs/develop/deployment.md)。
 
 ## 活动监听器 CLI
 
