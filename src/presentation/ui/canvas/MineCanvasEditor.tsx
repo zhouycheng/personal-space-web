@@ -13,7 +13,7 @@ import { CanvasViewControls } from './CanvasViewControls';
 
 const Card = memo(function Card({ data }: NodeProps<MineCanvasNode>) {
   return <article className={`canvas-card canvas-card--${data.kind}`} style={{ '--card-accent': data.accent } as CSSProperties}>
-    <div className="canvas-card-body">{data.kind === 'monitor' && <small className="canvas-monitor-label">笔记本窗口监听器</small>}{!['businesscard', 'quote'].includes(data.kind) && <h2>{data.title}</h2>}<CanvasCardContent data={data} /></div>
+    <div className="canvas-card-body">{data.kind === 'monitor' ? <small className="canvas-monitor-label">{data.title}</small> : !['businesscard', 'quote'].includes(data.kind) && <h2>{data.title}</h2>}<CanvasCardContent data={data} /></div>
     {[Position.Top, Position.Right, Position.Bottom, Position.Left].map(position => <Handle key={position} id={position} type="source" position={position} isConnectable={false} />)}
   </article>;
 });

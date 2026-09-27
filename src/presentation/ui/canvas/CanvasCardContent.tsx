@@ -11,7 +11,7 @@ function ActivityContent() {
     if (active) return subscribeActivity(setActivity);
   }, [active]);
   const copy = activityCopy(activity);
-  return <div className="canvas-activity" role="status"><p>{copy.title}</p>{copy.detail && <p>{copy.detail}</p>}</div>;
+  return <div className="canvas-activity" role="status"><h2>{copy.title}</h2>{copy.detail && <p>{copy.detail}</p>}</div>;
 }
 
 /** Read-only content displayed directly on canvas nodes. */
