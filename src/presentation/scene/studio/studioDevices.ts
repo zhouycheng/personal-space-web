@@ -52,7 +52,7 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   rounded(lid,[1.42,0.91,0.035],[0,0.455,0],aluminum,0.017);
   rounded(lid,[1.38,0.873,0.011],[0,0.455,0.022],keycap,0.005);
   const computerSurface=label(lid,computerLabel,1.31,0.81,[0,0.457,0.029],"#002fa7","#fff9e9",0.156,true);
-  const screenGlow=new THREE.PointLight(0x4f72ff,0.18,0.9,2);
+  const screenGlow=new THREE.PointLight(0x4f72ff,0,0.9,2);
   screenGlow.position.set(0,0.455,0.12);lid.add(screenGlow);
   rounded(lid,[0.18,0.041,0.007],[0,0.851,0.033],keycap,0.003);
   mesh(lid,new THREE.SphereGeometry(0.006,8,6),chrome,0,0.851,0.038);
@@ -71,7 +71,7 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   rounded(tablet,[0.755,0.006,0.555],[0,0.02,0],keycap,0.024);
   const canvasSurface=label(tablet,"MY CANVAS",0.69,0.49,[0,0.024,0],"#fff9e9","#002fa7",0.16,true);
   canvasSurface.rotation.x=-Math.PI/2;
-  const tabletGlow=new THREE.PointLight(0xfff5df,0.2,0.75,2);
+  const tabletGlow=new THREE.PointLight(0xfff5df,0,0.75,2);
   tabletGlow.position.set(0,0.09,0);tablet.add(tabletGlow);
   cylinder(tablet,0.008,0.003,[0,0.025,-0.263],chrome);
   
@@ -144,5 +144,5 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
     title.rotation.z=-Math.PI/2;
     rounded(folder,[thickness*0.8,0.05,0.04],[0,height+0.012,-0.12+index%3*0.08],cover,Math.min(0.004,edge));
   });
-  return { computerSurface, canvasSurface };
+  return { computerSurface, canvasSurface, screenGlow, tabletGlow };
 }

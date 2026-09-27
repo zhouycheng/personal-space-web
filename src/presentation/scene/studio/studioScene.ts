@@ -2,12 +2,12 @@ import * as THREE from "three";
 import { createStudioObjects } from "./studioObjects";
 import { chairTurn } from "../../../animation/studio/chairMotion";
 import { ACTION_LABELS, type StudioAction } from "../../../contracts/studio";
-import type { studioLighting } from "../../../config/studioTime";
 import { smooth, surfaceDistance, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX } from "../../../animation/studio/studioMotion";
 import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
+import type { StudioLighting } from "../../../contracts/studioPorts";
 import { createJournalBook } from "../journal/journalBook";
 import { createActiveMotion } from "../../../animation/activeMotion";
 import type { OperationResult } from "../../../contracts/operation";
@@ -82,13 +82,13 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const {
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chair, casters, chairWheels, steam, deskClock, clockImage, clockTexture,
-    lampModel, diffuserMaterial, lamp, sun, ambient,
+    lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
   } = createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup });
   let steamElapsed=0,steamFrameTime:number|undefined;
   let displayedTime="";
   let clockDate=new Date(),showDate=false;
   let lampOn=true,lampPower=2;
-  let lastLighting: { daylight: number; sun: number } | undefined;
+  let lastLighting: StudioLighting | undefined;
 
   let journalBook:ReturnType<typeof createJournalBook>|undefined;
   let journalInteractionEnabled = true;
@@ -369,13 +369,14 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       for(const caster of casters)caster.startAngle=caster.group.rotation.y;
       chairElapsed=0;chairFrameTime=undefined;clearHover();requestDraw();
     },
-    setLighting(light:ReturnType<typeof studioLighting>) {
-      if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun)return;
-      lastLighting={daylight:light.daylight,sun:light.sun};
-      const daylight=light.daylight*light.daylight;
-      sun.intensity=0.06+3.14*daylight;sun.color.setHex(light.sun);
-      ambient.intensity=0.18+2.42*daylight;lampPower=7-5.8*daylight;
+    setLighting(light:StudioLighting) {
+      if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun&&lastLighting.sky===light.sky&&lastLighting.sunIntensity===light.sunIntensity&&lastLighting.ambientIntensity===light.ambientIntensity&&lastLighting.lampIntensity===light.lampIntensity&&lastLighting.screenSpillIntensity===light.screenSpillIntensity)return;
+      lastLighting=light;
+      sun.intensity=light.sunIntensity;sun.color.setHex(light.sun);
+      ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
+      lampPower=light.lampIntensity;
       lamp.intensity=lampOn?lampPower:0;
+      screenGlow.intensity=tabletGlow.intensity=light.screenSpillIntensity;
       requestDraw();
     },
     setTime(date:Date) {
