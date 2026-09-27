@@ -32,6 +32,9 @@ jobs:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: justinspace-image-publish
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
@@ -48,9 +51,18 @@ jobs:
         run: |
           set -euo pipefail
           image_tag="ghcr.io/zhouycheng/personal-space-web:${GITHUB_SHA}"
+          cache_ref="ghcr.io/zhouycheng/personal-space-web:buildcache"
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --name justinspace-builder --driver docker-container --use
+          docker buildx inspect --bootstrap
+          cache_from=()
+          if docker buildx imagetools inspect --raw "$cache_ref" >/dev/null 2>&1; then
+            cache_from+=(--cache-from "type=registry,ref=$cache_ref")
+          fi
           docker buildx build --pull --push \
             --tag "$image_tag" \
+            "${cache_from[@]}" \
+            --cache-to "type=registry,ref=$cache_ref,mode=min,ignore-error=true" \
             --metadata-file "$RUNNER_TEMP/image-metadata.json" \
             .
           digest="$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' "$RUNNER_TEMP/image-metadata.json")"
