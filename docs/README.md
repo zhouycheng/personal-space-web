@@ -6,7 +6,7 @@
 
 - [架构与目录](develop/architecture.md)：源码归属、依赖方向和主要调用链。
 - [开发工作流](develop/workflow.md)：需求范围、验证和交付规则。
-- [自动部署](develop/deployment.md)：GitHub Actions、GHCR、Tailscale SSH 与服务器受限部署入口。
+- [部署手册](develop/deployment.md)：Docker 首次部署、运行密钥、GitHub Actions、活动监听器和源码运行。
 - [发布内容授权清单](develop/rights-inventory.md)：当前跟踪内容的授权范围。
 - [候选待办](work/backlog.md)：尚未接受的项目候选项。
 

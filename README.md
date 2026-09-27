@@ -10,47 +10,48 @@
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-149ECA" alt="React 19"></a>
   <a href="https://threejs.org/"><img src="https://img.shields.io/badge/Three.js-0.186-black" alt="Three.js 0.186"></a>
   <br>
-  <a href="#功能">页面导览</a> ·
-  <a href="#本地运行">本地开发</a> ·
+  <a href="#页面">页面</a> ·
+  <a href="#本地开发">本地开发</a> ·
   <a href="docs/README.md">项目文档</a> ·
   <a href="CHANGELOG.md">变更记录</a> ·
   <a href="https://github.com/zhouycheng/personal-space-web/issues">问题反馈</a>
 </p>
 
-## 功能
+JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件。项目名为 JustinSpace，GitHub 仓库和 GHCR 镜像使用 `personal-space-web`。
+
+## 页面
 
 - `/home`：可交互的 Three.js 工作室。
 - `/works`：项目作品和简历。
-- `/canvas`：可拖动浏览的 ReactFlow 画布。
+- `/canvas`：可拖动浏览的个人画布。
 - `/os`：文件驱动的桌面与窗口。
-- `/journal`：带实体翻页效果的日记。
+- `/journal`：实体翻页效果的 3D 日记。
 
-## Fork 与授权
+## 本地开发
 
-网站自有代码使用 [Zlib](LICENSE)；真实简历、日记、头像、作品资料和其他个人内容保留权利，第三方材料沿用其原许可。Fork 后可修改网站代码并换成自己的资料，但须遵守 Zlib 对原始来源、修改版本和许可声明的要求。授权文件的适用范围见 [LICENSING.md](legal/LICENSING.md)，个人内容见 [CONTENT-LICENSE.md](legal/CONTENT-LICENSE.md)，第三方材料见 [THIRD_PARTY_NOTICES.md](legal/THIRD_PARTY_NOTICES.md)。
-
-## 本地运行
-
-开发时使用 `.node-version` 指定的 Node.js 版本（当前为 `26.9.0`，运行要求 `>=22.12.0`）。
+使用 `.node-version` 指定的 Node.js（当前为 `26.9.0`，运行要求 `>=22.12.0`）：
 
 ```bash
 npm ci
 npm run dev
 ```
 
-普通开发和 `npm run build` 使用仓库中的有效 3D 日记书页包，不需要 Chromium。开发时缺包或内容已更新会显示明确状态；生产构建遇到缺包、损坏或过期直接失败。修改日记后运行 `npm run journal:setup`（首次安装分页浏览器）和 `npm run journal:build`，更新当前包与 `.gitignore` 中的版本登记。完整发布检查使用 `npm run build:release`。日记仅提供 3D 阅读，失败时可以重试或返回首页。
+常用检查：
 
-自动检查入口：`check:boundaries`、`check:types`、`test:unit`。分页、无浏览器启动和浏览器交互分别运行 `test:journal:render`、`test:startup:no-browser`、`test:e2e`；后者使用已构建站点。`test:e2e:release` 先生成和构建再测试。性能测量使用 `test:performance`，详细约束见 [日记说明](docs/features/journal.md)。
+```bash
+npm run check:boundaries
+npm run check:types
+npm run test:unit
+npm run build
+```
 
-简历、作品和文件盒顺序分别维护在 `src/content/site/resume.json`、`projects.json` 和 `studio-files.json`；画布发布内容在 `src/content/canvas/published.ts`，日记正文在 `src/content/journal/`。目录职责与依赖规则见[架构说明](docs/develop/architecture.md)。
+日记书页生成、浏览器测试和性能检查见[日记说明](docs/features/journal.md)。源码职责见[架构说明](docs/develop/architecture.md)，所有项目文档见[文档索引](docs/README.md)。
 
-## 自动部署
+## 部署与活动监听
 
-GitHub Actions 在 PR 和 `main` 推送时运行检查；检查通过的 `main` 提交会构建 GHCR 镜像，并经 Tailscale SSH 自动部署。服务器上的通用受限部署入口可供其他 CI 来源复用，配置步骤见[部署说明](docs/develop/deployment.md)。
+生产环境推荐使用 Docker 镜像部署；首次安装、服务器环境、密钥注入、自动更新和回滚步骤见[部署手册](docs/develop/deployment.md)。
 
-## 活动监听器 CLI
-
-全局安装和配置仅支持 macOS：
+macOS 活动监听器安装与配置：
 
 ```bash
 npm run monitor:install
@@ -59,21 +60,8 @@ justin-activity restart
 justin-activity status
 ```
 
-首次配置时输入上报地址和 token；之后可用 `justin-activity config --show` 查看配置状态。
+监听器会在当前用户登录后启动。部署端 token、故障排查和完整命令见[部署手册](docs/develop/deployment.md)与[监听器说明](src/justin-kit/components/local-activity-status/README.md)。
 
-常用命令：
+## 授权
 
-```bash
-justin-activity start
-justin-activity stop
-justin-activity restart
-justin-activity autostart on
-justin-activity autostart off
-justin-activity logs
-justin-activity logs --follow
-justin-activity doctor
-justin-activity uninstall
-justin-activity uninstall --purge
-```
-
-项目内临时运行监听器：`npm run monitor:activity`。更多安装与配置细节见[监听器说明](src/justin-kit/components/local-activity-status/README.md)。
+网站自有代码使用 [Zlib](LICENSE)。真实简历、日记、头像、作品资料和其他个人内容保留权利；第三方材料沿用其原许可。Fork 后可修改网站代码并替换个人资料。完整范围见[授权说明](legal/LICENSING.md)、[个人内容许可](legal/CONTENT-LICENSE.md)和[第三方材料清单](legal/THIRD_PARTY_NOTICES.md)。
