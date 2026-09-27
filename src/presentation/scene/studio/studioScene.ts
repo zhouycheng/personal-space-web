@@ -192,6 +192,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function render() {
     if(destroyed||failed)return false;
     try {
+      room.visible = !(journalActive && journalAmount === 1 && journalBook?.single);
       renderer.render(scene,camera);
       if(drawers[0].open&&diary.visible){
         const point=diary.localToWorld(new THREE.Vector3(0,.06,-.12)).project(camera);

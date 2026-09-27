@@ -100,6 +100,8 @@ test('T19/T17 a partly turned sheet renders both faces and a blur event rolls it
   const single = (JSON.parse((await bookCanvas(page).getAttribute('data-journal-page-targets'))!) as PageTarget[]).length === 1;
   const distance = Math.max(150, (await bookCanvas(page).boundingBox())!.width * (single ? .65 : .3)) * .6;
   await page.mouse.move(target.edge.x, target.edge.y); await page.mouse.down();
+  await page.mouse.move(target.edge.x - 2, target.edge.y);
+  await visual(page, info, 'turn-near-contact');
   await page.mouse.move(target.edge.x - distance, target.edge.y, { steps: 10 });
   await expect(bookCanvas(page)).toHaveAttribute('data-journal-busy', 'true');
   await expect(bookCanvas(page)).toHaveAttribute('data-journal-page', '0');
@@ -143,6 +145,74 @@ test('T17/T21 real touch cancellation rolls back a turn and a two-finger pinch c
   await expect(bookCanvas(page)).toHaveAttribute('data-journal-page', '0');
   await visual(page, info, 'two-finger-zoom');
   await session.detach();
+});
+
+test('single-page folded notebook wraps forward and back and preserves the page on resize', async ({ page }, info) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const book = await longBook(page, 4);
+  await page.goto(`/journal/${encodeURIComponent(book.articles[0].slug)}`); await phase(page, 'reading');
+  const canvas = bookCanvas(page);
+  await expect(canvas).toHaveAttribute('data-journal-fold-amount', '1');
+  await expect(canvas).toHaveAttribute('data-journal-sheets', '0,2');
+  await visual(page, info, 'folded-reading');
+  const center = (await rightPage(page)).center;
+  await page.mouse.move(center.x, center.y); await page.mouse.down();
+  await page.mouse.move(center.x + 60, center.y + 20, { steps: 8 }); await page.mouse.up();
+  await visual(page, info, 'folded-side');
+  await page.keyboard.press('Home');
+  await expect(canvas).toHaveAttribute('data-journal-drawn', 'true');
+  let target = await rightPage(page);
+  const distance = Math.max(150, (await canvas.boundingBox())!.width * .82);
+  await page.mouse.move(target.edge.x, target.edge.y); await page.mouse.down();
+  for (const progress of [.05, .25, .5, .75, .95]) {
+    await page.mouse.move(target.edge.x - distance * progress, target.edge.y, { steps: 3 });
+    await expect(canvas).toHaveAttribute('data-journal-busy', 'true');
+    await visual(page, info, `folded-forward-${progress}`);
+  }
+  await page.mouse.up(); await phase(page, 'reading');
+  await expect(canvas).toHaveAttribute('data-journal-page', '1');
+  target = await rightPage(page);
+  const leftEdge = target.center.x * 2 - target.edge.x;
+  await page.mouse.move(leftEdge, target.edge.y); await page.mouse.down();
+  for (const progress of [.05, .25, .5, .75, .95]) {
+    await page.mouse.move(leftEdge + distance * progress, target.edge.y, { steps: 3 });
+    await visual(page, info, `folded-backward-${progress}`);
+  }
+  await page.mouse.up(); await phase(page, 'reading');
+  await expect(canvas).toHaveAttribute('data-journal-page', '0');
+  target = await rightPage(page);
+  const bottom = target.center.y * 2 - target.edge.y;
+  await page.mouse.move(target.edge.x, bottom); await page.mouse.down();
+  await page.mouse.move(target.edge.x-distance*.2,bottom,{steps:8});
+  await expect(canvas).toHaveAttribute('data-journal-busy','true');
+  await visual(page,info,'folded-bottom-cancel');
+  await page.mouse.move(target.edge.x,bottom,{steps:8});await page.mouse.up();
+  await phase(page,'reading');await expect(canvas).toHaveAttribute('data-journal-page','0');
+  await page.keyboard.press('ArrowRight'); await phase(page, 'reading');
+  await expect(canvas).toHaveAttribute('data-journal-page', '1');
+  target = await rightPage(page);
+  await page.mouse.move(target.edge.x, target.edge.y); await page.mouse.down();
+  await page.mouse.move(target.edge.x - distance * .3, target.edge.y, { steps: 5 });
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.mouse.up();
+  await expect(canvas).toHaveAttribute('data-journal-fold-amount', '0');
+  await expect(canvas).toHaveAttribute('data-journal-page', '1');
+  await expect(canvas).toHaveAttribute('data-journal-busy', 'false');
+  await visual(page, info, 'unfolded-after-resize');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(canvas).toHaveAttribute('data-journal-fold-amount', '1');
+  await expect(canvas).toHaveAttribute('data-journal-page', '1');
+  await page.keyboard.press('Escape'); await phase(page, 'observing');
+  await visual(page, info, 'folded-closed');
+  await canvas.focus(); await page.keyboard.press('Enter'); await phase(page, 'reading');
+  await expect(canvas).toHaveAttribute('data-journal-fold-amount', '1');
+  await page.keyboard.press('ArrowRight'); await phase(page, 'reading');
+  await expect(canvas).toHaveAttribute('data-journal-page', '2');
+  await expect(canvas).toHaveAttribute('data-journal-sheets', '1,1');
+  const finalCenter=(await rightPage(page)).center;
+  await page.mouse.move(finalCenter.x,finalCenter.y);await page.mouse.down();
+  await page.mouse.move(finalCenter.x+60,finalCenter.y+20,{steps:8});await page.mouse.up();
+  await visual(page,info,'folded-one-sheet-behind');
 });
 
 test('T44 a failed GPU texture deletion does not strand bitmaps or block journal exit', async ({ page }) => {

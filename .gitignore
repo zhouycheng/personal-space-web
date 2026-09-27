@@ -74,5 +74,5 @@ next-env.d.ts
 /public/journal/generated/*
 !/public/journal/generated/current.json
 !/public/journal/generated/manifest.json
-!/public/journal/generated/5abf564fcdd6ed6ece64/
+!/public/journal/generated/46a427c4f24aa0b710fe/
 /src/generated/journal.json
