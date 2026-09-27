@@ -21,6 +21,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Prepare the validated journal runtime manifest
+        run: node scripts/journal-content.mjs --strict
       - run: npm run check:boundaries
       - run: npm run check:types
       - run: npm run test:unit
