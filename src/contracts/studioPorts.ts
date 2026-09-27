@@ -5,7 +5,17 @@ import type { RoomView, RoomViewAction } from "./studio";
 export type DrawerId = "drawer-top" | "drawer-middle" | "drawer-bottom";
 export type StudioTargets = { view: RoomView; lampOn: boolean; showDate: boolean; drawers: boolean[] };
 export type SceneSnapshot = StudioTargets;
-export type StudioLighting = { daylight: number; background: string; foreground: string; sky: number; sun: number };
+export type StudioLighting = {
+  daylight: number;
+  background: string;
+  foreground: string;
+  sky: number;
+  sun: number;
+  sunIntensity: number;
+  ambientIntensity: number;
+  lampIntensity: number;
+  screenSpillIntensity: number;
+};
 export type SurfaceRect = { left: number; top: number; width: number; height: number };
 
 export interface TransitionPort {

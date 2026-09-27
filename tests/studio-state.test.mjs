@@ -107,11 +107,21 @@ test('local time lighting interpolates dawn and dusk and wraps midnight continuo
   const at = (hour, minute = 0, second = 0) => studioLighting(new Date(2026, 8, 11, hour, minute, second));
   assert.equal(at(0).daylight, 0);
   assert.equal(at(12).daylight, 1);
+  assert.deepEqual(
+    [at(0).sunIntensity, at(0).ambientIntensity, at(0).lampIntensity, at(0).screenSpillIntensity],
+    [0.06, 0.18, 7, 0.08],
+  );
+  assert.equal(at(12).sunIntensity, 2.5);
+  assert.ok(Math.abs(at(12).ambientIntensity - 0.9) < 1e-12);
+  assert.ok(Math.abs(at(12).lampIntensity - 1.2) < 1e-12);
+  assert.equal(at(12).screenSpillIntensity, 0);
   assert.equal(at(5, 30).daylight, 0);
   assert.equal(at(5, 30).background, '#05070b');
   assert.equal(at(20).background, '#05070b');
   assert.equal(at(12).background, '#e7e3dc');
   assert.ok(at(6, 30).daylight > at(6).daylight && at(6, 30).daylight < at(7).daylight);
+  assert.ok(at(6, 30).screenSpillIntensity > 0 && at(6, 30).screenSpillIntensity < 0.08);
+  assert.ok(at(6, 30).sky > 0x9f9a95);
   assert.ok(at(19).daylight < at(18).daylight && at(19).daylight > at(21).daylight);
   assert.deepEqual(at(23, 59, 59), at(0));
   assert.notEqual(at(18).background, at(12).background);
@@ -119,6 +129,10 @@ test('local time lighting interpolates dawn and dusk and wraps midnight continuo
   for (let hour = 0; hour < 24; hour++) {
     const light = at(hour, 30);
     assert.ok(light.daylight >= 0 && light.daylight <= 1);
+    assert.ok(light.sunIntensity >= 0.06 && light.sunIntensity <= 2.5);
+    assert.ok(light.ambientIntensity >= 0.18 && light.ambientIntensity <= 0.9);
+    assert.ok(light.lampIntensity >= 1.2 && light.lampIntensity <= 7);
+    assert.ok(light.screenSpillIntensity >= 0 && light.screenSpillIntensity <= 0.08);
     assert.match(light.background, /^#[0-9a-f]{6}$/);
   }
 });

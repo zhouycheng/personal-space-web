@@ -1,3 +1,5 @@
+import type { StudioLighting } from "../contracts/studioPorts";
+
 export const clockText = (date:Date, showDate = false) => (showDate ? [date.getMonth()+1,date.getDate()] : [date.getHours(),date.getMinutes()]).map(value=>String(value).padStart(2,"0")).join(showDate ? "." : ":");
 
 // Local clock art direction, not a geolocation-based sunrise calculation.
@@ -17,13 +19,25 @@ export function studioLighting(date = new Date()) {
   const end = periods.findIndex(period => period.hour > hour);
   const a = periods[end - 1], b = periods[end];
   const t = (hour - a.hour) / (b.hour - a.hour);
-  const blend = (from: number, to: number) => [16, 8, 0].reduce((color, shift) =>
+  const blendSrgb = (from: number, to: number) => [16, 8, 0].reduce((color, shift) =>
     color | Math.round(((from >> shift) & 255) * (1 - t) + ((to >> shift) & 255) * t) << shift, 0);
+  const linear = (channel: number) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  const srgb = (channel: number) => channel <= 0.0031308 ? channel * 12.92 : 1.055 * channel ** (1 / 2.4) - 0.055;
+  const blendLightColor = (from: number, to: number) => [16, 8, 0].reduce((color, shift) => {
+    const a = linear(((from >> shift) & 255) / 255), b = linear(((to >> shift) & 255) / 255);
+    return color | Math.round(srgb(a * (1 - t) + b * t) * 255) << shift;
+  }, 0);
   const daylight = a.daylight + (b.daylight - a.daylight) * t;
+  const daylightPower = daylight * daylight;
   return {
     daylight,
-    background: `#${blend(a.background, b.background).toString(16).padStart(6, "0")}`,
+    background: `#${blendSrgb(a.background, b.background).toString(16).padStart(6, "0")}`,
     foreground: daylight < 0.35 ? "#e5e1d8" : "#393632",
-    sky: blend(a.sky, b.sky), sun: blend(a.sun, b.sun),
-  };
+    sky: blendLightColor(a.sky, b.sky),
+    sun: blendLightColor(a.sun, b.sun),
+    sunIntensity: 0.06 + 2.44 * daylightPower,
+    ambientIntensity: 0.18 + 0.72 * daylightPower,
+    lampIntensity: 7 - 5.8 * daylightPower,
+    screenSpillIntensity: 0.08 * (1 - daylight) ** 2,
+  } satisfies StudioLighting;
 }
