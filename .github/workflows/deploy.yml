@@ -54,8 +54,8 @@ jobs:
             --metadata-file "$RUNNER_TEMP/image-metadata.json" \
             .
           digest="$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' "$RUNNER_TEMP/image-metadata.json")"
-          docker logout ghcr.io >/dev/null
           docker pull "ghcr.io/zhouycheng/personal-space-web@${digest}"
+          docker logout ghcr.io >/dev/null
           echo "image=ghcr.io/zhouycheng/personal-space-web@${digest}" >> "$GITHUB_OUTPUT"
 
   deploy:
@@ -69,6 +69,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       id-token: write
+      packages: read
     env:
       IMAGE: ${{ needs.publish.outputs.image }}
       TAILSCALE_SERVER: ${{ secrets.TAILSCALE_SERVER }}
@@ -96,9 +97,11 @@ jobs:
           tags: tag:ci
       - name: Deploy through Tailscale SSH
         id: deploy
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          printf '%s\n' "$IMAGE" | tailscale ssh "deploy@${TAILSCALE_SERVER}" \
+          printf '%s\n%s\n%s\n' "$IMAGE" "$GITHUB_ACTOR" "$REGISTRY_TOKEN" | tailscale ssh "deploy@${TAILSCALE_SERVER}" \
             'sudo -n /usr/local/sbin/deployctl deploy justinspace'
       - name: Check the public site
         id: smoke
@@ -117,9 +120,11 @@ jobs:
           done
       - name: Roll back after a failed public check
         if: ${{ failure() && steps.deploy.outcome == 'success' }}
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tailscale ssh "deploy@${TAILSCALE_SERVER}" \
+          printf '%s\n%s\n' "$GITHUB_ACTOR" "$REGISTRY_TOKEN" | tailscale ssh "deploy@${TAILSCALE_SERVER}" \
             'sudo -n /usr/local/sbin/deployctl rollback justinspace'
       - name: Verify the restored public site
         if: ${{ failure() && steps.deploy.outcome == 'success' && steps.smoke.outcome == 'failure' }}

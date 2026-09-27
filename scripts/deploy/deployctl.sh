@@ -27,22 +27,34 @@ assert_root_managed_path() {
 
 operation="${1-}"
 target="${2-}"
+image=''
+registry_username=''
+registry_token=''
 [[ "$target" =~ ^[a-z0-9][a-z0-9_-]{0,62}$ ]] || die 'invalid deployment target'
+
+read_registry_credentials() {
+  IFS= read -r registry_username || die 'expected a registry username on stdin'
+  [[ "$registry_username" =~ ^[A-Za-z0-9-]{1,39}$ ]] || die 'invalid registry username'
+  IFS= read -r -n 4097 registry_token || die 'expected a registry token on stdin'
+  [[ -n "$registry_token" && "${#registry_token}" -le 4096 ]] || die 'invalid registry token'
+  extra=''
+  if IFS= read -r -n 1 extra; then
+    die 'unexpected extra input on stdin'
+  fi
+  [[ -z "$extra" ]] || die 'unexpected extra input on stdin'
+}
 
 case "$operation" in
   deploy)
-    [[ "$#" -eq 2 ]] || die 'usage: deployctl deploy <target> < image-ref-on-stdin'
+    [[ "$#" -eq 2 ]] || die 'usage: deployctl deploy <target> < image-ref, registry username, and token on stdin'
     IFS= read -r -n 255 image || die 'expected one image reference on stdin'
     [[ "$image" =~ ^[a-z0-9][a-z0-9.-]*(:[0-9]+)?(/[a-z0-9][a-z0-9._-]*)+@sha256:[0-9a-f]{64}$ ]] ||
       die 'expected one OCI image reference pinned to a sha256 digest'
-    extra=''
-    if IFS= read -r -n 1 extra; then
-      die 'unexpected extra input on stdin'
-    fi
-    [[ -z "$extra" ]] || die 'unexpected extra input on stdin'
+    read_registry_credentials
     ;;
   rollback)
-    [[ "$#" -eq 2 ]] || die 'usage: deployctl rollback <target>'
+    [[ "$#" -eq 2 ]] || die 'usage: deployctl rollback <target> < registry username and token on stdin'
+    read_registry_credentials
     ;;
   *)
     die 'usage: deployctl {deploy|rollback} <target>'
@@ -65,7 +77,10 @@ source "$config_file"
 : "${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in ${config_file}}"
 : "${COMPOSE_SERVICE:?set COMPOSE_SERVICE in ${config_file}}"
 : "${COMPOSE_IMAGE_ENV:?set COMPOSE_IMAGE_ENV in ${config_file}}"
+: "${REGISTRY_HOST:?set REGISTRY_HOST in ${config_file}}"
 [[ "$IMAGE_REPOSITORY" =~ ^[a-z0-9][a-z0-9.-]*(:[0-9]+)?(/[a-z0-9][a-z0-9._-]*)+$ ]] || die 'invalid IMAGE_REPOSITORY in target config'
+[[ "$REGISTRY_HOST" =~ ^[a-z0-9][a-z0-9.-]*(:[0-9]+)?$ ]] || die 'invalid REGISTRY_HOST in target config'
+[[ "${IMAGE_REPOSITORY%%/*}" == "$REGISTRY_HOST" ]] || die 'IMAGE_REPOSITORY host does not match REGISTRY_HOST'
 [[ "$COMPOSE_DIR" == /* && "$COMPOSE_FILE" == /* ]] || die 'Compose paths must be absolute'
 COMPOSE_DIR="$(realpath -e -- "$COMPOSE_DIR")" || die 'COMPOSE_DIR must exist'
 COMPOSE_FILE="$(realpath -e -- "$COMPOSE_FILE")" || die 'COMPOSE_FILE must exist'
@@ -88,6 +103,16 @@ assert_root_managed_path "$STATE_DIR"
 state_file="${STATE_DIR}/${target}.images"
 exec 9>"/run/lock/deployctl-${target}.lock"
 flock -w 300 9 || die 'another deployment for this target is still running'
+
+registry_config_dir="$(mktemp -d /run/deployctl-docker.XXXXXX)" || die 'could not create temporary registry credentials directory'
+trap 'rm -rf -- "$registry_config_dir"' EXIT
+chmod 0700 "$registry_config_dir"
+export DOCKER_CONFIG="$registry_config_dir"
+if ! printf '%s' "$registry_token" | docker login "$REGISTRY_HOST" --username "$registry_username" --password-stdin >/dev/null 2>&1; then
+  die "could not authenticate to ${REGISTRY_HOST}"
+fi
+chmod 0600 "${DOCKER_CONFIG}/config.json" || die 'could not restrict temporary registry credentials'
+unset registry_token
 
 compose=(docker compose --project-directory "$COMPOSE_DIR" --project-name "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE")
 

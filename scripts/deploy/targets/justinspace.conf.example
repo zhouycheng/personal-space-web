@@ -1,5 +1,6 @@
 # Install as /etc/deployctl/targets/justinspace.conf, owned by root:root, mode 0600.
 IMAGE_REPOSITORY="ghcr.io/zhouycheng/personal-space-web"
+REGISTRY_HOST="ghcr.io"
 COMPOSE_DIR="/srv/justinspace"
 COMPOSE_FILE="/srv/justinspace/docker-compose.yml"
 COMPOSE_PROJECT_NAME="justinspace"
