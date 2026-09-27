@@ -51,5 +51,5 @@ yarn-error.log*
 /public/journal/generated/*
 !/public/journal/generated/current.json
 !/public/journal/generated/manifest.json
-!/public/journal/generated/46a427c4f24aa0b710fe/
+!/public/journal/generated/5abf564fcdd6ed6ece64/
 /src/generated/journal.json
