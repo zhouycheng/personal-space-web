@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createJournalBookGeometry } from "./journalBookGeometry";
+import { createJournalBookGeometry, shapeTurningPage, shapeFoldedPage, singleBackDepth } from "./journalBookGeometry";
 import { applyJournalPose } from "./journalBookPose";
 import { journalPageTargets } from "./journalBookDiagnostics";
 import { createJournalTextureCache } from "./journalTextureCache";
@@ -8,7 +8,7 @@ import type { JournalManifest, JournalRegion, BookReport, JournalBookPhase, Jour
 import type { OperationResult } from "../../../contracts/operation";
 import { clamp, constrainReading, journalSingle } from "../../../animation/journal/inspection";
 import { createActiveMotion } from "../../../animation/activeMotion";
-import { createBookGestures } from "../../interaction/journal/bookGestures";
+import { createBookGestures, type PageTurnGrip } from "../../interaction/journal/bookGestures";
 import { journalRuntime } from "../../../config/journalRuntime";
 import { activeTimeout, withActiveDeadline } from "../../../infrastructure/client/activeDeadline";
 import { disposeSafely } from "../../../infrastructure/client/dispose";
@@ -23,12 +23,13 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     leftMat, rightMat, left, right, frontGeometry, backGeometry,
     frontMat, backMat, leaf, curlShadow, original } = geometry;
   const canvas = renderer.domElement, ray = new THREE.Raycaster();
-  const opening = createActiveMotion(), turningMotion = createActiveMotion();
-  let generation = 0, book: JournalManifest | undefined, page = 0, single = false, opened = 0;
+  const opening = createActiveMotion(), turningMotion = createActiveMotion(), layoutMotion = createActiveMotion();
+  let generation = 0, book: JournalManifest | undefined, page = 0, single = false, opened = 0, folded = 0;
   let active = false, disposed = false, interactionEnabled = true, error = "", zoom = 1, drawn = false;
   let phase: JournalBookPhase = "observing", pitch = -.12, yaw = -.3, roll = -.035, travelAmount = 0;
   let waiting = false, pendingTurn: 1 | -1 | undefined;
-  let turning: ReturnType<typeof turnFaces> | undefined, progress = 0;
+  let turning: ReturnType<typeof turnFaces> | undefined, progress = 0, turnSequence = 0;
+  let turnGrip: PageTurnGrip = { u: .94, v: 0, skew: 0 };
   const pan = new THREE.Vector2(), drawWaiters = new Set<() => void>();
   let report: (state: BookReport) => void = () => {}, region: (item: JournalRegion) => void = () => {};
   let intent: (event: JournalIntent) => void = () => {};
@@ -38,14 +39,14 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   });
   const visiblePages = () => spreadFor(page, book?.pages.length ?? 0, single);
   function emit() {
-    report({ page, single, busy: Boolean(turning || opening.running || waiting), error, phase, zoom, drawn, ...cache.stats });
+    report({ page, single, busy: Boolean(turning || opening.running || layoutMotion.running || waiting), error, phase, zoom, drawn, ...cache.stats });
     Object.assign(canvas.dataset, {
-      journalPage: String(page), journalTextures: String(cache.size), journalBusy: String(Boolean(turning || opening.running || waiting)),
+      journalPage: String(page), journalTextures: String(cache.size), journalBusy: String(Boolean(turning || opening.running || layoutMotion.running || waiting)),
       journalPhase: phase, journalZoom: String(zoom), journalYaw: String(yaw), journalPitch: String(pitch), journalPan: `${pan.x},${pan.y}`,
       journalTextureBytes: String(cache.stats.textureBytes), journalDecodeBytes: String(cache.stats.decodeBytes), journalDrawn: String(drawn),
     });
   }
-  function invalidate() { drawn = false; requestDraw(); }
+  function invalidate() { drawn = false; canvas.dataset.journalDrawn = "false"; requestDraw(); }
   function apply(material: THREE.MeshStandardMaterial, index: number | undefined) {
     const texture = index === undefined ? null : cache.get(index) ?? null;
     if (material.map === texture) return;
@@ -55,29 +56,28 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     if (!turning) {
       const indices = visiblePages();
       apply(leftMat, single ? undefined : indices[0]); apply(rightMat, single ? indices[0] : indices[1]);
+      if(book) geometry.updateSingleSheets(book.pages.length,page);
     }
     invalidate(); emit();
   }
   function warm(required = visiblePages()) {
     if (!book || disposed || !active) return;
     const center = single ? page : page - page % 2;
-    const neighbors = [center, center + 1, center + 2, center + 3, center - 1, center - 2, center + 4, center - 3];
+    const neighbors = single ? [page, page + 1, page - 1, page + 2, page - 2] : [center, center + 1, center + 2, center + 3, center - 1, center - 2, center + 4, center - 3];
     cache.workset(required, neighbors);
   }
-  function deform(value: number) {
-    progress = value;
+  function deform(value: number, grip = turnGrip) {
+    progress = clamp(value, 0, 1); turnGrip = grip;
+    const direction = turning?.direction ?? 1, lift = Math.sin(Math.PI * progress);
     for (const geometry of [frontGeometry, backGeometry]) {
-      const positions = geometry.getAttribute("position");
-      for (let i = 0; i < positions.count; i++) {
-        const x = original[i * 3], y = original[i * 3 + 1];
-        const angle = Math.PI * value + Math.sin(Math.PI * value) * .65 * (x - .25);
-        positions.setXYZ(i, x * Math.cos(angle), y, x * Math.sin(angle) + .03);
-      }
-      positions.needsUpdate = true; geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+      if (single) shapeFoldedPage(geometry, original, direction === 1 ? progress : 1 - progress, grip, singleBackDepth(book?.pages.length ?? 0));
+      else shapeTurningPage(geometry, original, progress, direction, grip);
     }
-    leaf.position.x = single ? value : 0;
-    (curlShadow.material as THREE.MeshBasicMaterial).opacity = single ? 0 : Math.sin(Math.PI * value) * .12;
-    curlShadow.position.x = value < .5 ? .5 : -.5;
+    leaf.position.x = 0;
+    curlShadow.scale.x = .35 + .65 * Math.abs(Math.cos(Math.PI * progress));
+    curlShadow.position.x = direction === -1 ? -.5 + progress : .5 - progress;
+    curlShadow.rotation.z = grip.skew * lift * .04;
+    (curlShadow.material as THREE.MeshBasicMaterial).opacity = single ? 0 : lift * (.11 + .08 * Math.abs(grip.v));
     invalidate();
   }
   function cancelTurn(release = true) {
@@ -121,9 +121,10 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     waiting = false; phase = value ? "opening" : "closing";
     if (!preserveView) resetView();
     const from = opened, to = value ? 1 : 0;
-    const pending = opening.start(reduced ? 0 : journalRuntime.coverDurationMs, t => { opened = THREE.MathUtils.lerp(from, to, ease(t)); invalidate(); });
+    const coverDuration = single ? 1100 : journalRuntime.coverDurationMs;
+    const pending = opening.start(reduced ? 0 : coverDuration, t => { opened = THREE.MathUtils.lerp(from, to, ease(t)); invalidate(); });
     emit(); requestDraw();
-    const result = await withActiveDeadline(pending, journalRuntime.coverDurationMs + journalRuntime.animationSlackMs, () => opening.cancel("timeout"));
+    const result = await withActiveDeadline(pending, coverDuration + journalRuntime.animationSlackMs, () => opening.cancel("timeout"));
     if (result.status === "failed" && token === generation) { error = result.code; emit(); return result; }
     if (result.status !== "completed" || token !== generation) return { status: "cancelled", reason: "superseded" };
     phase = value ? "reading" : "observing"; updatePages();
@@ -133,25 +134,45 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   function requiredFor(turn: NonNullable<ReturnType<typeof turnFaces>>) {
     return [...new Set([...visiblePages(), turn.front, turn.back, ...spreadFor(turn.to, book!.pages.length, single)])].filter(i => Boolean(book!.pages[i]));
   }
-  function begin(direction: 1 | -1) {
-    if (!active || phase !== "reading" || travelAmount < 1 || turning || waiting || !book) return false;
+  function begin(direction: 1 | -1, grip?: PageTurnGrip) {
+    if (!active || phase !== "reading" || travelAmount < 1 || turning || waiting || layoutMotion.running || !book) return false;
     const turn = turnFaces(page, book.pages.length, single, direction); if (!turn) return false;
     const required = requiredFor(turn); warm(required);
     if (required.some(i => !cache.has(i))) return false;
     turning = turn;
-    if (single) { apply(frontMat, direction === 1 ? page : turn.to); apply(backMat, direction === 1 ? turn.to : page); left.visible = false; right.visible = false; }
+    if (grip) turnGrip = grip;
+    else if (single) turnGrip = { u: .94, v: .25, skew: 0 };
+    else {
+      const seed = ++turnSequence * 2.399963 + (direction === 1 ? .65 : 1.4);
+      turnGrip = { u: .94, v: Math.sin(seed) * .48, skew: Math.cos(seed) * .3 };
+    }
+    if (single) {
+      apply(frontMat, direction === 1 ? page : turn.to); apply(backMat, undefined);
+      apply(rightMat, direction === 1 ? turn.to : page);
+      geometry.updateSingleSheets(book.pages.length,page,direction<0&&Math.floor(turn.to/2)<Math.floor(page/2)?'back':'front');
+    }
     else { apply(frontMat, turn.front); apply(backMat, turn.back); if (direction === 1) apply(rightMat, turn.to + 1); else apply(leftMat, turn.to); }
-    leaf.visible = true; deform(direction === 1 ? 0 : 1); emit(); return true;
+    leaf.visible = true; deform(0, turnGrip); emit(); return true;
   }
-  async function finish(commit: boolean, reduced = false) {
+  async function finish(commit: boolean, reduced = false, velocity = 0) {
     if (!turning) return;
-    const turn = turning, from = progress, token = generation;
-    const target = commit ? (turn.direction === 1 ? 1 : 0) : (turn.direction === 1 ? 0 : 1);
-    const task = turningMotion.start(reduced ? 0 : Math.max(120, Math.abs(target - progress) * journalRuntime.pageDurationMs), t => deform(THREE.MathUtils.lerp(from, target, ease(t))));
+    const turn = turning, from = progress, token = generation, target = commit ? 1 : 0;
+    const pageDuration = single ? 1350 : journalRuntime.pageDurationMs;
+    const duration = reduced ? 0 : pageDuration;
+    const damping = single ? .94 : .88, frequency = single ? 6.2 : 8.5;
+    const dampedFrequency = frequency * Math.sqrt(1 - damping * damping);
+    const offset = from - target, tangent = (clamp(velocity, -3, 3) + damping * frequency * offset) / dampedFrequency;
+    const task = turningMotion.start(duration, t => {
+      if (!duration) { deform(target); return; }
+      const seconds = t * duration / 1000, envelope = Math.exp(-damping * frequency * seconds);
+      const value = target + envelope * (offset * Math.cos(dampedFrequency * seconds) + tangent * Math.sin(dampedFrequency * seconds));
+      deform(clamp(value, 0, 1));
+    });
     requestDraw();
-    const result = await withActiveDeadline(task, journalRuntime.pageDurationMs + journalRuntime.animationSlackMs, () => turningMotion.cancel("timeout"));
+    const result = await withActiveDeadline(task, pageDuration + journalRuntime.animationSlackMs, () => turningMotion.cancel("timeout"));
     if (result.status === "failed" && token === generation) { cancelTurn(); error = result.code; emit(); return; }
     if (result.status !== "completed" || token !== generation || turning !== turn) return;
+    deform(target);
     if (commit) page = turn.to;
     const queued = pendingTurn; cancelTurn(); warm(); updatePages();
     const drawnResult = await waitForDraw();
@@ -184,10 +205,10 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   }
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const gestures = createBookGestures({
-    canvas, enabled: () => active && travelAmount === 1 && !opening.running && !waiting && interactionEnabled && !turningMotion.running,
+    canvas, enabled: () => active && travelAmount === 1 && !opening.running && !layoutMotion.running && !waiting && interactionEnabled && !turningMotion.running,
     phase: () => phase, zoom: () => zoom, single: () => single,
     hit(event) { const found = hit(event); return found?.uv ? { x: found.uv.x, y: found.uv.y, left: found.object === left, cover: found.object === lid, region: Boolean(hitRegion(found)) } : undefined; },
-    begin, deform, progress: () => progress, finish: commit => { void finish(commit, reduced()); },
+    begin, deform, progress: () => progress, finish: (commit, velocity) => { void finish(commit, reduced(), velocity); },
     rotate(dx, dy) { yaw += dx * .007; pitch += dy * .007; if (phase === "reading") ({ pitch, yaw } = constrainReading(pitch, yaw)); emit(); invalidate(); },
     pan(dx, dy) { pan.x = clamp(pan.x + dx * .002, -.8, .8); pan.y = clamp(pan.y - dy * .002, -.8, .8); emit(); invalidate(); },
     setZoom, interrupt: () => cancelTurn(false),
@@ -199,7 +220,7 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     },
   });
   function cancel() {
-    generation++; waiting = false; opening.cancel(); cancelTurn(); cache.cancelPending();
+    generation++; waiting = false; opening.cancel(); layoutMotion.cancel(); folded = single ? 1 : 0; cancelTurn(); cache.cancelPending();
     phase = opened >= .5 ? "reading" : "observing"; opened = phase === "reading" ? 1 : 0;
     for (const check of [...drawWaiters]) check(); emit();
   }
@@ -208,7 +229,13 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     // ResizeObserver runs. Input must use the current host viewport immediately.
     const rect = (canvas.parentElement ?? canvas).getBoundingClientRect(), next = journalSingle(rect.width, rect.height);
     if (next === single) return;
-    cancel(); single = next; updatePages(); warm();
+    const from = folded;
+    cancel(); single = next;
+    const to = single ? 1 : 0;
+    void layoutMotion.start(active && opened === 1 && !reduced() ? 360 : 0, t => {
+      folded = THREE.MathUtils.lerp(from, to, ease(t)); invalidate();
+    }).then(() => emit());
+    updatePages(); warm();
   }
   function activate(value: boolean) {
     active = value; root.visible = value;
@@ -219,6 +246,7 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
   }
   return {
     root,
+    get single() { return single; },
     setInteractionEnabled(value: boolean) { interactionEnabled = value; if (!value) gestures.cancel(); },
     configure(manifest: JournalManifest, onReport: typeof report, onRegion: typeof region, onIntent: typeof intent) {
       // Teardown belongs to the previous operation. Reset resources and errors
@@ -246,18 +274,18 @@ export function createJournalBook(renderer: THREE.WebGLRenderer, scene: THREE.Sc
     setZoom,
     pose(amount: number, origin: THREE.Vector3, rotation: THREE.Quaternion) {
       travelAmount = amount;
-      applyJournalPose(geometry, camera, canvas, { opened, single, zoom, pitch, yaw, roll, pan, turning: Boolean(turning) }, amount, origin, rotation);
+      applyJournalPose(geometry, camera, canvas, { opened, folded, pages:book?.pages.length ?? 0, page, zoom, pitch, yaw, roll, pan, turning: Boolean(turning), turnProgress: progress }, amount, origin, rotation);
     },
     turn: turnPage,
     cancel,
-    pause() { opening.pause(); turningMotion.pause(); gestures.cancel(); },
+    pause() { opening.pause(); turningMotion.pause(); layoutMotion.pause(); gestures.cancel(); },
     cancelPrefetch() { cache.cancelPrefetch(); },
-    tick(now: number) { const a = opening.tick(now), b = turningMotion.tick(now); return a || b; },
+    tick(now: number) { const a = opening.tick(now), b = turningMotion.tick(now), c = layoutMotion.tick(now); return a || b || c; },
     dispose() {
       if (disposed) return; disposed = true; active = false;
       disposeSafely([cancel, () => gestures.dispose(),
         ...[leftMat, rightMat, frontMat, backMat].map(material => () => apply(material, undefined)),
-        () => cache.dispose(), ...owned.map(resource => () => resource.dispose()), () => scene.remove(root)]);
+        () => cache.dispose(), geometry.disposeSingleSheets, ...owned.map(resource => () => resource.dispose()), () => scene.remove(root)]);
     },
   };
 }
