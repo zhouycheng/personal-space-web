@@ -71,9 +71,9 @@ rtk npm run monitor:activity
 
 - Inspect the branch, working tree, and existing changes before starting. The current working branch is `main`; continue in the user-designated branch and workspace.
 - Implement the confirmed scope and preserve existing changes. Creating or switching branches or worktrees, committing, pushing, and releasing require explicit requests for those actions. Use Conventional Commits when authorized to commit.
-- Store temporary plans and validation artifacts in `.workspace/`; place durable documentation according to ownership.
+- Keep temporary plans, experiments, and validation artifacts in the ignored `.workspace/`; remove generated files when their task is complete and they are no longer needed.
 - Use `.agents/skills/README.md` to select relevant project skills. `docs/develop/workflow.md` owns the persistent workflow.
-- `README.md` owns repository navigation and runtime instructions; `CONTEXT.md` owns shared terminology; `docs/README.md` indexes documentation; `docs/work/` tracks active work, backlog, and decisions.
+- `README.md` owns repository navigation and runtime instructions; `CONTEXT.md` owns shared terminology; `docs/README.md` indexes documentation; `docs/work/backlog.md` tracks candidate work; `CHANGELOG.md` owns dated history.
 - Keep Justin Kit rules in `src/justin-kit/README.md` and component usage in component READMEs. Record version-level facts in `CHANGELOG.md`.
 - Write `AGENTS.md` in English using concise, actionable instructions for agents.
 - Align documentation with current code, configuration, and observed behavior. Describe current responsibilities, behavior, and constraints; keep detailed visual parameters and phase acceptance records in the relevant feature documentation.

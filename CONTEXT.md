@@ -37,6 +37,6 @@ URL 是唯一界面状态来源：`/home` 对应房间，`/os` 对应桌面，`/
 - `README.md`：当前运行时、命令、实现状态和项目结构。
 - `CHANGELOG.md`：按日期精简整理的版本级历史和已验证里程碑。
 - `docs/README.md`：仓库文档索引。
-- `docs/work/`：当前工作、待办和决策。
+- `docs/work/backlog.md`：候选需求；已验证的日期记录见 `CHANGELOG.md`。
 - `docs/develop/workflow.md`：持久化的工作流和验证规则。
 - `.agents/skills/README.md`：项目级技能矩阵和路由。

@@ -1,4 +1,4 @@
 interface:
   display_name: "JustinSpace Implementation"
-  short_description: "Implement confirmed JustinSpace code, styles, scripts, and docs."
+  short_description: "Implement confirmed JustinSpace code, content, styles, and docs."
   default_prompt: "Use $justinspace-implementation to implement this confirmed JustinSpace scope while preserving repository boundaries."

@@ -1,4 +1,4 @@
 interface:
-  display_name: "JustinSpace Delivery"
-  short_description: "Calibrate docs and prepare requested commit or PR handoff."
-  default_prompt: "Use $justinspace-delivery to prepare the requested handoff for this validated JustinSpace work."
+  display_name: "JustinSpace Review and Delivery"
+  short_description: "Review changes, run checks, update docs, and prepare handoffs."
+  default_prompt: "Use $justinspace-delivery to plan checks, review and validate this JustinSpace change, or prepare a requested handoff."

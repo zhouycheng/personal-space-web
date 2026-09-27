@@ -9,7 +9,7 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 | `src/pages/` | `/home`、`/works`、`/canvas`、`/os`、`/journal` 和 API 入口 | 装配其他层，入口保持薄 |
 | `src/app/` | 路由、History API、依赖装配及页面生命周期 | 可组合内部层 |
 | `src/contracts/` | 内容模型、`StudioIntent`、`ScenePort`、`TransitionPort` | 只依赖本层；不含 DOM、ReactFlow、Three.js |
-| `src/content/` | 简历、作品、文件顺序、画布发布内容、日记和站点素材 | 可引用纯契约；真实个人内容另受 `CONTENT-LICENSE.md` 约束 |
+| `src/content/` | 简历、作品、文件顺序、画布发布内容、日记和站点素材 | 可引用纯契约；真实个人内容另受 [CONTENT-LICENSE.md](../../legal/CONTENT-LICENSE.md) 约束 |
 | `src/config/` | 场景配色、光照和书本外观 | 纯配置 |
 | `src/data/repositories/` | 发布内容读取入口 | 内容与契约 |
 | `src/data/selectors/` | 文件盒、作品列表、画布结构、实体书页等纯派生数据 | 输入参数、契约与配置；不读取 repository |
@@ -23,7 +23,7 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 | `src/infrastructure/server/` | 日记清单与活动 SSE 等服务端适配 | 契约和数据 |
 | `src/justin-kit/` | 可复用的桌面、窗口、活动徽章和背景组件 | 不导入本站业务层 |
 
-`src/content.config.ts` 和 `src/env.d.ts` 留在 Astro 约定的位置。`public/os-desktop/` 是桌面文件内容的唯一来源。`games/` 当前只有扩展说明，`src/content/games.json` 是空登记清单，没有游戏运行时。草图归档在根目录 `playground/`。
+`src/content.config.ts` 和 `src/env.d.ts` 留在 Astro 约定的位置。`public/os-desktop/` 是桌面文件内容的唯一来源。`games/` 当前保留扩展说明，`src/content/games.json` 是空登记清单，尚无游戏运行时。
 
 ## 主要调用链
 

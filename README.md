@@ -27,7 +27,7 @@
 
 ## Fork 与授权
 
-网站自有代码使用 [Zlib](LICENSE)；真实简历、日记、头像、作品资料和其他个人内容保留权利，第三方材料沿用其原许可。Fork 后可修改网站代码并换成自己的资料，但须遵守 Zlib 对原始来源、修改版本和许可声明的要求。授权文件的适用范围见 [LICENSING.md](LICENSING.md)，个人内容见 [CONTENT-LICENSE.md](CONTENT-LICENSE.md)，第三方材料见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+网站自有代码使用 [Zlib](LICENSE)；真实简历、日记、头像、作品资料和其他个人内容保留权利，第三方材料沿用其原许可。Fork 后可修改网站代码并换成自己的资料，但须遵守 Zlib 对原始来源、修改版本和许可声明的要求。授权文件的适用范围见 [LICENSING.md](legal/LICENSING.md)，个人内容见 [CONTENT-LICENSE.md](legal/CONTENT-LICENSE.md)，第三方材料见 [THIRD_PARTY_NOTICES.md](legal/THIRD_PARTY_NOTICES.md)。
 
 ## 本地运行
 
