@@ -94,7 +94,6 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_AUDIENCE }}
           tags: tag:ci
-          ping: ${{ secrets.TAILSCALE_SERVER }}
       - name: Deploy through Tailscale SSH
         id: deploy
         run: |
