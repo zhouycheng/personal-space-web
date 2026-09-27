@@ -66,7 +66,7 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   computer.updateWorldMatrix(true,true);
 
   // Flat iPad replaces the introduction folder and opens the personal canvas.
-  const tablet=hotspot("canvas");tablet.position.set(1.04,1.45,-1.1);
+  const tablet=hotspot("canvas");tablet.position.set(1.04,1.45,-1.1);tablet.rotation.y=-0.18;
   rounded(tablet,[0.78,0.035,0.58],[0,0,0],aluminum,0.025);
   rounded(tablet,[0.755,0.006,0.555],[0,0.02,0],keycap,0.024);
   const canvasSurface=label(tablet,"MY CANVAS",0.69,0.49,[0,0.024,0],"#fff9e9","#002fa7",0.16,true);
@@ -74,8 +74,6 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   const tabletGlow=new THREE.PointLight(0xfff5df,0.2,0.75,2);
   tabletGlow.position.set(0,0.09,0);tablet.add(tabletGlow);
   cylinder(tablet,0.008,0.003,[0,0.025,-0.263],chrome);
-  const pencil=cylinder(tablet,0.014,0.48,[0.43,0.005,0],paper);pencil.rotation.x=Math.PI/2;
-  box(tablet,[0.004,0.012,0.055],[0.391,0,0],keycap);
   
   // Files rest on their lower edge; the manifest distinguishes folders from loose paper.
   const library=hotspot("works");
