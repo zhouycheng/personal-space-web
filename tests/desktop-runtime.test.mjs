@@ -34,7 +34,7 @@ test("desktop content directory honors an explicit runtime override", () => {
 });
 
 test("strict desktop scans reject missing and empty content roots", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "justinweb-desktop-"));
+  const root = await mkdtemp(path.join(tmpdir(), "justinspace-desktop-"));
   const empty = path.join(root, "empty");
   await mkdir(empty);
 
@@ -49,7 +49,7 @@ test("strict desktop scans reject missing and empty content roots", async () => 
 });
 
 test("desktop scanner keeps recursive Chinese folders and supported files", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "justinweb-desktop-"));
+  const root = await mkdtemp(path.join(tmpdir(), "justinspace-desktop-"));
   const folder = path.join(root, "组件库");
   await mkdir(folder);
   await writeFile(path.join(folder, "示例.html"), "<!doctype html>");

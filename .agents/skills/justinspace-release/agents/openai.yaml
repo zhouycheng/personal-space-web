@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinSpace Release"
+  short_description: "Write formal JustinSpace release notes for a specified version."
+  default_prompt: "Use $justinspace-release to summarize and prepare a formal JustinSpace release document for the specified version."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "JustinSpace Skill Create"
+  short_description: "Maintain JustinSpace project-local skills and index metadata."
+  default_prompt: "Use $justinspace-skill-create to create or update JustinSpace project-local skills and their shared index."

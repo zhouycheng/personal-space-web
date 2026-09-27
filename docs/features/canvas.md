@@ -1,6 +1,6 @@
 # 我的画布
 
-画布使用 ReactFlow 展示仓库维护的卡片和连线。发布内容唯一来源是 `src/content/canvas/published.ts`，经 `src/data/repositories/canvas.ts` 读取；Agent 通过项目技能 `justinweb-canvas-content` 修改内容、默认布局、样式和卡片组件，构建发布后生效。
+画布使用 ReactFlow 展示仓库维护的卡片和连线。发布内容唯一来源是 `src/content/canvas/published.ts`，经 `src/data/repositories/canvas.ts` 读取；Agent 通过项目技能 `justinspace-canvas-content` 修改内容、默认布局、样式和卡片组件，构建发布后生效。
 
 ## 浏览与位置
 

@@ -1,11 +1,11 @@
-# JustinWeb Project Skills
+# JustinSpace Project Skills
 
 These skills serve this repository only.
 
 ## Project Skill Rules
 
 - Project-local skills live in `.agents/skills/`.
-- Skill names use the `justinweb-` prefix.
+- Skill names use the `justinspace-` prefix.
 - Individual skill folders contain only `SKILL.md` and `agents/openai.yaml`.
 - Keep this index and affected `agents/openai.yaml` metadata aligned with skill changes.
 - Temporary plans, release drafts, and validation artifacts use `.workspace/`.
@@ -22,21 +22,21 @@ These skills serve this repository only.
 
 | User intent | Skill | Main output |
 | --- | --- | --- |
-| Maintain canvas content, layout and cards | `justinweb-canvas-content` | Published source files |
-| Implement confirmed code, docs, or scripts | `justinweb-implementation` | Working-tree changes |
-| Validate, review, run checks, diagnose failures, and re-check | `justinweb-validation` | Validation report |
-| Calibrate docs and prepare a requested commit or PR handoff | `justinweb-delivery` | Delivery notes, commit information, or PR description |
-| Write a formal release document for a specified version | `justinweb-release` | Release document draft or file |
-| Maintain this project-local skill matrix | `justinweb-skill-create` | Updated skills and routing docs |
-| Deploy or update JustinWeb on a server through Tailscale | `justinweb-tailscale-deploy` | Verified production deployment and rollback state |
+| Maintain canvas content, layout and cards | `justinspace-canvas-content` | Published source files |
+| Implement confirmed code, docs, or scripts | `justinspace-implementation` | Working-tree changes |
+| Validate, review, run checks, diagnose failures, and re-check | `justinspace-validation` | Validation report |
+| Calibrate docs and prepare a requested commit or PR handoff | `justinspace-delivery` | Delivery notes, commit information, or PR description |
+| Write a formal release document for a specified version | `justinspace-release` | Release document draft or file |
+| Maintain this project-local skill matrix | `justinspace-skill-create` | Updated skills and routing docs |
+| Deploy or update JustinSpace on a server through Tailscale | `justinspace-tailscale-deploy` | Verified production deployment and rollback state |
 
 ## Recommended Flows
 
-- Confirmed implementation: `justinweb-implementation` -> `justinweb-validation`.
-- Skill system maintenance: `justinweb-skill-create` -> `justinweb-validation`.
-- Commit or PR preparation after validation: `justinweb-delivery`.
-- Version release documentation: `justinweb-release`.
-- Tailscale server deployment: `justinweb-tailscale-deploy`.
+- Confirmed implementation: `justinspace-implementation` -> `justinspace-validation`.
+- Skill system maintenance: `justinspace-skill-create` -> `justinspace-validation`.
+- Commit or PR preparation after validation: `justinspace-delivery`.
+- Version release documentation: `justinspace-release`.
+- Tailscale server deployment: `justinspace-tailscale-deploy`.
 
 ## Common Gates
 
