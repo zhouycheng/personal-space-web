@@ -19,9 +19,7 @@
 
 Tailscale 中创建 GitHub OIDC 联邦身份，issuer 使用 `https://token.actions.githubusercontent.com`，权限只选 `auth_keys`，设备 tag 只选 `tag:ci`。使用 GitHub 当前显示的不可变 environment subject，并通过 custom claim rules 精确限制仓库、`production` environment 和 `refs/heads/main`。将生成的 Client ID 和 Audience 保存到 GitHub environment secrets `TS_OAUTH_CLIENT_ID` 和 `TS_AUDIENCE`；不要把具体身份 subject、Client ID 或 Audience 写入本仓库。
 
-发布镜像使用 `GITHUB_TOKEN` 和 `packages: write`。将 `personal-space-web` Container package 设为 Private，并确认 `personal-space-web` 仓库具有该 package 的 GitHub Actions 访问权限。部署 job 使用单独的 `GITHUB_TOKEN`、`packages: read`，经 Tailscale SSH 标准输入把镜像摘要、GitHub actor 和短期 token 传给 root 管理的入口；服务器在 `/run` 建立仅 root 可读的临时 Docker 配置，拉取摘要后随命令退出清除。token 不作为命令行参数、不会保存到服务器，也不会写入日志或镜像。发布 job 在保持 GHCR 登录时拉取新摘要以验证私有包权限。不要创建长期 PAT 来替代 job token。
-
-GitHub 官方提示：如果公开仓库获准访问私有 package，该仓库的 fork workflow 可能也能读取该 package。JustinSpace 源仓库当前为 Public，因此私有可见性阻止匿名 registry 拉取，但不应将它视为对公开源码 fork 的保密边界。镜像不得包含运行时秘密；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。
+发布镜像使用 `GITHUB_TOKEN` 和 `packages: write`。`personal-space-web` Container package 当前设为 Public，可匿名拉取。部署 job 仍使用 job 范围内的短期 `GITHUB_TOKEN` 和 `packages: read`，经 Tailscale SSH 标准输入把镜像摘要、GitHub actor 和 token 传给 root 管理的入口；服务器在 `/run` 建立仅 root 可读的临时 Docker 配置，拉取摘要后随命令退出清除。token 不作为命令行参数、不会保存在服务器，也不会写入日志或镜像。不要创建长期 PAT 来替代 job token。镜像不得包含运行时秘密；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。
 
 ## Tailnet 策略
 

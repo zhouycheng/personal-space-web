@@ -8,7 +8,7 @@ These skills serve this repository only.
 - Skill names use the `justinspace-` prefix.
 - Individual skill folders contain only `SKILL.md` and `agents/openai.yaml`.
 - Keep this index and affected `agents/openai.yaml` metadata aligned with skill changes.
-- Temporary plans, release drafts, and validation artifacts use `.workspace/`.
+- `.workspace/` is ignored scratch space for temporary plans, experiments, and validation artifacts. Remove generated output when its task is finished.
 - Confirmed durable facts live in `CONTEXT.md`, `CHANGELOG.md`, `README.md`, `docs/`, and component README files.
 
 ## Shared Context
@@ -24,23 +24,20 @@ These skills serve this repository only.
 | --- | --- | --- |
 | Maintain canvas content, layout and cards | `justinspace-canvas-content` | Published source files |
 | Implement confirmed code, docs, or scripts | `justinspace-implementation` | Working-tree changes |
-| Validate, review, run checks, diagnose failures, and re-check | `justinspace-validation` | Validation report |
-| Calibrate docs and prepare a requested commit or PR handoff | `justinspace-delivery` | Delivery notes, commit information, or PR description |
-| Write a formal release document for a specified version | `justinspace-release` | Release document draft or file |
+| Plan checks, review changes, validate, calibrate docs, prepare version notes, and hand off | `justinspace-delivery` | Validation report, changelog entry, or delivery handoff |
 | Maintain this project-local skill matrix | `justinspace-skill-create` | Updated skills and routing docs |
-| Deploy or update JustinSpace on a server through Tailscale | `justinspace-tailscale-deploy` | Verified production deployment and rollback state |
 
 ## Recommended Flows
 
-- Confirmed implementation: `justinspace-implementation` -> `justinspace-validation`.
-- Skill system maintenance: `justinspace-skill-create` -> `justinspace-validation`.
+- Confirmed implementation: `justinspace-implementation` -> `justinspace-delivery`.
+- Skill system maintenance: `justinspace-skill-create` -> `justinspace-delivery`.
 - Commit or PR preparation after validation: `justinspace-delivery`.
-- Version release documentation: `justinspace-release`.
-- Tailscale server deployment: `justinspace-tailscale-deploy`.
+- Version notes: `justinspace-delivery` -> `CHANGELOG.md`.
+- Production deployment: follow [the deployment guide](../../docs/develop/deployment.md) and verify the current server state.
 
 ## Common Gates
 
 - Require accepted scope before implementation unless the user asks for end-to-end execution.
 - Do not stage, commit, push, tag, publish, or delete branches without explicit instruction.
-- Keep `.workspace/` temporary and uncommitted.
+- Keep `.workspace/` as ignored scratch space; durable facts belong in maintained project docs.
 - If docs and source disagree, verify the runtime behavior and update the owning documentation when the task changes current facts.

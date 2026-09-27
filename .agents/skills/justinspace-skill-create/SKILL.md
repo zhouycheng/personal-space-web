@@ -1,24 +1,19 @@
 ---
 name: justinspace-skill-create
-description: "Create, update, merge, delete, rename, or refactor JustinSpace project-local skills while keeping naming, the shared index, UI metadata, and validation consistent. Use only inside the JustinSpace repository."
+description: "Maintain JustinSpace project skills, their shared index, and invocation metadata."
 ---
 
 # JustinSpace Skill Create
 
-## Required Guidance
-
-Read `.agents/skills/README.md`. If the system skill creator exists locally, read it before changing project skills.
+Read `AGENTS.md`, `.agents/skills/README.md`, and the local system skill-creator guide before changing project skills.
 
 ## Rules
 
-- Keep project skills under `.agents/skills/`.
-- Use the `justinspace-` prefix and lowercase hyphen-case names.
-- Keep individual skill folders free of README, CHANGELOG, CONTEXT, install guides, and process logs.
-- Update the shared index after matrix changes.
-- Update `agents/openai.yaml` when responsibility changes.
-- Scan for stale old skill names and paths.
-- Do not create a user-level skill unless explicitly requested.
+- Keep skills in `.agents/skills/justinspace-*/`. Each skill folder contains `SKILL.md` and `agents/openai.yaml`, plus only resources required by its workflow.
+- Keep names lowercase and hyphenated with the `justinspace-` prefix.
+- When creating, removing, merging, renaming, or changing responsibility, update the shared index, affected UI metadata, and stale references in the same change.
+- Keep temporary skill experiments in ignored `.workspace/`. Do not create user-level skills unless requested.
 
 ## Validation
 
-Run the system `quick_validate.py` for each remaining skill when available. Check that folder names match frontmatter names, every indexed skill exists, each skill has `agents/openai.yaml`, and removed or renamed skills have no stale references.
+Run the system `quick_validate.py` for every remaining skill. Confirm folder names match frontmatter, each indexed skill and metadata file exists, and removed names have no stale references.

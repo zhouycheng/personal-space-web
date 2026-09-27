@@ -1,25 +1,26 @@
 ---
 name: justinspace-implementation
-description: "Implement confirmed JustinSpace code, styles, scripts, and documentation while preserving architecture boundaries and unrelated user changes. Use only inside the JustinSpace repository; route project-skill maintenance to justinspace-skill-create."
+description: "Implement confirmed JustinSpace code, content, styles, scripts, and documentation while preserving project boundaries and existing user work; route skill maintenance to justinspace-skill-create."
 ---
 
 # JustinSpace Implementation
 
-## Shared Context
+## Before editing
 
-Read `.agents/skills/README.md`, the accepted plan when one exists, and relevant source.
+- Read `AGENTS.md`, `.agents/skills/README.md`, the accepted scope, and the files that own the behavior.
+- Inspect Git status and diffs. Trace callers when changing shared behavior.
+- Use `.node-version` and prefix repository commands with `rtk`.
 
-## Rules
+## Implementation
 
-- Implement only confirmed scope.
-- Follow the ownership map in `AGENTS.md` and trace affected callers before editing shared behavior.
-- Use `apply_patch` for manual edits.
-- Prefix shell commands with `rtk`.
-- Add validation proportional to risk and hand shared-flow changes to `justinspace-validation` for full checks.
-- Avoid unrelated refactors, formatting churn, generated artifacts, and user-change reversions.
-- Update docs only when current facts changed.
-- Stop and explain when the accepted plan becomes unsafe or impossible.
+- Change only the confirmed scope. Reuse existing types, helpers, tests, and project patterns.
+- Use `apply_patch` for manual edits. Keep runtime content under its owning `src/content/` path.
+- Keep current usage and architecture in their owning README or feature docs. Record dated project history in `CHANGELOG.md`.
+- Store short-lived experiments and validation outputs in ignored `.workspace/`; remove generated output when the task is done and it is no longer needed.
+- Regenerate a journal package only when the changed content and accepted checks require it. Avoid unrelated formatting and preserve user work.
 
-## Handoff
+## Checks and handoff
 
-Report changed behavior, preserved boundaries, deliberately unchanged areas, validation run, and remaining risk.
+- Run the checks required by `AGENTS.md` for the changed behavior. Use `justinspace-delivery` for a full review, validation report, or requested delivery handoff.
+- Report the changed files, behavior, checks actually run, and any unverified behavior.
+- Do not stage, commit, push, release, or deploy unless the user explicitly asks for that action.

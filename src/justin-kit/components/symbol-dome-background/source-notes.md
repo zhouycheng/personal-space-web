@@ -1,10 +1,4 @@
-# Source Notes
-
-## Adopted source
-
-- `playground/symbol-dome-background/adopted/terminal-symbol-dome-single-face-v3.html`
-
-## Preserved decisions
+# Symbol Dome Visual Constraints
 
 - Single-face symbol dome rather than a true 3D sphere.
 - Continuous right rotation.

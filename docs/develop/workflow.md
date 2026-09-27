@@ -5,7 +5,7 @@
 - 运行时和设置：`README.md`。
 - 稳定词汇：`CONTEXT.md`。
 - 文档索引：`docs/README.md`。
-- 当前工作和待办：`docs/work/`。
+- 候选需求：`docs/work/backlog.md`；已验证的日期记录：`CHANGELOG.md`。
 - Justin Kit 规则：`src/justin-kit/README.md`。
 - 项目级技能：`.agents/skills/README.md`。
 
@@ -13,7 +13,7 @@
 
 - 在添加到 `docs/work/backlog.md` 之前讨论候选需求。
 - 实现需要已接受的范围，除非用户明确要求端到端执行。
-- 将临时计划保留在 `.workspace/plans/`，将持久化事实保留在 `docs/`。
+- 临时计划和实验结果保留在已忽略的 `.workspace/`；任务结束后清理不再需要的生成物。持久事实写入对应的长期说明或 `CHANGELOG.md`。
 
 ## 架构边界
 
@@ -68,4 +68,4 @@ rtk npm run monitor:activity
 
 ## 发布
 
-正式发布文档应放在 `docs/releases/vX.Y.Z/release.md`，需要用户指定版本号。
+发布说明写入根目录 `CHANGELOG.md`，需要用户指定版本号。确认版本后再加入对应的日期记录；不另建版本文档。

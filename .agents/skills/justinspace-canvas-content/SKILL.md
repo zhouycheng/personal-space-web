@@ -1,31 +1,31 @@
 ---
 name: justinspace-canvas-content
-description: "Maintain JustinSpace canvas cards, connections, default positions, styles, images and custom React presentation through repository files. Use for Agent-managed canvas content; visitors only browse and locally reposition cards."
+description: "Maintain JustinSpace canvas cards, edges, positions, styles, assets, and card rendering in repository files."
 ---
 
 # JustinSpace Canvas Content
 
-## Sources
+## Ownership
 
-- Read `src/content/canvas/published.ts`: the published document and stable card IDs.
-- Read `src/contracts/canvas.ts` for content fields, dimensions, connections and text styles.
-- `src/presentation/ui/canvas/CanvasCardContent.tsx` renders content directly on spatial cards; `mine-canvas.css` owns canvas styles.
-- `src/presentation/ui/canvas/MineCanvasEditor.tsx` owns viewing and navigation; `src/infrastructure/client/canvasPositions.ts` owns browser-local positions. The component provides no content editor.
-- Store published images in `public/canvas/` and reference them as `/canvas/filename.ext`.
+- Published cards and edges: `src/content/canvas/published.ts`.
+- Data kinds and fields: `src/contracts/canvas.ts`.
+- Card rendering and styles: `src/presentation/ui/canvas/CanvasCardContent.tsx` and `mine-canvas.css`.
+- Canvas interaction: `MineCanvasEditor.tsx`; visitor positions: `src/infrastructure/client/canvasPositions.ts`.
+- Published images: `public/canvas/`, referenced as `/canvas/filename.ext`.
 
-## Workflow
+## Editing
 
-1. Inspect current cards and edges before changing them. Preserve existing content outside the request.
-2. Query cards by stable ID; report matching titles and fields. For updates, keep IDs stable. For additions, choose unique descriptive IDs. On deletion, remove incident edges.
-3. Set website positions in `position`, dimensions in both `data.width/height` and node `style`; use the existing node helper. Set accents and supported text styles in typed data.
-4. Treat HTML fields as trusted repository content: author semantic HTML, never insert scripts, event handlers or unreviewed external HTML.
-5. For new functionality, extend the discriminated data type and React content renderer. Show complete content directly on nodes; there is no reading panel. Keep interactions compatible with whole-card dragging, double-click focus, blank-canvas double-click overview, and mobile zooming. Enter/Space focuses a node. Keep links independently clickable with the nodrag class.
-6. Check IDs, edge endpoints, asset paths and visible content. Build and inspect desktop/mobile when requested by the task or required by its accepted validation scope.
+1. Inspect the current nodes, stable IDs, edges, card renderer, and asset paths before editing.
+2. Preserve IDs for existing cards. Give new cards unique IDs and remove incident edges when deleting a card.
+3. Use the existing node helper. Keep width and height consistent across node data and style.
+4. Treat HTML fields as trusted repository content. Add semantic markup only; do not add scripts, event handlers, or unreviewed external HTML.
+5. When adding a card kind, update the contract and renderer. Keep whole-card dragging, double-click focus, blank-canvas overview, keyboard access, mobile zoom, and independently clickable links working.
+6. Check content, edge endpoints, dimensions, and asset paths. For layout or renderer changes, run the relevant checks from `AGENTS.md` and inspect desktop and narrow layouts.
 
 ## Invariants
 
-- Published content comes only from repository files. No database, web author login, uploads or save API.
-- Visitors may move cards. Only moved positions are saved in `justin-canvas-positions-v1`; never persist content, styling, connections or viewport.
-- Existing local positions override new defaults for the same ID. Do not change IDs to force layout updates. Visitors can choose Restore Default Layout.
-- Preserve the studio palette and other pages when changing canvas styles.
-- Commit, push and deploy require the corresponding user authorization. Editing this document is not a deployment.
+- The repository owns published content. Visitors can only store moved-card positions under `justin-canvas-positions-v1`.
+- Never persist content, style, edge, viewport, or editor overrides.
+- Existing saved positions override defaults for matching IDs. Do not rename an ID to force a layout reset; visitors can restore the default layout.
+- Preserve the studio palette and other pages.
+- Commit, push, and deployment require the corresponding user authorization.

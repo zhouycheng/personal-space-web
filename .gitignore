@@ -2,13 +2,6 @@
 
 # dependencies
 node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
 # testing
 /coverage
@@ -16,9 +9,6 @@ node_modules
 # astro
 .astro
 dist
-
-# production
-/build
 
 # misc
 .DS_Store
@@ -48,27 +38,14 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # editor settings
 .vscode/
 
-# canvas persistence data
-/data/canvas.json
-/data/*.db
-/data/*.db-wal
-/data/*.db-shm
-/data/canvas-assets/
 /backups/
 /restore/
-
-/design/
-/output/
 
 # Keep the active validated book; old local versions and temporary output stay local.
 /public/journal/generated/*
