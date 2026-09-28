@@ -69,8 +69,8 @@ rtk npm run monitor:activity
 
 ## Workspace and Documentation
 
-- Inspect the branch, working tree, and existing changes before starting. The current working branch is `main`; continue in the user-designated branch and workspace.
-- Implement the confirmed scope and preserve existing changes. Creating or switching branches or worktrees, committing, pushing, and releasing require explicit requests for those actions. Use Conventional Commits when authorized to commit.
+- Inspect the branch, working tree, and existing changes before starting. Use `develop` as the default working branch for routine work; `main` is the protected production branch.
+- Implement the confirmed scope and preserve existing changes. Creating or switching branches or worktrees, committing, pushing, and releasing require explicit requests. When commits or pushes are requested, target `develop` by default. Never push directly to `main`; merge production changes through a pull request from `develop` to `main`. Use Conventional Commits when authorized to commit.
 - Keep temporary plans, experiments, and validation artifacts in the ignored `.workspace/`; remove generated files when their task is complete and they are no longer needed.
 - Use `.agents/skills/README.md` to select relevant project skills. `docs/develop/workflow.md` owns the persistent workflow.
 - `README.md` owns repository navigation and runtime instructions; `CONTEXT.md` owns shared terminology; `docs/README.md` indexes documentation; `docs/work/backlog.md` tracks candidate work; `CHANGELOG.md` owns dated history.

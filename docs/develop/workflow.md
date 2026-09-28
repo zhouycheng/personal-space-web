@@ -61,7 +61,9 @@ rtk npm run monitor:activity
 
 ## Git 与交付
 
-- 当前分支通常为 `main`；未经明确指示，不要创建、暂存、提交、推送、打标签或发布。
+- 日常开发默认使用 `develop`；用户授权提交或推送时，默认目标也是 `develop`。
+- `main` 是受保护的生产分支，禁止直接推送。生产变更通过 `develop` 到 `main` 的 PR 合并；PR 必须通过 `verify`，不要求额外审批。推送到 `develop` 不会部署生产环境。
+- 除用户明确要求外，不创建或切换分支、不提交或推送、不打标签或发布。
 - 保留不相关的用户变更。
 - 准备提交建议时使用 Conventional Commit 风格。
 - 仅为值得回顾的版本级事实更新 `CHANGELOG.md`。
