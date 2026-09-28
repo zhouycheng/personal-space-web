@@ -1,6 +1,6 @@
 # 部署手册
 
-生产环境使用 Docker Compose 运行 GHCR 发布的镜像。代码合并到 `main` 后，GitHub Actions 执行检查、构建不可变镜像摘要，通过 Tailscale SSH 部署，并检查容器健康和公开页面。服务器 Nginx 提供 HTTPS，应用端口只绑定到本机回环地址。
+生产环境使用 Docker Compose 运行 GHCR 发布的镜像。日常开发和提交默认使用 `develop`；将 `develop` 的 PR 合并到 `main` 后，GitHub Actions 执行检查、构建不可变镜像摘要，通过 Tailscale SSH 部署，并检查容器健康和公开页面。推送到 `develop` 不会部署。服务器 Nginx 提供 HTTPS，应用端口只绑定到本机回环地址。
 
 ## 首次准备服务器
 
@@ -199,11 +199,13 @@ curl -fsS http://127.0.0.1:4321/api/health
 
 在 Tailscale 创建 GitHub OIDC 联邦身份，issuer 为 `https://token.actions.githubusercontent.com`，只授予 `auth_keys` 并分配 `tag:ci`。使用 GitHub 显示的 environment subject，通过 custom claim rules 限定仓库、`production` environment 和 `refs/heads/main`，再将 Client ID 与 Audience 保存为上述 GitHub secrets。
 
+在仓库 **Settings → Branches** 为 `main` 配置 branch protection rule。要求变更通过 PR 合并并通过 `verify` 检查；审批数设为 0。启用管理员规则执行，不添加绕过者，并禁止强推和删除。`develop` 保持可直接提交。此保护规则保存在 GitHub 仓库设置中，不由本地 workflow 文件控制。
+
 workflow 使用作业级短期 `GITHUB_TOKEN` 发布并拉取 GHCR 镜像。当前 `ghcr.io/zhouycheng/personal-space-web` 镜像公开可拉取。镜像只包含应用构建产物；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。
 
 ## 日常发布、检查与回滚
 
-Pull request 会运行 `npm ci`、日记清单检查、边界检查、类型检查、单元测试和生产构建。合并到 `main` 后，GitHub Actions 构建并发布固定的 `repository@sha256:...` 镜像摘要，再通过 Tailnet 调用 `deployctl` 更新容器。
+Pull request 会运行 `npm ci`、日记清单检查、边界检查、类型检查、单元测试和生产构建。日常变更推送到 `develop` 后，创建或更新目标为 `main` 的 PR；`verify` 通过后合并。合并会在 `main` 产生 push 事件，GitHub Actions 随后构建并发布固定的 `repository@sha256:...` 镜像摘要，再通过 Tailnet 调用 `deployctl` 更新容器。直接推送 `main` 不受允许。
 
 部署入口只接受 allowlist 中的目标和镜像摘要。registry 凭据通过标准输入传递，在服务器 `/run` 的临时 Docker 配置中短暂保存并在操作结束后清除。入口等待 Docker healthcheck，通过后记录当前和上一镜像；新镜像未通过时恢复上一镜像。首次部署失败时移除新容器。随后 workflow 检查 `/api/health` 及 `/`、`/home`、`/works`、`/canvas`、`/os`；公开检查失败时再次触发回滚。
 
