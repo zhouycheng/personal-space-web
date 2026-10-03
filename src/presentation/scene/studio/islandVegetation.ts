@@ -2,13 +2,20 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { islandPalms,islandUnderstory } from '../../../config/islandVegetation.ts';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
+import { dressingPlants } from '../../../config/islandDressing.ts';
+import { breezeGLSL } from '../../../animation/studio/breeze.ts';
 
 const variation=(seed:number)=>{const x=Math.sin(seed*127.1+311.7)*43758.5453;return x-Math.floor(x);};
-type LeafMesh={positions:number[];colors:number[];indices:number[]};
+type LeafMesh={positions:number[];colors:number[];indices:number[];anchors:number[];uvs:number[]};
+function windAnchor(geometry:THREE.BufferGeometry,origin:THREE.Vector3) {
+  const values=new Float32Array(geometry.attributes.position.count*3);
+  for(let i=0;i<values.length;i+=3){values[i]=origin.x;values[i+1]=origin.y;values[i+2]=origin.z;}
+  geometry.setAttribute('windAnchor',new THREE.BufferAttribute(values,3));
+}
 
 /** Curved, folded leaflets model the silhouette and cast individual leaf shadows. */
-function blade(mesh:LeafMesh,start:THREE.Vector3,end:THREE.Vector3,width:number,seed:number,dry=false) {
-  const offset=mesh.positions.length/3,segments=6;
+function blade(mesh:LeafMesh,start:THREE.Vector3,end:THREE.Vector3,width:number,seed:number,dry=false,anchor=start) {
+  const offset=mesh.positions.length/3,broad=width>.12,segments=broad?22:8,columns=broad?9:5;
   const direction=end.clone().sub(start);
   const side=new THREE.Vector3(-direction.z,0,direction.x).normalize();
   const green=dry?new THREE.Color(0x786344):new THREE.Color().setHSL(.25+variation(seed)*.045,.48+variation(seed+1)*.15,.23+variation(seed+2)*.09).convertSRGBToLinear();
@@ -16,16 +23,19 @@ function blade(mesh:LeafMesh,start:THREE.Vector3,end:THREE.Vector3,width:number,
     const t=i/segments;
     const center=start.clone().addScaledVector(direction,t);
     center.y+=Math.sin(t*Math.PI)*direction.length()*.11-t*t*direction.length()*.12;
-    const span=width*Math.pow(Math.sin(Math.PI*t),.65);
-    for(let edge=-1;edge<=1;edge++) {
+    const span=width*Math.pow(Math.sin(Math.PI*t),.82)*(1+.045*Math.sin(t*39+seed));
+    for(let j=0;j<columns;j++) {
+      const edge=j/(columns-1)*2-1;
       const point=center.clone().addScaledVector(side,span*edge);
-      point.y+=edge===0?span*.42:0;
+      point.y+=span*(broad?.19:.24)*(1-edge*edge)+edge*span*.12*Math.sin(t*5+seed);
       mesh.positions.push(point.x,point.y,point.z);
-      const color=green.clone().multiplyScalar((edge===0?1.12:.92)*(1+.14*t));
+      mesh.uvs.push(j/(columns-1),t);
+      mesh.anchors.push(anchor.x,anchor.y,anchor.z);
+      const color=green.clone().multiplyScalar((1-.12*Math.abs(edge))*(1+.1*t)+.025*Math.sin(t*24+seed));
       mesh.colors.push(color.r,color.g,color.b);
     }
-    if(i<segments) for(let edge=0;edge<2;edge++) {
-      const a=offset+i*3+edge,b=a+3;
+    if(i<segments) for(let edge=0;edge<columns-1;edge++) {
+      const a=offset+i*columns+edge,b=a+columns;
       mesh.indices.push(a,b,a+1,a+1,b,b+1);
     }
   }
@@ -41,8 +51,9 @@ function frond(mesh:LeafMesh,stems:THREE.BufferGeometry[],origin:THREE.Vector3,
   const points=Array.from({length:17},(_,i)=>center(i/16));
   const curve=new THREE.CatmullRomCurve3(points);
   const stem=new THREE.TubeGeometry(curve,20,fern?.008:.013,4,false);
+  windAnchor(stem,origin);
   stem.deleteAttribute('uv');stems.push(stem);
-  const pairs=fern?17:29;
+  const pairs=fern?23:29;
   for(let i=0;i<pairs;i++) {
     const t=.12+i/(pairs-1)*.83;
     for(const sign of [-1,1]) {
@@ -52,7 +63,7 @@ function frond(mesh:LeafMesh,stems:THREE.BufferGeometry[],origin:THREE.Vector3,
       const end=start.clone().addScaledVector(across,sign*spread)
         .addScaledVector(along,spread*(.35+variation(localSeed+3)*.3));
       end.y-=spread*(.35+variation(localSeed+4)*.3);
-      blade(mesh,start,end,length*(fern?.035:.025)*(1-.45*t),localSeed);
+      blade(mesh,start,end,length*(fern?.023:.025)*(1-.65*t),localSeed,false,origin);
     }
   }
 }
@@ -82,7 +93,7 @@ function trunk(x:number,z:number,height:number,leanX:number,leanZ:number) {
 
 export function createIslandVegetation(materials:Set<THREE.Material>,geometries:Set<THREE.BufferGeometry>) {
   const group=new THREE.Group();group.name='island-vegetation';
-  const leaves:LeafMesh={positions:[],colors:[],indices:[]};
+  const leaves:LeafMesh={positions:[],colors:[],indices:[],anchors:[],uvs:[]};
   const trunks:THREE.BufferGeometry[]=[],stems:THREE.BufferGeometry[]=[];
   for(const palm of islandPalms) {
     trunks.push(trunk(palm.x,palm.z,palm.height,palm.leanX,palm.leanZ));
@@ -105,16 +116,19 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
   }
   for(const plant of islandUnderstory) {
     const base=new THREE.Vector3(plant.x,terrainHeight(plant.x,plant.z)-.045,plant.z);
-    for(let i=0;i<9;i++) {
-      const length=plant.scale*(.8+variation(plant.seed+i)*.5);
-      frond(leaves,stems,base,i*2.39996+plant.seed,length,length*.8,length*.3,plant.seed+i,true);
+    for(let i=0;i<14;i++) {
+      const seed=plant.seed+i*17,length=plant.scale*(.58+variation(seed)*.72),angle=i*2.39996+plant.seed;
+      const root=base.clone().add(new THREE.Vector3(Math.cos(angle)*plant.scale*.12,0,Math.sin(angle)*plant.scale*.12));
+      root.y=terrainHeight(root.x,root.z)-.04;
+      frond(leaves,stems,root,angle,length,length*(.5+variation(seed+1)*.45),length*(.24+variation(seed+2)*.24),seed,true);
     }
-    for(let i=0;i<18;i++) {
-      const angle=i*2.39996,spread=plant.scale*.4;
+    for(let i=0;i<85;i++) {
+      const seed=plant.seed*13+i*7,angle=i*2.39996+plant.seed,spread=plant.scale*(.15+Math.sqrt(variation(seed))*.58);
       const start=base.clone().add(new THREE.Vector3(Math.cos(angle)*spread,0,Math.sin(angle)*spread));
       start.y=terrainHeight(start.x,start.z)-.025;
-      const end=start.clone().add(new THREE.Vector3(Math.cos(angle)*spread,plant.scale*(.35+variation(i)*.5),Math.sin(angle)*spread));
-      blade(leaves,start,end,.025,plant.seed+i);
+      const bend=angle+.9*(variation(seed+1)-.5),reach=plant.scale*(.1+variation(seed+2)*.26);
+      const end=start.clone().add(new THREE.Vector3(Math.cos(bend)*reach,plant.scale*(.18+variation(seed+3)*.38),Math.sin(bend)*reach));
+      blade(leaves,start,end,.005+variation(seed+4)*.008,seed,i%19===0);
     }
     if(plant.seed%2===0) for(let i=0;i<22;i++) {
       const angle=i*2.39996,spread=plant.scale*(.35+variation(i)*.4);
@@ -122,6 +136,22 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
       const end=base.clone().add(new THREE.Vector3(Math.cos(angle)*spread,
         plant.scale*(.42+variation(i+9)*.55),Math.sin(angle)*spread));
       blade(leaves,start,end,plant.scale*.095,plant.seed+i*3);
+    }
+  }
+  // Upright petioles and broad folded leaves add a middle layer beneath the palms.
+  for(const plant of dressingPlants) {
+    const origin=new THREE.Vector3(plant.x,terrainHeight(plant.x,plant.z)-.035,plant.z);
+    for(let i=0;i<11;i++) {
+      const seed=plant.seed+i*11,angle=i*2.39996+plant.seed,young=i>7;
+      const spread=plant.radius*(young?.12:.2+.06*variation(seed));
+      const tip=origin.clone().add(new THREE.Vector3(Math.cos(angle)*spread,plant.height*(young?.48:.22+.1*variation(seed+1)),Math.sin(angle)*spread));
+      const mid=origin.clone().lerp(tip,.55);mid.y+=.14;
+      const stem=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([origin,mid,tip]),12,.013,5,false);
+      windAnchor(stem,origin);
+      stem.deleteAttribute('uv');stems.push(stem);
+      const reach=plant.radius*(young?.35:.8+.08*variation(seed+2));
+      const end=origin.clone().add(new THREE.Vector3(Math.cos(angle)*reach,plant.height*(young?1:.66+.25*variation(seed+3)),Math.sin(angle)*reach));
+      blade(leaves,tip,end,plant.radius*(young?.16:.26),seed,false,origin);
     }
   }
   for(const patch of [...islandPalms.map(p=>({x:p.x,z:p.z,scale:.75,seed:p.seed})),...islandUnderstory]) {
@@ -146,16 +176,46 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
   const foliage=new THREE.MeshStandardMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.82});
   foliage.shadowSide=THREE.BackSide;
   const stemMaterial=new THREE.MeshStandardMaterial({color:0x65763a,roughness:.9});
+  const time={value:0};
+  const windHeader=`uniform float breezeTime;attribute vec3 windAnchor;${breezeGLSL}`;
+  const displacement=`
+    vec3 branch=position-windAnchor;
+    float flex=length(branch)*length(branch)*.024;
+    float wind=breezeAt(windAnchor.xz,breezeTime);
+    transformed+=vec3(.85,.18,.53)*flex*wind;
+  `;
+  const depth=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});materials.add(depth);
+  for(const mat of [foliage,stemMaterial,depth]) {
+    mat.onBeforeCompile=shader=>{shader.uniforms.breezeTime=time;shader.vertexShader=windHeader+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>\n${displacement}`);
+    };
+        mat.customProgramCacheKey=()=> 'island-anchored-breeze-v2';
+  }
+  const foliageCompile=foliage.onBeforeCompile;
+  foliage.onBeforeCompile=(shader,renderer)=>{
+    foliageCompile.call(foliage,shader,renderer);
+    shader.vertexShader='attribute vec2 leafUv;varying vec2 vLeafUv;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvLeafUv=leafUv;');
+    shader.fragmentShader='varying vec2 vLeafUv;\n'+shader.fragmentShader;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+      float centerVein=exp(-abs(vLeafUv.x-.5)*110.);
+      float veins=pow(.5+.5*sin(vLeafUv.y*135.+abs(vLeafUv.x-.5)*35.),14.);
+      float mottling=sin(vLeafUv.y*47.+sin(vLeafUv.x*31.))*sin(vLeafUv.x*73.+vLeafUv.y*19.);
+      diffuseColor.rgb*=1.+.055*centerVein-.045*veins+.025*mottling;`);
+  };
   const leafGeometry=new THREE.BufferGeometry();
   leafGeometry.setAttribute('position',new THREE.Float32BufferAttribute(leaves.positions,3));
   leafGeometry.setAttribute('color',new THREE.Float32BufferAttribute(leaves.colors,3));
+  leafGeometry.setAttribute('leafUv',new THREE.Float32BufferAttribute(leaves.uvs,2));
+  leafGeometry.setAttribute('windAnchor',new THREE.Float32BufferAttribute(leaves.anchors,3));
   leafGeometry.setIndex(leaves.indices);leafGeometry.computeVertexNormals();
   const trunkGeometry=mergeGeometries(trunks)!,stemGeometry=mergeGeometries(stems)!;
   [...trunks,...stems].forEach(geometry=>geometry.dispose());
   for(const [geometry,material] of [[trunkGeometry,bark],[leafGeometry,foliage],[stemGeometry,stemMaterial]] as const) {
     geometry.computeBoundingBox();geometry.computeBoundingSphere();
     const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=material!==foliage;
+    if(material!==bark){mesh.customDepthMaterial=depth;geometry.boundingSphere!.radius+=.35;}
     group.add(mesh);geometries.add(geometry);materials.add(material);
   }
-  return group;
+  return Object.assign(group,{setWind(seconds:number){time.value=seconds;}});
 }
