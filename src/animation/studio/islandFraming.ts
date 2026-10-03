@@ -1,4 +1,6 @@
 import { islandAppearance as island } from "../../config/islandAppearance.ts";
+import { islandRocks, rockBase } from '../../config/islandTerrain.ts';
+import { palmBounds } from '../../config/islandVegetation.ts';
 
 /** Fit the island envelope and furniture inside an inset viewport. Distance uses
  * the existing orbit vector (sin(angle), sin(elevation), cos(angle)). */
@@ -19,5 +21,12 @@ export function islandViewDistance(aspect: number, angle: number, elevation: num
     fit(Math.cos(t)*island.radiusX*extent, island.seaLevel-0.35, Math.sin(t)*island.radiusZ*extent);
   }
   for (const x of [-1.8,1.8]) for (const z of [-2.1,0.9]) fit(x,2.5-0.35,z-island.centerZ);
+  for (const rock of islandRocks) {
+    const extent=Math.hypot(rock.width,rock.depth)*1.16;
+    for(const x of [-extent,extent]) for(const z of [-extent,extent])
+      fit(rock.x+x,rockBase(rock)+rock.height*1.08-.35,rock.z+z-island.centerZ);
+  }
+  for(const palm of palmBounds) for(const x of [-palm.radius,palm.radius])
+    for(const z of [-palm.radius,palm.radius]) fit(palm.x+x,palm.top-.35,palm.z+z-island.centerZ);
   return distance / norm;
 }

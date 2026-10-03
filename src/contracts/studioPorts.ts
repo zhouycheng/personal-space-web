@@ -15,6 +15,10 @@ export type StudioLighting = {
   ambientIntensity: number;
   lampIntensity: number;
   screenSpillIntensity: number;
+  sunDirection: readonly [number, number, number];
+  zenith: number;
+  horizon: number;
+  sunset: number;
 };
 export type SurfaceRect = { left: number; top: number; width: number; height: number };
 

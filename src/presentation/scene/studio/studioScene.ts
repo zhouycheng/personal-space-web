@@ -392,10 +392,13 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       chairElapsed=0;chairFrameTime=undefined;clearHover();requestDraw();
     },
     setLighting(light:StudioLighting) {
-      if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun&&lastLighting.sky===light.sky&&lastLighting.sunIntensity===light.sunIntensity&&lastLighting.ambientIntensity===light.ambientIntensity&&lastLighting.lampIntensity===light.lampIntensity&&lastLighting.screenSpillIntensity===light.screenSpillIntensity)return;
+      if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun&&lastLighting.sky===light.sky&&lastLighting.sunIntensity===light.sunIntensity&&lastLighting.ambientIntensity===light.ambientIntensity&&lastLighting.lampIntensity===light.lampIntensity&&lastLighting.screenSpillIntensity===light.screenSpillIntensity&&lastLighting.zenith===light.zenith&&lastLighting.horizon===light.horizon&&lastLighting.sunset===light.sunset&&lastLighting.sunDirection.every((v,i)=>v===light.sunDirection[i]))return;
+      const sunMoved=!lastLighting||lastLighting.sunDirection.some((v,i)=>v!==light.sunDirection[i]);
       lastLighting=light;
       environment.setLighting(light);
       sun.intensity=light.sunIntensity;sun.color.setHex(light.sun);
+      sun.position.fromArray(light.sunDirection).multiplyScalar(35).add(sun.target.position);
+      if(sunMoved)renderer.shadowMap.needsUpdate=true;
       ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
       lampPower=light.lampIntensity;
       lamp.intensity=lampOn?lampPower:0;

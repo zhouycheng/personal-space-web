@@ -1,5 +1,6 @@
 export type StudioState = "room" | "entering" | "desktop" | "returning" | "entering-canvas" | "canvas" | "returning-canvas" | "journal" | "entering-journal" | "returning-journal";
 export type RoomView = { zoom: number; angle: number; elevation: number };
+export const DEFAULT_ROOM_VIEW: Readonly<RoomView> = { zoom: 1, angle: -0.48, elevation: 0.24 };
 export type RoomViewAction = "zoom-in" | "zoom-out" | "reset-view" | "view-left" | "view-right" | "view-up" | "view-down";
 export type StudioAction = "computer" | "canvas" | "works" | "chair" | "lamp" | "clock" | "drawer-top" | "drawer-middle" | "drawer-bottom" | "diary" | RoomViewAction;
 export type StudioIntent = StudioAction;

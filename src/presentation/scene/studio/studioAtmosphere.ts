@@ -73,8 +73,10 @@ export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, pr
   const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,2.5);sun.castShadow=true;
   cleanup.push(()=>{sun.shadow.map?.dispose();lamp.shadow.map?.dispose();});
   sun.target.position.set(0,0,-0.8);scene.add(sun.target);
-  sun.shadow.radius=12;
-  sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-3.8;sun.shadow.camera.right=3.8;sun.shadow.camera.top=3.8;sun.shadow.camera.bottom=-3.8;
-  sun.shadow.camera.near=0.5;sun.shadow.camera.far=16;sun.shadow.normalBias=0.012;sun.shadow.bias=-0.0001;scene.add(sun);
+  // The island-wide shadow frustum needs a smaller filter to retain leaf detail.
+  sun.shadow.radius=3;
+  sun.position.multiplyScalar(3);
+  sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-12;sun.shadow.camera.right=12;sun.shadow.camera.top=12;sun.shadow.camera.bottom=-12;
+  sun.shadow.camera.near=0.5;sun.shadow.camera.far=60;sun.shadow.normalBias=0.012;sun.shadow.bias=-0.0001;scene.add(sun);
   return { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient };
 }
