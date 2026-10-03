@@ -15,6 +15,9 @@ import type { JournalManifest, JournalRegion, BookReport, JournalIntent } from "
 import { createStudioGestureController } from "../../interaction/studio/sceneGestures";
 import { createStudioBounds } from "../../interaction/studio/sceneBounds";
 import { disposeSafely } from "../../../infrastructure/client/dispose";
+import { createIslandEnvironment } from "./islandEnvironment";
+import { islandViewDistance } from "../../../animation/studio/islandFraming";
+import { islandAppearance } from "../../../config/islandAppearance";
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
@@ -45,8 +48,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   mount.append(canvas);
   const scene = new THREE.Scene();
   const room = new THREE.Group(); scene.add(room);
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
-  const focus = new THREE.Vector3(-0.3, 1.05, -0.65);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 900);
+  const focus = new THREE.Vector3(0, 0.35, islandAppearance.centerZ);
   const events = new AbortController();
   const bounds = createStudioBounds(mount, canvas, events.signal);
   cleanup.push(()=>events.abort());
@@ -78,6 +81,16 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let chairElapsed: number | undefined;
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
+  const environment = createIslandEnvironment(scene, materials, geometries);
+  cleanup.push(()=>scene.remove(environment.group));
+  const oceanNormals = new THREE.TextureLoader().load(
+    new URL("../../../content/scene/waternormals.jpg", import.meta.url).href,
+    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}},
+    undefined,()=>{ /* The analytic swells remain usable if the detail texture is unavailable. */ },
+  );
+  oceanNormals.wrapS=oceanNormals.wrapT=THREE.RepeatWrapping;
+  oceanNormals.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  textures.add(oceanNormals);
 
   const {
     drawerActions, drawers, diary, computerSurface, canvasSurface,
@@ -108,7 +121,10 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
 
   function roomPosition() {
     const rect=bounds.mount(),aspect=Math.max(0.3,rect.width/Math.max(1,rect.height));
-    const distance=Math.max(8.5,8.5/aspect)/roomZoom;
+    const overview=islandViewDistance(aspect,angle,elevation,camera.fov);
+    const close=Math.max(8.5,8.5/aspect)/ROOM_ZOOM_MAX;
+    const t=THREE.MathUtils.clamp((roomZoom-1)/(ROOM_ZOOM_MAX-1),0,1);
+    const distance=roomZoom<1?overview/roomZoom:overview*Math.pow(close/overview,t);
     return new THREE.Vector3(Math.sin(angle)*distance,Math.sin(elevation)*distance,Math.cos(angle)*distance).add(roomLook());
   }
   function roomLook() {return focus.clone().lerp(new THREE.Vector3(-0.1,1.43,-1.25),smooth((roomZoom-1)/(ROOM_ZOOM_MAX-1)));}
@@ -173,10 +189,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     motion.tick(now);
     const journalMoving=journalBook?.tick(now);
     poseJournal();
-    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||transitionChanged||journalMoving;
+    const oceanMoving=environment.tick(now,!lightweight&&!reducedMotion.matches&&(!zoomed||motion.running)&&!(journalActive&&journalAmount===1));
+    mount.dataset.oceanActive=String(oceanMoving);
+    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving;
     drawRequested=false;
     if(paint&&!render())return;
-    if(active&&!frame&&(motion.running||journalMoving||cameraMoving()||steamActive||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
+    if(active&&!frame&&(motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
   function requestInputFrame() {if(!processingInput&&active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
   function requestDraw() {drawRequested=true;requestInputFrame();}
@@ -185,6 +203,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     failed=true;ready=false;clearHover();cancelAnimationFrame(frame);frame=0;
     journalBook?.cancel();
     mount.dataset.renderActive="false";mount.dataset.steamActive="false";
+    environment.pause();mount.dataset.oceanActive="false";
     // Three.js invalidates GPU handles and rebuilds them on restore; keep the
     // CPU-side geometry/material/texture objects alive for that re-upload.
     motion.cancel("scene-failed");canvas.hidden=true;onFailure(error);
@@ -193,6 +212,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     if(destroyed||failed)return false;
     try {
       room.visible = !(journalActive && journalAmount === 1 && journalBook?.single);
+      environment.group.visible = room.visible;
       renderer.render(scene,camera);
       if(drawers[0].open&&diary.visible){
         const point=diary.localToWorld(new THREE.Vector3(0,.06,-.12)).project(camera);
@@ -332,6 +352,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       // Preserve destinations while the page is hidden; only frame clocks pause.
       cameraFrameTime=undefined;
       steamFrameTime=undefined;
+      environment.pause();mount.dataset.oceanActive="false";
       steam.visible=false;
       mount.dataset.steamActive="false";
       cancelAnimationFrame(frame);
@@ -373,6 +394,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setLighting(light:StudioLighting) {
       if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun&&lastLighting.sky===light.sky&&lastLighting.sunIntensity===light.sunIntensity&&lastLighting.ambientIntensity===light.ambientIntensity&&lastLighting.lampIntensity===light.lampIntensity&&lastLighting.screenSpillIntensity===light.screenSpillIntensity)return;
       lastLighting=light;
+      environment.setLighting(light);
       sun.intensity=light.sunIntensity;sun.color.setHex(light.sun);
       ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
       lampPower=light.lampIntensity;
@@ -408,7 +430,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       const task=motion.start(duration,progress=>sample(enter?progress:1-progress));requestDraw();return task;
     },
     cancelTransition() {stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;setRoomCamera();requestDraw();},
-    dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
+    dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
   };
   } catch(error) {
     disposeSafely(cleanup.reverse());
