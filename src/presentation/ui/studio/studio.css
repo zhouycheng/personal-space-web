@@ -12,6 +12,7 @@
 .studio-explore-trigger {display:flex;align-items:center;justify-content:center;gap:10px;width:144px;min-height:48px;border:0;border-radius:999px;background:#52614e;color:#fff;font-size:15px;box-shadow:0 3px 10px #52614e15}
 .studio-explore svg,.studio-panel svg {width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .studio-hint {font-size:12px;letter-spacing:.04em;margin:0 0 14px;color:inherit}
+.studio:not(.is-fallback) .studio-signature,.studio:not(.is-fallback) .studio-hint {color:#f5f6ed;text-shadow:0 1px 5px #102f46b3}
 .studio-hint[hidden],.studio-panel [hidden] {display:none}
 .studio-panel {box-sizing:border-box;position:fixed;inset:auto 0 0;margin:0 auto;width:min(100%,480px);max-width:100%;height:55svh;max-height:70svh;min-height:min(360px,70svh);padding:0;border:1px solid #45453e12;border-bottom:0;border-radius:22px 22px 0 0;background:#faf8f2;color:#222720;box-shadow:0 -8px 40px #24292010;overflow:hidden;font-family:var(--sans)}
 .studio-panel[open] {display:flex;flex-direction:column;animation:studio-panel-in 220ms ease-out}

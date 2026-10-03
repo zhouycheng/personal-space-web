@@ -18,7 +18,7 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
 }) {
   const primitives = createStudioPrimitives(renderer, room, materials, geometries, textures);
   const { drawerActions, drawers, diary, chair, casters, chairWheels } =
-    createStudioFurniture(scene, room, primitives, materials, textures, renderer);
+    createStudioFurniture(room, primitives, materials, textures, renderer);
   const { computerSurface, canvasSurface, screenGlow, tabletGlow } =
     createStudioDevices(primitives, studioFiles, renderer, materials, geometries, textures, computerLabel);
   const { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient } =

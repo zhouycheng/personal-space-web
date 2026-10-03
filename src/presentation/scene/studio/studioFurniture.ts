@@ -2,20 +2,11 @@ import * as THREE from "three";
 import { journalAppearance } from "../../../config/journalAppearance";
 import type { StudioPrimitives } from "./studioPrimitives";
 
-export function createStudioFurniture(scene: THREE.Scene, room: THREE.Group, primitives: StudioPrimitives, materials: Set<THREE.Material>, textures: Set<THREE.Texture>, renderer: THREE.WebGLRenderer) {
+export function createStudioFurniture(room: THREE.Group, primitives: StudioPrimitives, materials: Set<THREE.Material>, textures: Set<THREE.Texture>, renderer: THREE.WebGLRenderer) {
   const { material, mesh, box, cylinder, rounded, hotspot, label,
     wood, charcoal, brass, furnitureFrame, upholstery,
     chrome, rubber } = primitives;
-  // Transparent shadow receiver: no visible floor slab or room enclosure.
-  const shadowMaterial=new THREE.ShadowMaterial({color:0x242720,opacity:0.24});materials.add(shadowMaterial);
-  // The ground receives the broad overhead light only. A spot shadow mask
-  // includes unlit space outside the lamp cone, even where its light cannot reach.
-  shadowMaterial.onBeforeCompile=shader=>{
-    shader.fragmentShader=shader.fragmentShader.replace("#include <shadowmask_pars_fragment>",
-      THREE.ShaderChunk.shadowmask_pars_fragment.replace("#if NUM_SPOT_LIGHT_SHADOWS > 0", "#if 0"));
-  };
-  const shadow=mesh(scene,new THREE.PlaneGeometry(200,200),shadowMaterial,0,0.01,0);
-  shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
+  // Ground and its received shadows belong to the island environment.
   
   // Work desk, drawers, keyboard, chair.
   rounded(room,[3.5,0.14,1.5],[0,1.36,-1.3],wood,0.025);
