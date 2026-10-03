@@ -41,7 +41,7 @@ test('room zoom normalizes wheel units, clamps extremes and reverses immediately
   assert.equal(wheelZoom(1, 0, 0, 800), 1);
   assert.equal(clampRoomZoom(2.4), 2.2);
   assert.equal(clampRoomZoom(0.5), 0.85);
-  assert.deepEqual(DEFAULT_ROOM_VIEW, { zoom: 1, angle: -0.48, elevation: 0.55 });
+  assert.deepEqual(DEFAULT_ROOM_VIEW, { zoom: 1, angle: -0.48, elevation: 0.24 });
 });
 
 test('room angles keep the camera in front of the desk at every zoom and viewport', () => {
@@ -112,7 +112,7 @@ test('local time lighting interpolates dawn and dusk and wraps midnight continuo
     [0.06, 0.18, 7, 0.08],
   );
   assert.equal(at(12).sunIntensity, 2.5);
-  assert.ok(Math.abs(at(12).ambientIntensity - 0.9) < 1e-12);
+  assert.ok(Math.abs(at(12).ambientIntensity - 1.18) < 1e-12);
   assert.ok(Math.abs(at(12).lampIntensity - 1.2) < 1e-12);
   assert.equal(at(12).screenSpillIntensity, 0);
   assert.equal(at(5, 30).daylight, 0);
@@ -130,9 +130,12 @@ test('local time lighting interpolates dawn and dusk and wraps midnight continuo
     const light = at(hour, 30);
     assert.ok(light.daylight >= 0 && light.daylight <= 1);
     assert.ok(light.sunIntensity >= 0.06 && light.sunIntensity <= 2.5);
-    assert.ok(light.ambientIntensity >= 0.18 && light.ambientIntensity <= 0.9);
+    assert.ok(light.ambientIntensity >= 0.18 && light.ambientIntensity <= 1.18);
+    assert.ok(Math.abs(Math.hypot(...light.sunDirection)-1)<1e-10);
     assert.ok(light.lampIntensity >= 1.2 && light.lampIntensity <= 7);
     assert.ok(light.screenSpillIntensity >= 0 && light.screenSpillIntensity <= 0.08);
     assert.match(light.background, /^#[0-9a-f]{6}$/);
   }
+  assert.ok(at(18).sunset>at(12).sunset);
+  assert.ok(at(18).sunDirection[1]<at(12).sunDirection[1]);
 });
