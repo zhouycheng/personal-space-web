@@ -9,7 +9,7 @@ test('room surface labels identify the canvas and portfolio', () => {
   assert.equal(ACTION_LABELS.canvas, '我的画布');
   assert.equal(Object.hasOwn(ACTION_LABELS, 'about'), false);
   assert.equal(Object.hasOwn(ACTION_LABELS, 'contact'), false);
-  assert.equal(ACTION_LABELS.works, '文件夹');
+  assert.equal(ACTION_LABELS.works, '文件木箱');
 });
 
 test('camera faces the fixed screen before approaching; live UI fades in during approach', () => {
@@ -44,28 +44,26 @@ test('room zoom normalizes wheel units, clamps extremes and reverses immediately
   assert.deepEqual(DEFAULT_ROOM_VIEW, { zoom: 1, angle: -0.48, elevation: 0.24 });
 });
 
-test('room angles keep the camera in front of the desk at every zoom and viewport', () => {
-  assert.equal(clampRoomAngle(-100),-1.22);
-  assert.equal(clampRoomAngle(100),1.22);
+test('room angles stay continuous through multiple complete orbits', () => {
+  assert.equal(clampRoomAngle(-100),-100);
+  assert.equal(clampRoomAngle(100),100);
   assert.equal(clampRoomElevation(-100),0.2);
   assert.equal(clampRoomElevation(100),1);
   assert.ok(clampRoomAngle(1.22-0.01)<1.22);
-  for(const aspect of [0.3,0.46,1,16/9,3]) for(const zoom of [0.85,1,2.2]) for(const angle of [-1.22,0,1.22]) {
-    const distance=Math.max(8.5,8.5/aspect)/zoom;
-    assert.ok(-1.25+Math.cos(angle)*distance>-0.55, 'camera remains ahead of the front desk edge');
-  }
+  const reset=stepRoomView({...DEFAULT_ROOM_VIEW,angle:Math.PI*4+.3},'reset-view');
+  assert.ok(Math.abs(reset.angle-(Math.PI*4-.48))<1e-10,'reset chooses the nearest equivalent home angle');
 });
 
 test('explore controls share zoom and angle limits, reverse immediately and reset every axis', () => {
   let view={...DEFAULT_ROOM_VIEW};
   for(let i=0;i<100;i++) for(const action of ['zoom-in','view-right','view-up'])view=stepRoomView(view,action);
-  assert.deepEqual(view,{zoom:2.2,angle:1.22,elevation:1});
+  assert.equal(view.zoom,2.2);assert.equal(view.elevation,1);assert.ok(Math.abs(view.angle-11.52)<1e-10);
   for(const [action,key] of [['zoom-out','zoom'],['view-left','angle'],['view-down','elevation']])assert.ok(stepRoomView(view,action)[key]<view[key]);
   for(let i=0;i<100;i++) for(const action of ['zoom-out','view-left','view-down'])view=stepRoomView(view,action);
-  assert.deepEqual(view,{zoom:0.85,angle:-1.22,elevation:0.2});
+  assert.equal(view.zoom,.85);assert.equal(view.elevation,.2);assert.ok(Math.abs(view.angle+.48)<1e-10);
   for(const [action,key] of [['zoom-in','zoom'],['view-right','angle'],['view-up','elevation']])assert.ok(stepRoomView(view,action)[key]>view[key]);
   assert.deepEqual(stepRoomView(view,'reset-view'),DEFAULT_ROOM_VIEW);
-  assert.deepEqual(view,{zoom:0.85,angle:-1.22,elevation:0.2},'does not mutate the input');
+  assert.equal(view.zoom,.85,'does not mutate the input');
   assert.equal(stepRoomView(DEFAULT_ROOM_VIEW,'zoom-in').zoom,1.2);
   assert.ok(Math.abs(stepRoomView(DEFAULT_ROOM_VIEW,'view-right').angle-DEFAULT_ROOM_VIEW.angle-0.12)<1e-12);
   assert.ok(Math.abs(stepRoomView(DEFAULT_ROOM_VIEW,'view-up').elevation-DEFAULT_ROOM_VIEW.elevation-0.08)<1e-12);
@@ -87,15 +85,16 @@ test('camera damping is continuous across input changes and independent of frame
   assert.equal(run(16,100),2.2);
 });
 
-test('chair turns exactly once with acceleration, a longer coast and no overshoot', () => {
+test('rocking chair moves fore and aft with damping and returns to rest', () => {
   assert.equal(chairTurn(0).angle, 0);
-  assert.equal(chairTurn(CHAIR_TURN_MS).angle, Math.PI * 2);
-  assert.equal(chairTurn(CHAIR_TURN_MS * 2).angle, Math.PI * 2);
+  assert.equal(chairTurn(CHAIR_TURN_MS).angle, 0);
+  assert.equal(chairTurn(CHAIR_TURN_MS * 2).angle, 0);
   assert.equal(chairTurn(CHAIR_TURN_MS).done, true);
   const angles = Array.from({ length: 101 }, (_, i) => chairTurn(CHAIR_TURN_MS * i / 100).angle);
-  for (let i = 1; i < angles.length; i++) assert.ok(angles[i] >= angles[i-1]);
-  assert.ok(angles[2]-angles[1] > angles[1]-angles[0]);
-  assert.ok(angles[100]-angles[99] < angles[90]-angles[89]);
+  assert.ok(angles.every(angle=>Math.abs(angle)<.13));
+  assert.ok(angles.some(angle=>angle>.06)&&angles.some(angle=>angle<-.04));
+  assert.ok(Math.max(...angles.slice(80).map(Math.abs))<.0065);
+  assert.equal(chairTurn(-100).angle,0);
 });
 
 test('local time lighting interpolates dawn and dusk and wraps midnight continuously', () => {

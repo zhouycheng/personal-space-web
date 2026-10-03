@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { createStudioObjects } from "./studioObjects";
+import { workspaceAppearance } from "../../../config/workspaceAppearance";
 import { chairTurn } from "../../../animation/studio/chairMotion";
+import { breezeAt } from '../../../animation/studio/breeze.ts';
 import { ACTION_LABELS, type StudioAction } from "../../../contracts/studio";
-import { smooth, surfaceDistance, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX } from "../../../animation/studio/studioMotion";
+import { smooth, surfaceDistance, surfacePhases, surfaceOrbit, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX } from "../../../animation/studio/studioMotion";
 import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
@@ -93,11 +95,13 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   textures.add(oceanNormals);
 
   const {
+    canopy,dressing,leisure,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
-    chair, casters, chairWheels, steam, deskClock, clockImage, clockTexture,
+    chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
   } = createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup });
   let steamElapsed=0,steamFrameTime:number|undefined;
+  let breezeTime=0,breezeFrameTime:number|undefined,breezeShadowTime=0;
   let displayedTime="";
   let clockDate=new Date(),showDate=false;
   let lampOn=true,lampPower=2;
@@ -159,7 +163,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       steamElapsed+=steamFrameTime===undefined?0:Math.min(50,now-steamFrameTime);steamFrameTime=now;
       steam.children.forEach((object,index)=>{
         const puff=object as THREE.Sprite,t=(steamElapsed/3200+index/steam.children.length)%1;
-        puff.position.set(Math.sin(t*7+index)*0.035*t,0.19+t*0.34,Math.cos(t*5+index)*0.025*t);
+        const drift=breezeAt(-1.1,-.94,breezeTime)*t*t*.065;
+        puff.position.set(Math.sin(t*7+index)*0.035*t+drift*.85,0.19+t*0.34,Math.cos(t*5+index)*0.025*t+drift*.53);
         puff.scale.set(0.025+t*0.085,0.065+t*0.18,1);
         puff.material.opacity=Math.sin(t*Math.PI)*0.42*steamOpacity;
         puff.material.rotation=Math.sin(t*4+index)*0.3;
@@ -171,30 +176,35 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(!drawer.moving) continue;
       drawer.elapsed+=drawer.frameTime===undefined?0:now-drawer.frameTime;drawer.frameTime=now;
       const t=reducedMotion.matches?1:Math.min(1,drawer.elapsed/420);
-      drawer.group.position.z=-0.68+THREE.MathUtils.lerp(drawer.from,drawer.to,smooth(t));
+      drawer.group.position.z=workspaceAppearance.drawerFront+THREE.MathUtils.lerp(drawer.from,drawer.to,smooth(t));
       if(t===1) {drawer.moving=false;drawer.frameTime=undefined;}
     }
     if(chairElapsed!==undefined) {
       chairElapsed += chairFrameTime===undefined ? 0 : now-chairFrameTime;
       chairFrameTime=now;
-      const turn=chairTurn(chairElapsed);
-      const delta=turn.angle-chair.rotation.y;
-      chair.rotation.y=turn.angle;
-      const align=Math.min(1,chairElapsed/350);
-      for(const caster of casters) caster.group.rotation.y=THREE.MathUtils.lerp(caster.startAngle,Math.PI/2,align*align*(3-2*align));
-      for(const wheel of chairWheels) wheel.group.rotation.x=(wheel.group.rotation.x+delta*wheel.pathRadius/0.085)%(Math.PI*2);
-      if(turn.done) {chair.rotation.y=0;chairElapsed=undefined;chairFrameTime=undefined;}
+      const turn=chairTurn(reducedMotion.matches?Infinity:chairElapsed);
+      chairSeat.rotation.x=turn.angle;
+      chairSeat.position.set(0,turn.y,turn.z);
+      if(turn.done) {chairSeat.rotation.x=0;chairElapsed=undefined;chairFrameTime=undefined;}
     }
     const transitionChanged=motion.running;
     motion.tick(now);
+    const breezeActive=!lightweight&&!reducedMotion.matches&&(!zoomed||motion.running)&&!(journalActive&&journalAmount===1);
+    if(breezeActive){breezeTime+=breezeFrameTime===undefined?0:Math.min(50,Math.max(0,now-breezeFrameTime))/1000;breezeFrameTime=now;}
+    else breezeFrameTime=undefined;
+    environment.setWind(breezeTime);dressing.setWind(breezeTime);leisure.setWind(breezeTime);
+    const canopyState=canopy.update(now,camera.position,currentLook,reducedMotion.matches,breezeTime,breezeActive);
+    if(canopyState.shadowChanged||(breezeActive&&breezeTime-breezeShadowTime>=.1)){renderer.shadowMap.needsUpdate=true;breezeShadowTime=breezeTime;}
     const journalMoving=journalBook?.tick(now);
     poseJournal();
     const oceanMoving=environment.tick(now,!lightweight&&!reducedMotion.matches&&(!zoomed||motion.running)&&!(journalActive&&journalAmount===1));
+    leisure.setWaterTime(environment.time);
+    environment.setBoatInverse(leisure.boatInverse);
     mount.dataset.oceanActive=String(oceanMoving);
-    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving;
+    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving||canopyState.changed;
     drawRequested=false;
     if(paint&&!render())return;
-    if(active&&!frame&&(motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
+    if(active&&!frame&&(motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||canopyState.moving||chairElapsed!==undefined||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
   function requestInputFrame() {if(!processingInput&&active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
   function requestDraw() {drawRequested=true;requestInputFrame();}
@@ -291,7 +301,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(!journalBook||failed||destroyed)return {status:"failed",code:"三维书本不可用",retryable:true};
       stopCamera();clearHover();motion.cancel("superseded");zoomed=true;
       const drawer=drawers[0],drawerStart=drawer.group.position.z;
-      const drawerEnd=-.68+.85,drawerDuration=Math.abs(drawerStart-drawerEnd)>.001&&duration?420:0;
+      const drawerEnd=workspaceAppearance.drawerFront+.85,drawerDuration=Math.abs(drawerStart-drawerEnd)>.001&&duration?420:0;
       drawer.open=true;drawer.moving=false;drawer.to=.85;
       drawer.group.userData.label=ACTION_LABELS['drawer-top'].replace('打开','关闭');
       const total=duration+drawerDuration;
@@ -333,7 +343,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       roomZoom=targetZoom=snapshot.view.zoom;angle=targetAngle=snapshot.view.angle;elevation=targetElevation=snapshot.view.elevation;
       this.setLampEnabled(snapshot.lampOn);
       this.setClockMode(snapshot.showDate?"date":"time");
-      drawers.forEach((drawer,index)=>{this.setDrawerOpen(drawer.action,Boolean(snapshot.drawers[index]));drawer.moving=false;drawer.group.position.z=-0.68+drawer.to;});
+      drawers.forEach((drawer,index)=>{this.setDrawerOpen(drawer.action,Boolean(snapshot.drawers[index]));drawer.moving=false;drawer.group.position.z=workspaceAppearance.drawerFront+drawer.to;});
       setRoomCamera();onViewChange(snapshot.view);requestDraw();
     },
     setPointerEnabled(value:boolean) {
@@ -357,7 +367,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       mount.dataset.steamActive="false";
       cancelAnimationFrame(frame);
       frame=0;
-      chairFrameTime=undefined;
+      chairFrameTime=undefined;breezeFrameTime=undefined;canopy.pause();
       drawers.forEach(drawer=>drawer.frameTime=undefined);
       gestures.reset();
       if(!zoomed&&!motion.running)setRoomCamera();
@@ -371,9 +381,9 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setDrawerOpen(action:typeof drawerActions[number],open:boolean) {
       const drawer=drawers.find(drawer=>drawer.action===action)!;
       if(drawer.open===open)return;
-      clearHover();drawer.open=open;drawer.from=drawer.group.position.z+0.68;drawer.to=drawer.open?0.85:0;
+      clearHover();drawer.open=open;drawer.from=drawer.group.position.z-workspaceAppearance.drawerFront;drawer.to=drawer.open?0.85:0;
       drawer.elapsed=0;drawer.frameTime=undefined;drawer.moving=!reducedMotion.matches;
-      if(!drawer.moving)drawer.group.position.z=-0.68+drawer.to;
+      if(!drawer.moving)drawer.group.position.z=workspaceAppearance.drawerFront+drawer.to;
       renderer.shadowMap.needsUpdate=true;
       drawer.group.userData.label=ACTION_LABELS[action].replace("打开",drawer.open?"关闭":"打开");
       requestDraw();
@@ -387,11 +397,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setClockMode(mode:"time"|"date") {const value=mode==="date";if(showDate===value)return;clearHover();showDate=value;clockDate=new Date();updateClock();},
     spinChair(reducedMotion=false) {
       if(failed||destroyed||chairElapsed!==undefined)return;
-      if(reducedMotion) {chair.rotation.y=0;requestDraw();return;}
-      for(const caster of casters)caster.startAngle=caster.group.rotation.y;
+      if(reducedMotion) {chairSeat.rotation.x=0;chairSeat.position.set(0,0,0);requestDraw();return;}
       chairElapsed=0;chairFrameTime=undefined;clearHover();requestDraw();
     },
     setLighting(light:StudioLighting) {
+      dressing.setLighting(light.daylight);
+      leisure.setLighting(light.daylight);
       if(lastLighting?.daylight===light.daylight&&lastLighting.sun===light.sun&&lastLighting.sky===light.sky&&lastLighting.sunIntensity===light.sunIntensity&&lastLighting.ambientIntensity===light.ambientIntensity&&lastLighting.lampIntensity===light.lampIntensity&&lastLighting.screenSpillIntensity===light.screenSpillIntensity&&lastLighting.zenith===light.zenith&&lastLighting.horizon===light.horizon&&lastLighting.sunset===light.sunset&&lastLighting.sunDirection.every((v,i)=>v===light.sunDirection[i]))return;
       const sunMoved=!lastLighting||lastLighting.sunDirection.some((v,i)=>v!==light.sunDirection[i]);
       lastLighting=light;
@@ -421,7 +432,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         // A resize during return must land on the new viewport's room framing.
         if(!enter) {from.copy(roomPosition());roomCamera.position.copy(from);roomCamera.lookAt(roomLook());}
         const {align,approach}=surfacePhases(progress);
-        camera.position.lerpVectors(from,via,align).lerp(view.position,approach);
+        camera.position.fromArray(surfaceOrbit(from.toArray(),via.toArray(),view.look.toArray(),align)).lerp(view.position,approach);
         camera.quaternion.slerpQuaternions(roomCamera.quaternion,view.rotation,align);
         currentLook.copy(progress===0?roomLook():view.look);camera.updateMatrixWorld();
         const a=new THREE.Vector3(-width/2,height/2,0).applyMatrix4(surface.matrixWorld).project(camera);

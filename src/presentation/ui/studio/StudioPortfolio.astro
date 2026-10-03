@@ -5,10 +5,10 @@ import ProjectDownloadMenu from "../works/ProjectDownloadMenu.astro";
 const images = import.meta.glob<{default: {src:string}|string}>("/src/content/assets/projects/*.{svg,png,jpg,webp}",{eager:true});
 const imageUrl = (src: string) => { const image=images[src]?.default; return typeof image==="string"?image:image?.src; };
 ---
-<section class="studio-gallery" data-studio-gallery aria-label="桌面文件夹">
+<section class="studio-gallery" data-studio-gallery aria-label="木箱文件集合">
   <header class="gallery-header">
     <button class="room-return" data-gallery-return>← 返回首页</button>
-    <div><p>来自桌面</p><h1>文件夹</h1></div>
+    <div><p>来自文件木箱</p><h1>文件夹</h1></div>
   </header>
   <div class="gallery-viewport" tabindex="0" aria-label="文件卡片，滑动或使用左右方向键浏览" data-gallery-viewport>
     <div class="gallery-track">

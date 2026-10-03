@@ -4,7 +4,7 @@ import "./studio.css";
 import { siteIdentity } from '../../../data/repositories/siteIdentity';
 const destinations = [
   {action:"computer",href:"/os",title:siteIdentity.brand,hint:"打开电脑",icon:"M4 3h16v13H4z M2 20h20l-2-4H4z"},
-  {action:"works",href:"/works",title:"文件夹",hint:"作品、简历与更多文件",icon:"M3 7V4h7l2 3h9v13H3z"},
+  {action:"works",href:"/works",title:"文件木箱",hint:"作品、简历与更多文件",icon:"M3 7V4h7l2 3h9v13H3z"},
   {action:"canvas",href:"/canvas",title:"我的画布",hint:"想法与记录",icon:"M4 3h16v18H4z M8 8h8 M8 12h6 M8 16h4"},
   {action:"diary",href:DIARY_URL,title:"日记",hint:"翻开一本日记",icon:"M12 5v16 M12 5C8 2 3 3 3 3v16s5-1 9 2c4-3 9-2 9-2V3s-5-1-9 2"},
 ];
@@ -78,7 +78,7 @@ const destinations = [
             <button data-studio-action={`drawer-${layer}`} aria-label={`打开${["第一层","第二层","第三层"][index]}抽屉`} aria-expanded="false">打开</button>
           </div>)}
         </details>
-        <div class="studio-object-row"><span>座椅</span><button class="studio-chair-button" data-studio-action="chair">转一下</button></div>
+        <div class="studio-object-row"><span>摇椅</span><button class="studio-chair-button" data-studio-action="chair">前后摇一摇</button></div>
       </section>
     </div>
   </dialog>
