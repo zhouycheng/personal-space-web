@@ -16,9 +16,11 @@ export function createRockGeometry() {
         +.075*Math.sin(pz*4.3-py*2.7+rock.seed*.7)
         +.016*Math.sin(px*19+pz*13+rock.seed)*Math.sin(py*17-pz*11);
       // Broad worn faces, an asymmetric crown and a buried foot, never a scaled ball.
-      const power=(v:number)=>Math.sign(v)*Math.pow(Math.abs(v),.84);
+      const reef=rock.seed>=701;
+      const power=(v:number)=>Math.sign(v)*Math.pow(Math.abs(v),reef?.70:.84);
       const x=power(px)*rock.width*weather,z=power(pz)*rock.depth*weather;
-      const y=base+(power(py)*.5+.5)*rock.height*(.94+.08*px-.06*pz);
+      const crown=reef?Math.min(power(py)*.5+.5,.86+.12*px-.09*pz):power(py)*.5+.5;
+      const y=base+crown*rock.height*(.94+.08*px-.06*pz);
       positions.setXYZ(i,rock.x+x*cos-z*sin,y,rock.z+x*sin+z*cos);
       const tone=.88+.12*Math.sin(rock.seed*2.7)+.06*py;
       const color=new THREE.Color(0x827d70).multiplyScalar(tone);
@@ -72,14 +74,15 @@ export function createRockMaterial() {
 }
 
 // The same centers, orientation and extents drive the seabed silhouette and foam.
-export const rockCoastGLSL=`float rockDistance(vec2 p) {
+const distanceField=(name:string,surfaceOnly:boolean)=>`float ${name}(vec2 p) {
   float distanceToRock=100.0;
-  ${islandRocks.filter(r=>rockBase(r)<islandAppearance.seaLevel).map(r=>{
+  ${islandRocks.filter(r=>rockBase(r)<islandAppearance.seaLevel&&(!surfaceOnly||rockBase(r)+r.height>islandAppearance.seaLevel-.06)).map(r=>{
     const base=rockBase(r),relative=Math.max(-1,Math.min(1,2*(islandAppearance.seaLevel-base)/r.height-1));
-    const slice=Math.sqrt(Math.max(.12,1-relative*relative));
+    const slice=!surfaceOnly?1:Math.sqrt(Math.max(.12,1-relative*relative));
     return `{vec2 d=p-vec2(${r.x.toFixed(5)},${r.z.toFixed(5)});
       d=mat2(${Math.cos(r.rotation).toFixed(5)},${(-Math.sin(r.rotation)).toFixed(5)},${Math.sin(r.rotation).toFixed(5)},${Math.cos(r.rotation).toFixed(5)})*d;
       distanceToRock=min(distanceToRock,(length(d/vec2(${(r.width*slice).toFixed(5)},${(r.depth*slice).toFixed(5)}))-1.0)*${(Math.min(r.width,r.depth)*slice).toFixed(5)});}`;
   }).join('\n')}
   return distanceToRock;
 }`;
+export const rockCoastGLSL=distanceField('rockDistance',true)+distanceField('reefDistance',false);
