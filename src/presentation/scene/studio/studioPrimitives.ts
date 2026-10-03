@@ -41,8 +41,13 @@ export function createStudioPrimitives(renderer: THREE.WebGLRenderer, room: THRE
   function box(parent: THREE.Object3D, size: number[], at: number[], mat = wood) {
     return mesh(parent, shape(`box:${size.join(',')}`, () => new THREE.BoxGeometry(...size as [number, number, number])), mat, ...at as [number, number, number]);
   }
-  function cylinder(parent: THREE.Object3D, radius: number, height: number, at: number[], mat = charcoal, top = radius) {
-    return mesh(parent, shape(`cylinder:${top},${radius},${height}`, () => new THREE.CylinderGeometry(top, radius, height, 16)), mat, ...at as [number, number, number]);
+  function cylinder(parent: THREE.Object3D, radius: number, height: number, at: number[], mat: THREE.Material = charcoal, top = radius) {
+    const grain=Boolean(mat.userData.workspaceGrain);
+    return mesh(parent, shape(`cylinder:${top},${radius},${height}:${grain}`, () => {
+      const geometry=new THREE.CylinderGeometry(top,radius,height,16);
+      if(grain){const uv=geometry.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getY(i),uv.getX(i));}
+      return geometry;
+    }), mat, ...at as [number, number, number]);
   }
   function rounded(parent: THREE.Object3D, size: [number,number,number], at: [number,number,number], mat: THREE.Material, radius: number) {
     return mesh(parent, shape(`rounded:${size.join(',')},${radius}`, () => new RoundedBoxGeometry(...size, 2, radius)), mat, ...at);

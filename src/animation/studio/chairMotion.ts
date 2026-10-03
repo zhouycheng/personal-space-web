@@ -1,4 +1,5 @@
 export const CHAIR_TURN_MS = 2000;
+export const CHAIR_ROCKER_RADIUS = 1.45;
 
 export function chairTurn(elapsed: number) {
   const t = Math.max(0, Math.min(1, elapsed / CHAIR_TURN_MS));
