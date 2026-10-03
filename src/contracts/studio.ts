@@ -7,7 +7,7 @@ export type StudioIntent = StudioAction;
 export const DIARY_URL = "/journal";
 export const ACTION_LABELS: Record<StudioAction, string> = {
   computer: "打开电脑", canvas: "我的画布",
-  works: "文件夹", chair: "转动座椅",
+  works: "文件木箱", chair: "前后摇动摇椅",
   lamp: "台灯开关", clock: "显示日期",
   "drawer-top": "打开第一层抽屉", "drawer-middle": "打开第二层抽屉", "drawer-bottom": "打开第三层抽屉",
   diary: "阅读日记",

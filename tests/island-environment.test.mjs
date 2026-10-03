@@ -44,7 +44,7 @@ test('default framing contains the shoreline and furniture across viewport and a
   const rocks=createRockGeometry(),vertices=rocks.attributes.position;
   const plantMaterials=new Set(),plantGeometries=new Set();
   const plants=createIslandVegetation(plantMaterials,plantGeometries);
-  for(const aspect of [.3,390/844,1,1440/900,3]) for(const angle of [-1.22,-.48,1.22]) for(const elevation of [.2,.55,1]) {
+  for(const aspect of [.3,390/844,1,1440/900,3]) for(const angle of [-Math.PI,-1.22,-.48,1.22,Math.PI/2,2.7]) for(const elevation of [.2,.55,1]) {
     const distance=islandViewDistance(aspect,angle,elevation);
     const focus=new THREE.Vector3(0,.35,island.centerZ);
     const camera=new THREE.PerspectiveCamera(38,aspect,.1,900);
@@ -74,7 +74,7 @@ test('water pauses without catching up hidden time; environment resources belong
   const scene=new THREE.Scene(), materials=new Set(), geometries=new Set();
   const environment=createIslandEnvironment(scene,materials,geometries);
   const water=environment.group.getObjectByName('island-water');
-  assert.equal(materials.size,7);assert.equal(geometries.size,7);
+  assert.equal(materials.size,8);assert.equal(geometries.size,7);
   assert.equal(environment.tick(1000,true),true);
   environment.tick(1020,true);
   assert.equal(water.material.uniforms.time.value,.02);
@@ -92,6 +92,6 @@ test('water pauses without catching up hidden time; environment resources belong
   for(const resource of [...materials,...geometries]) {
     resource.addEventListener('dispose',()=>released++);resource.dispose();
   }
-  assert.equal(released,14);
+  assert.equal(released,15);
   assert.ok(environment.group.children.every(object=>!object.userData.action));
 });
