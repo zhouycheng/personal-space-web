@@ -2,11 +2,8 @@
 // displaced world position. Wave packets bend crests and vary their strength.
 // Q*k*A sums to 0.6; packet/phase gradients keep the upper bound below 0.75.
 // Reference: NVIDIA GPU Gems, chapter 1, equations 9–12.
-export const oceanWaves = [
-  [7.3, .10, .28, .2], [4.8, .065, -.35, 2.1], [3.1, .04, .75, 4.2],
-  [1.9, .02, -.7, 1.4], [1.15, .01, .12, 3.7],
-] as const;
-export const oceanSteepness = 0.6;
+import { oceanWaves,oceanSteepness } from '../../../config/oceanWaves.ts';
+export { oceanWaves,oceanSteepness } from '../../../config/oceanWaves.ts';
 
 export const oceanWavesGLSL = `
   struct OceanParticle { vec3 offset; vec3 tangentX; vec3 tangentZ; };
