@@ -23,21 +23,37 @@ export function studioLighting(date = new Date()) {
     color | Math.round(((from >> shift) & 255) * (1 - t) + ((to >> shift) & 255) * t) << shift, 0);
   const linear = (channel: number) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
   const srgb = (channel: number) => channel <= 0.0031308 ? channel * 12.92 : 1.055 * channel ** (1 / 2.4) - 0.055;
-  const blendLightColor = (from: number, to: number) => [16, 8, 0].reduce((color, shift) => {
+  const blendLightColor = (from: number, to: number, amount=t) => [16, 8, 0].reduce((color, shift) => {
     const a = linear(((from >> shift) & 255) / 255), b = linear(((to >> shift) & 255) / 255);
-    return color | Math.round(srgb(a * (1 - t) + b * t) * 255) << shift;
+    return color | Math.round(srgb(a * (1 - amount) + b * amount) * 255) << shift;
   }, 0);
   const daylight = a.daylight + (b.daylight - a.daylight) * t;
   const daylightPower = daylight * daylight;
+  // A fixed artistic solar path shared by sky, water and object lighting.
+  const solarHour=date.getHours()+date.getMinutes()/60;
+  const daytime=solarHour>=6&&solarHour<20;
+  const path=[[0,.4,.3],[6,.4,.3],[7,-.8,.12],[12,0,.98],[16,.4,.55],
+    [18,.7,.065],[19.5,.82,.015],[20,.4,.3],[24,.4,.3]];
+  const solarEnd=path.findIndex(point=>point[0]>solarHour);
+  const from=path[solarEnd-1],to=path[solarEnd];
+  const solarT=(solarHour-from[0])/(to[0]-from[0]);
+  const azimuth=from[1]+(to[1]-from[1])*solarT;
+  const altitude=from[2]+(to[2]-from[2])*solarT;
+  const sunset=daytime?Math.max(0,1-altitude/.55):0;
+  const sunDirection=[Math.sin(azimuth)*Math.cos(altitude),Math.sin(altitude),-Math.cos(azimuth)*Math.cos(altitude)] as const;
   return {
     daylight,
     background: `#${blendSrgb(a.background, b.background).toString(16).padStart(6, "0")}`,
     foreground: daylight < 0.35 ? "#e5e1d8" : "#393632",
     sky: blendLightColor(a.sky, b.sky),
-    sun: blendLightColor(a.sun, b.sun),
+    sun: blendLightColor(blendLightColor(a.sun, b.sun),0xffac60,sunset),
     sunIntensity: 0.06 + 2.44 * daylightPower,
-    ambientIntensity: 0.18 + 0.72 * daylightPower,
+    ambientIntensity: 0.18 + 1.0 * daylight,
     lampIntensity: 7 - 5.8 * daylightPower,
     screenSpillIntensity: 0.08 * (1 - daylight) ** 2,
+    sunDirection,
+    zenith: blendLightColor(0x101c39,0x227ec2,daylight),
+    horizon: blendLightColor(blendLightColor(0x24344e,0x8ecde8,daylight),0xe6ad84,sunset*Math.sqrt(daylight)),
+    sunset,
   } satisfies StudioLighting;
 }

@@ -4,7 +4,8 @@ export type { RoomView, RoomViewAction } from "../../contracts/studio";
 export const smooth = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x*x*(3-2*x); };
 
 export const ROOM_ZOOM_MIN = 0.85, ROOM_ZOOM_MAX = 2.2;
-export const DEFAULT_ROOM_VIEW = { zoom: 1, angle: -0.48, elevation: 0.55 };
+export { DEFAULT_ROOM_VIEW } from '../../contracts/studio.ts';
+import { DEFAULT_ROOM_VIEW } from '../../contracts/studio.ts';
 export const clampRoomAngle = (value: number) => Math.max(-1.22, Math.min(1.22, value));
 export const clampRoomElevation = (value: number) => Math.max(0.2, Math.min(1, value));
 export const clampRoomZoom = (value: number) => Math.max(ROOM_ZOOM_MIN, Math.min(ROOM_ZOOM_MAX, value));
