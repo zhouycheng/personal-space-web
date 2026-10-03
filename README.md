@@ -21,7 +21,7 @@ JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件�
 
 ## 页面
 
-- `/home`：可交互的 Three.js 工作室。
+- `/home`：海岛上的 Three.js 工作室；默认展示沙岛全景，缩放可靠近现有桌椅与设备。
 - `/works`：项目作品和简历。
 - `/canvas`：可拖动浏览的个人画布。
 - `/os`：文件驱动的桌面与窗口。
