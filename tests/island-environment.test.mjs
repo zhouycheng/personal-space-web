@@ -74,7 +74,9 @@ test('water pauses without catching up hidden time; environment resources belong
   const scene=new THREE.Scene(), materials=new Set(), geometries=new Set();
   const environment=createIslandEnvironment(scene,materials,geometries);
   const water=environment.group.getObjectByName('island-water');
-  assert.equal(materials.size,8);assert.equal(geometries.size,7);
+  assert.equal(materials.size,8);
+  environment.group.traverse(object=>{if(object.isMesh)assert.ok(geometries.has(object.geometry));});
+  const resourceCount=materials.size+geometries.size;
   assert.equal(environment.tick(1000,true),true);
   environment.tick(1020,true);
   assert.equal(water.material.uniforms.time.value,.02);
@@ -92,6 +94,6 @@ test('water pauses without catching up hidden time; environment resources belong
   for(const resource of [...materials,...geometries]) {
     resource.addEventListener('dispose',()=>released++);resource.dispose();
   }
-  assert.equal(released,15);
+  assert.equal(released,resourceCount);
   assert.ok(environment.group.children.every(object=>!object.userData.action));
 });

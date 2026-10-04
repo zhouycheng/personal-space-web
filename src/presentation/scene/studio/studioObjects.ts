@@ -8,6 +8,7 @@ import { createStudioAtmosphere } from "./studioAtmosphere";
 import { createWorkspaceCanopy } from "./workspaceCanopy";
 import { createIslandDressing } from './islandDressing.ts';
 import { createIslandLeisure } from './islandLeisure.ts';
+import { batchStaticChildren } from './staticBatches.ts';
 
 export function createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup }: {
   renderer: THREE.WebGLRenderer;
@@ -34,6 +35,8 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
   createStudioFiles(primitives,studioFiles,materials,geometries,textures);
   const { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient } =
     createStudioAtmosphere(scene, room, primitives, materials, textures, cleanup);
+  batchStaticChildren(room,geometries,new Set([computerSurface,canvasSurface,deskClock]));
+  primitives.releaseConstructionGeometry(scene);
 
   return {
     canopy,dressing,leisure,
