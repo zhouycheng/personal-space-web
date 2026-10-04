@@ -35,7 +35,7 @@ test('decorations are grounded, batched, unpickable and scene-owned; existing fr
   assert.equal(room.children.length,0,'no ornaments in furniture picking group');
   const meshes=dressing.group.children.filter(object=>object.isMesh);
   assert.ok(meshes.filter(mesh=>!mesh.material.transparent).length<=16,'opaque ornaments remain batched by material');
-  assert.equal(meshes.filter(mesh=>mesh.material.transparent).length,9,'three glass chimneys and six rims stay independently sortable');
+  assert.equal(meshes.filter(mesh=>mesh.material.transparent).length,3,'three closed, thick glass chimneys stay independently sortable');
   const lamps=dressing.group.children.filter(object=>object.isLight);assert.equal(lamps.length,3);
   for(const placement of dressing.group.userData.placements)
     assert.ok(Math.abs(placement.bounds.min.y-terrainHeight(placement.x,placement.z))<1e-8);
