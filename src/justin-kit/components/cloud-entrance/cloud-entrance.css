@@ -1,6 +1,6 @@
 .cloud-entrance {
   position: fixed; inset: 0; z-index: 1000; overflow: hidden; isolation: isolate;
-  background: #c6d0d2; color: #657a80; font-family: ui-sans-serif, system-ui, sans-serif;
+  background: var(--cloud-entrance-background, #c6d0d2); color: var(--cloud-entrance-foreground, #657a80); font-family: ui-sans-serif, system-ui, sans-serif;
   --cloud-progress: 0%; touch-action: manipulation;
 }
 .cloud-entrance[hidden] { display: none; }
@@ -11,10 +11,10 @@
 .cloud-entrance__footer { position: absolute; bottom: max(7.5%, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; }
 .cloud-entrance__status { font-size: 13px; letter-spacing: .22em; line-height: 2; }
 .cloud-entrance:is([data-state="loading"],[data-state="dismissing"]) .cloud-entrance__status {
-  color: transparent; background: linear-gradient(to right,#637b82 var(--cloud-progress),#9aaeb3 var(--cloud-progress)); background-clip: text; -webkit-background-clip: text;
+  color: transparent; background: linear-gradient(to right,var(--cloud-entrance-progress, #637b82) var(--cloud-progress),var(--cloud-entrance-progress-pending, #9aaeb3) var(--cloud-progress)); background-clip: text; -webkit-background-clip: text;
 }
 .cloud-entrance[data-state="ready"] { cursor: pointer; }
-.cloud-entrance[data-state="ready"]:focus-visible { outline: 2px solid #71868c; outline-offset: -8px; }
+.cloud-entrance[data-state="ready"]:focus-visible { outline: 2px solid var(--cloud-entrance-focus, #71868c); outline-offset: -8px; }
 .cloud-entrance[data-state="revealing"] { background: transparent; cursor: default; }
 .cloud-entrance[data-state="revealing"] :is(.cloud-entrance__footer,.cloud-entrance__information) { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .cloud-entrance[data-state="dismissing"] { pointer-events: none; }
