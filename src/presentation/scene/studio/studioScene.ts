@@ -5,7 +5,7 @@ import { createChairRocking } from "../../../animation/studio/chairMotion";
 import { breezeAt } from '../../../animation/studio/breeze.ts';
 import { ACTION_LABELS, type StudioAction } from "../../../contracts/studio";
 import { smooth, surfaceDistance, surfacePhases, surfaceFlight, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX, CAMERA_ZOOM_OMEGA } from "../../../animation/studio/studioMotion";
-import { clockText } from "../../../config/studioTime";
+import { clockText, studioLighting } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
@@ -24,7 +24,7 @@ import { islandViewDistance, islandEntranceDistance } from "../../../animation/s
 import { entrancePose, entranceBlend, entranceContentProgress, ENTRANCE_AZIMUTH, ENTRANCE_PITCH, ENTRANCE_OCCUPANCY } from '../../../animation/studio/entranceMotion';
 import { islandAppearance } from "../../../config/islandAppearance";
 import { acceptsIslandFocus,clampIslandFocus } from '../../../animation/studio/islandNavigation.ts';
-import { createScenePerformanceOverlay } from './scenePerformanceOverlay.ts';
+import { createScenePerformanceOverlay, type SceneDebugGroup } from './scenePerformanceOverlay.ts';
 
 export type StudioScene = ReturnType<typeof createStudioScene>;
 
@@ -43,6 +43,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   cleanup.push(()=>disposeSafely([()=>renderer.dispose(),()=>{if(!renderer.getContext().isContextLost())renderer.forceContextLoss();},()=>canvas.remove()]));
   try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, lightweight?1:1.5));
+  const initialRenderRatio=renderer.getPixelRatio();
   renderer.shadowMap.enabled = !lightweight;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
@@ -70,6 +71,12 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   const textures = new Set<THREE.Texture>();
   const releaseResources=()=>disposeSafely([...geometries,...materials,...textures].map(resource=>()=>resource.dispose()));
   cleanup.push(releaseResources);
+  const debugAxes=new THREE.AxesHelper(3);
+  debugAxes.position.copy(focus);debugAxes.visible=false;scene.add(debugAxes);
+  geometries.add(debugAxes.geometry);
+  (Array.isArray(debugAxes.material)?debugAxes.material:[debugAxes.material]).forEach(material=>materials.add(material));
+  let debugWireframe=false,debugTimeHour:number|null=null;
+  const originalWireframe=new Map<THREE.Material,boolean>();
   const tooltip = mount.querySelector<HTMLElement>("[data-studio-tooltip]")!;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   // The shell activates only after prepareStartup. Starting active would make
@@ -139,7 +146,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let displayedTime="";
   let clockDate=new Date(),showDate=false;
   let lampOn=true,lampPower=2;
-  let lastLighting: StudioLighting | undefined;
+  let lastLighting: StudioLighting | undefined,actualLighting:StudioLighting|undefined;
 
   let journalBook:ReturnType<typeof createJournalBook>|undefined;
   let journalInteractionEnabled = true;
@@ -333,6 +340,63 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     deskClock.userData.label=`${text} · 点击显示${showDate?"时间":"日期"}`;
     canvas.setAttribute("aria-label",`工作室场景，电子钟${showDate?"日期":"时间"} ${text}；滚轮缩放，拖动改变视角，Tab 键可访问内容和缩放入口`);requestDraw();
   }
+  function debugClockDate(hour:number) {
+    const date=new Date(),minutes=Math.round(hour*60);
+    date.setHours(Math.floor(minutes/60),minutes%60,0,0);return date;
+  }
+  function applyLighting(light:StudioLighting) {
+    dressing.setLighting(light.daylight);leisure.setLighting(light.daylight);
+    if(lastLighting&&JSON.stringify(lastLighting)===JSON.stringify(light))return;
+    const sunMoved=!lastLighting||lastLighting.sunDirection.some((v,i)=>v!==light.sunDirection[i])||lastLighting.moonDirection.some((v,i)=>v!==light.moonDirection[i]);
+    lastLighting=light;environment.setLighting(light);
+    const moonlight=light.sunIntensity<light.moonIntensity;
+    sun.intensity=moonlight?light.moonIntensity:light.sunIntensity;sun.color.setHex(moonlight?0xa6bbeb:light.sun);
+    sun.position.fromArray(moonlight?light.moonDirection:light.sunDirection).multiplyScalar(35).add(sun.target.position);
+    if(sunMoved)invalidateShadows(true);
+    ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
+    lampPower=light.lampIntensity;lamp.intensity=lampOn?lampPower:0;
+    screenGlow.intensity=tabletGlow.intensity=light.screenSpillIntensity;requestDraw();
+  }
+  function setDebugTime(hour:number|null) {
+    debugTimeHour=hour===null?null:Math.max(0,Math.min(23.75,hour));
+    const date=debugTimeHour===null?new Date():debugClockDate(debugTimeHour);
+    clockDate=date;updateClock();
+    const light=debugTimeHour===null?actualLighting:studioLighting(date);
+    if(light)applyLighting(light);
+  }
+  function setDebugGroupVisible(group:SceneDebugGroup,visible:boolean) {
+    const targets:{[K in SceneDebugGroup]:THREE.Group}={workspace:room,canopy:canopy.group,dressing:dressing.group,leisure:leisure.group,environment:environment.group};
+    targets[group].visible=visible;requestDraw();
+  }
+  function setDebugWireframe(enabled:boolean) {
+    debugWireframe=enabled;
+    scene.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      const list=Array.isArray(object.material)?object.material:[object.material];
+      for(const material of list){
+        const wireMaterial=material as THREE.Material&{wireframe?:boolean};
+        if(typeof wireMaterial.wireframe!=='boolean')continue;
+        if(!originalWireframe.has(material))originalWireframe.set(material,wireMaterial.wireframe);
+        wireMaterial.wireframe=enabled?true:originalWireframe.get(material)!;material.needsUpdate=true;
+      }
+    });requestDraw();
+  }
+  function setDebugShadows(enabled:boolean) {
+    renderer.shadowMap.enabled=enabled;
+    if(enabled)invalidateShadows();
+    requestDraw();
+  }
+  function setDebugRenderRatio(value:number) {
+    renderer.setPixelRatio(Math.max(.5,Math.min(2,value)));resize();requestDraw();
+  }
+  function setDebugView(view:{zoom:number;angle:number;elevation:number}) {
+    if(!active||failed||destroyed||motion.running||zoomed||journalActive||entranceProgress!==undefined)return;
+    targetZoom=clampRoomZoom(view.zoom);targetAngle=clampRoomAngle(view.angle);targetElevation=clampRoomElevation(view.elevation);requestCamera();
+  }
+  function resetDebugView() {
+    if(!active||failed||destroyed||motion.running||zoomed||journalActive||entranceProgress!==undefined)return;
+    targetOffset.set(0,0,0);targetZoom=DEFAULT_ROOM_VIEW.zoom;targetAngle=DEFAULT_ROOM_VIEW.angle;targetElevation=DEFAULT_ROOM_VIEW.elevation;requestCamera();
+  }
   function surfaceView(surface: THREE.Mesh) {
     surface.updateWorldMatrix(true,false);
     const {width,height}=deviceSurfaceSize(surface.geometry);
@@ -395,11 +459,17 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   },{signal:events.signal});
   setRoomCamera();resize();
   performanceOverlay=createScenePerformanceOverlay({canvas,renderer,scene,camera,details:()=>({
-    active:active&&!failed&&!destroyed,zoom:roomZoom,angle,elevation,
+    active:active&&!failed&&!destroyed,zoom:targetZoom,angle:targetAngle,elevation:targetElevation,
     camera:[camera.position.x,camera.position.y,camera.position.z],
     ocean:mount.dataset.oceanActive==='true',steam:mount.dataset.steamActive==='true',
-    lightweight,reducedMotion:reducedMotion.matches,journal:journalActive,transition:motion.running,
-  })});
+    lightweight,reducedMotion:reducedMotion.matches,journal:journalActive,transition:motion.running||entranceProgress!==undefined,
+    axes:debugAxes.visible,wireframe:debugWireframe,renderRatio:renderer.getPixelRatio(),debugTimeHour,
+    groups:{workspace:room.visible,canopy:canopy.group.visible,dressing:dressing.group.visible,leisure:leisure.group.visible,environment:environment.group.visible},
+  }),controls:{
+    setView:setDebugView,resetView:resetDebugView,setGroupVisible:setDebugGroupVisible,
+    setAxes(value){debugAxes.visible=value;requestDraw();},setWireframe:setDebugWireframe,
+    setShadows:setDebugShadows,setRenderRatio:setDebugRenderRatio,resetRenderRatio:()=>setDebugRenderRatio(initialRenderRatio),setDebugTime,
+  }});
   cleanup.push(()=>performanceOverlay?.dispose());
   return {
     async prepareStartup({ entrance, onProgress }: { entrance: boolean; onProgress: (progress: number) => void }): Promise<OperationResult> {
@@ -568,24 +638,11 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       chairRocking.push();clearHover();requestDraw();
     },
     setLighting(light:StudioLighting) {
-      dressing.setLighting(light.daylight);
-      leisure.setLighting(light.daylight);
-      if(lastLighting&&JSON.stringify(lastLighting)===JSON.stringify(light))return;
-      const sunMoved=!lastLighting||lastLighting.sunDirection.some((v,i)=>v!==light.sunDirection[i])||lastLighting.moonDirection.some((v,i)=>v!==light.moonDirection[i]);
-      lastLighting=light;
-      environment.setLighting(light);
-      const moonlight=light.sunIntensity<light.moonIntensity;
-      sun.intensity=moonlight?light.moonIntensity:light.sunIntensity;sun.color.setHex(moonlight?0xa6bbeb:light.sun);
-      sun.position.fromArray(moonlight?light.moonDirection:light.sunDirection).multiplyScalar(35).add(sun.target.position);
-      if(sunMoved)invalidateShadows(true);
-      ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
-      lampPower=light.lampIntensity;
-      lamp.intensity=lampOn?lampPower:0;
-      screenGlow.intensity=tabletGlow.intensity=light.screenSpillIntensity;
-      requestDraw();
+      actualLighting=light;
+      applyLighting(debugTimeHour===null?light:studioLighting(debugClockDate(debugTimeHour)));
     },
     setTime(date:Date) {
-      clockDate=date;updateClock();
+      clockDate=debugTimeHour===null?date:debugClockDate(debugTimeHour);updateClock();
     },
     moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number,rect:{left:number;top:number;width:number;height:number})=>void) {
       stopCamera();motion.cancel("superseded");zoomed=enter;
