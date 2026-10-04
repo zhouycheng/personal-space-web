@@ -7,6 +7,7 @@ export function createWindowGestureController(context) {
     const target = event.target;
     if (event.button !== 0 || state.fullscreen || (target instanceof Element && target.closest("[data-window-action]"))) return;
     event.preventDefault();
+    cancel();
     focusWindow(state.id);
     activeWindowGesture = {
       pointerId: event.pointerId,
@@ -18,7 +19,10 @@ export function createWindowGestureController(context) {
       startTop: state.top,
       startWidth: state.width,
       startHeight: state.height,
+      previousTranslate: state.el.style.translate,
+      previousWillChange: state.el.style.willChange,
     };
+    state.el.style.willChange='translate';
     document.body.classList.add("is-macos-window-gesturing");
     window.addEventListener("pointermove", handleWindowGestureMove);
     window.addEventListener("pointerup", endWindowGesture);
@@ -30,6 +34,7 @@ export function createWindowGestureController(context) {
     if (event.button !== 0 || state.fullscreen) return;
     event.preventDefault();
     event.stopPropagation();
+    cancel();
     focusWindow(state.id);
     activeWindowGesture = {
       pointerId: event.pointerId,
@@ -68,7 +73,12 @@ export function createWindowGestureController(context) {
           width: activeWindowGesture.startWidth + dx,
           height: activeWindowGesture.startHeight + dy,
         };
-    applyWindowFrame(state, clampWindowFrame(nextFrame, state.entry.window.minWidth, state.entry.window.minHeight));
+    const frame=clampWindowFrame(nextFrame, state.entry.window.minWidth, state.entry.window.minHeight);
+    if(activeWindowGesture.type==='drag'){
+      state.left=frame.left;state.top=frame.top;
+      // Individual translate composes with the window's existing transform animations.
+      state.el.style.translate=`${frame.left-activeWindowGesture.startLeft}px ${frame.top-activeWindowGesture.startTop}px`;
+    }else applyWindowFrame(state,frame);
   }
 
   function commitWindowGestureMove() {
@@ -109,6 +119,14 @@ export function createWindowGestureController(context) {
     if (windowGestureFrame) window.cancelAnimationFrame(windowGestureFrame);
     windowGestureFrame = 0;
     windowGestureEvent = null;
+    if(activeWindowGesture?.type==='drag'){
+      const state=openWindows.get(activeWindowGesture.id);
+      if(state){
+        state.el.style.translate=activeWindowGesture.previousTranslate;
+        state.el.style.willChange=activeWindowGesture.previousWillChange;
+        applyWindowFrame(state,state);
+      }
+    }
     activeWindowGesture = null;
     document.body.classList.remove("is-macos-window-gesturing", "is-macos-window-resizing");
     window.removeEventListener("pointermove", handleWindowGestureMove);

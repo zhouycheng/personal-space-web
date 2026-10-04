@@ -1,12 +1,13 @@
 export type StudioState = "room" | "entering" | "desktop" | "returning" | "entering-canvas" | "canvas" | "returning-canvas" | "journal" | "entering-journal" | "returning-journal";
-export type RoomView = { zoom: number; angle: number; elevation: number };
+export type RoomView = { zoom: number; angle: number; elevation: number; focusOffset?: {x:number;y:number;z:number} };
+export const DEFAULT_ROOM_VIEW: Readonly<RoomView> = { zoom: 1, angle: -0.48, elevation: 0.24 };
 export type RoomViewAction = "zoom-in" | "zoom-out" | "reset-view" | "view-left" | "view-right" | "view-up" | "view-down";
 export type StudioAction = "computer" | "canvas" | "works" | "chair" | "lamp" | "clock" | "drawer-top" | "drawer-middle" | "drawer-bottom" | "diary" | RoomViewAction;
 export type StudioIntent = StudioAction;
 export const DIARY_URL = "/journal";
 export const ACTION_LABELS: Record<StudioAction, string> = {
   computer: "打开电脑", canvas: "我的画布",
-  works: "文件夹", chair: "转动座椅",
+  works: "文件木箱", chair: "前后摇动摇椅",
   lamp: "台灯开关", clock: "显示日期",
   "drawer-top": "打开第一层抽屉", "drawer-middle": "打开第二层抽屉", "drawer-bottom": "打开第三层抽屉",
   diary: "阅读日记",

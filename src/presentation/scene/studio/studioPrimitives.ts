@@ -6,6 +6,7 @@ import type { StudioAction } from "../../../contracts/studio";
 export function createStudioPrimitives(renderer: THREE.WebGLRenderer, room: THREE.Group, materials: Set<THREE.Material>, geometries: Set<THREE.BufferGeometry>, textures: Set<THREE.Texture>) {
   // These primitive shapes are immutable; each scene owns and releases its cache.
   const shapes = new Map<string, THREE.BufferGeometry>();
+  const owned = new Set<THREE.BufferGeometry>();
   function shape(key: string, create: () => THREE.BufferGeometry) {
     let geometry = shapes.get(key);
     if (!geometry) { geometry = create(); shapes.set(key, geometry); }
@@ -31,6 +32,7 @@ export function createStudioPrimitives(renderer: THREE.WebGLRenderer, room: THRE
 
   const mesh = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     geometries.add(geometry);
+    owned.add(geometry);
     const object = new THREE.Mesh(geometry, mat);
     object.position.set(x, y, z);
     object.castShadow = true;
@@ -38,11 +40,16 @@ export function createStudioPrimitives(renderer: THREE.WebGLRenderer, room: THRE
     parent.add(object);
     return object;
   };
-  function box(parent: THREE.Object3D, size: number[], at: number[], mat = wood) {
+  function box(parent: THREE.Object3D, size: number[], at: number[], mat: THREE.Material = wood) {
     return mesh(parent, shape(`box:${size.join(',')}`, () => new THREE.BoxGeometry(...size as [number, number, number])), mat, ...at as [number, number, number]);
   }
-  function cylinder(parent: THREE.Object3D, radius: number, height: number, at: number[], mat = charcoal, top = radius) {
-    return mesh(parent, shape(`cylinder:${top},${radius},${height}`, () => new THREE.CylinderGeometry(top, radius, height, 16)), mat, ...at as [number, number, number]);
+  function cylinder(parent: THREE.Object3D, radius: number, height: number, at: number[], mat: THREE.Material = charcoal, top = radius) {
+    const grain=Boolean(mat.userData.workspaceGrain);
+    return mesh(parent, shape(`cylinder:${top},${radius},${height}:${grain}`, () => {
+      const geometry=new THREE.CylinderGeometry(top,radius,height,16);
+      if(grain){const uv=geometry.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getY(i),uv.getX(i));}
+      return geometry;
+    }), mat, ...at as [number, number, number]);
   }
   function rounded(parent: THREE.Object3D, size: [number,number,number], at: [number,number,number], mat: THREE.Material, radius: number) {
     return mesh(parent, shape(`rounded:${size.join(',')},${radius}`, () => new RoundedBoxGeometry(...size, 2, radius)), mat, ...at);
@@ -75,7 +82,15 @@ export function createStudioPrimitives(renderer: THREE.WebGLRenderer, room: THRE
     materials.add(labelMaterial);
     return mesh(parent, new THREE.PlaneGeometry(width, height), labelMaterial, ...at as [number, number, number]);
   }
-  return { material, mesh, box, cylinder, rounded, hotspot, label,
+  function releaseConstructionGeometry(scene:THREE.Object3D) {
+    const live=new Set<THREE.BufferGeometry>();
+    scene.traverse(object=>{if(object instanceof THREE.Mesh)live.add(object.geometry);});
+    for(const geometry of owned)if(!live.has(geometry)){
+      for(const [key,value] of shapes)if(value===geometry)shapes.delete(key);
+      geometry.dispose();geometries.delete(geometry);owned.delete(geometry);
+    }
+  }
+  return { material, mesh, box, cylinder, rounded, hotspot, label,releaseConstructionGeometry,
     wood, charcoal, brass, paper, furnitureFrame, upholstery,
     aluminum, keycap, rubber, chrome };
 }

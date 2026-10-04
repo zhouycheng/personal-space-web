@@ -20,7 +20,6 @@ export function resolveStudioIntent(intent: StudioIntent): StudioCommand {
 export function studioTargetsForIntent(targets: StudioTargets, intent: StudioIntent): StudioTargets {
   if (intent === "lamp") return { ...targets, lampOn: !targets.lampOn };
   if (intent === "clock") return { ...targets, showDate: !targets.showDate };
-  if (intent === "diary") return targets.drawers[0] ? targets : { ...targets, drawers: [true, ...targets.drawers.slice(1)] };
   const index = ["drawer-top", "drawer-middle", "drawer-bottom"].indexOf(intent);
   if (index < 0) return targets;
   return { ...targets, drawers: targets.drawers.map((open, position) => position === index ? !open : open) };

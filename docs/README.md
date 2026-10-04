@@ -12,6 +12,7 @@
 
 ## 功能说明
 
+- [工作室环境](features/studio-environment.md)：篝火、羊毛地毯、真实时间和天体方位。
 - [画布](features/canvas.md)：发布内容、访客位置保存和交互边界。
 - [3D 日记](features/journal.md)：写作、书页包、阅读交互和资源验证。
 

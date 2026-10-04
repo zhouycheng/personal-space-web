@@ -1,8 +1,20 @@
-export const CHAIR_TURN_MS = 2000;
+import { stepSpring } from './spring.ts';
+export const CHAIR_ROCKER_RADIUS = 1.45;
 
-export function chairTurn(elapsed: number) {
-  const t = Math.max(0, Math.min(1, elapsed / CHAIR_TURN_MS));
-  // Finite impulse: quick acceleration followed by a longer friction-like coast.
-  const progress = 1 - (1 - t) ** 4 * (1 + 4 * t);
-  return { angle: progress * Math.PI * 2, done: t === 1 };
+export function createChairRocking() {
+  const state = { value: 0, velocity: 0 };
+  let moving = false;
+  return {
+    get moving() { return moving; },
+    push() { state.velocity = Math.min(.68, state.velocity + .48); moving = true; },
+    reset() { state.value = state.velocity = 0; moving = false; },
+    step(seconds: number) {
+      stepSpring(state, 0, seconds, .72, .24);
+      if (Math.abs(state.value) < .00015 && Math.abs(state.velocity) < .0006) {
+        state.value = state.velocity = 0; moving = false;
+      }
+      const angle = state.value;
+      return { angle, y: CHAIR_ROCKER_RADIUS * (1 - Math.cos(angle)), z: CHAIR_ROCKER_RADIUS * (angle - Math.sin(angle)) };
+    },
+  };
 }

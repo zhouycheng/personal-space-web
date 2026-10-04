@@ -1,12 +1,13 @@
 import * as THREE from "three";
-import { studioPalette as palette } from "../../../config/studioPalette";
+import { createWorkspaceMaterials } from "./workspaceMaterials";
 import type { StudioPrimitives } from "./studioPrimitives";
 
 export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, primitives: StudioPrimitives, materials: Set<THREE.Material>, textures: Set<THREE.Texture>, cleanup: (() => void)[]) {
   const { material, mesh, box, cylinder, rounded, hotspot, label, charcoal, brass } = primitives;
+  const {timber,cork}=createWorkspaceMaterials(materials,textures);
   const mug=new THREE.Group();room.add(mug);mug.position.set(-1.1,1.448,-0.94);mug.userData.label="一杯咖啡";
-  const ceramic=material(palette.paper,0.24),coffee=material(0x382015,0.16);
-  mesh(mug,new THREE.CylinderGeometry(0.15,0.15,0.014,48),material(0x98714b),0,-0.011,0);
+  const ceramic=material(0xe7ddca,0.48),coffee=material(0x382015,0.16);
+  mesh(mug,new THREE.CylinderGeometry(0.15,0.15,0.014,48),cork,0,-0.011,0);
   const cupProfile=[[0,0],[0.066,0],[0.079,0.014],[0.097,0.18],[0.096,0.195],[0.089,0.198],[0.083,0.183],[0.068,0.032],[0,0.032]].map(([x,y])=>new THREE.Vector2(x,y));
   mesh(mug,new THREE.LatheGeometry(cupProfile,40),ceramic,0,0,0);
   const handle=mesh(mug,new THREE.TorusGeometry(0.058,0.015,12,32),ceramic,0.105,0.113,0);handle.scale.x=0.83;
@@ -29,8 +30,9 @@ export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, pr
   
   // Angled desktop clock: one reusable texture, sourced from the visitor's clock.
   const deskClock=hotspot("clock");deskClock.position.set(0.67,1.572,-1.83);deskClock.rotation.y=-0.12;
-  rounded(deskClock,[0.61,0.27,0.15],[0,0,0],charcoal,0.025);
-  const clockFace=label(deskClock,"",0.55,0.21,[0,0,0.079],"#101d1d","#b5edc7",0.63,true);
+  rounded(deskClock,[0.61,0.27,0.15],[0,0,0],timber,0.025);
+  const clockFace=label(deskClock,"",0.55,0.21,[0,0,0.079],"#101d1d","#abb79f",0.63,true);
+  (clockFace.material as THREE.MeshBasicMaterial).color.setScalar(.72);
   const clockTexture=(clockFace.material as THREE.MeshBasicMaterial).map!;
   const clockImage=clockTexture.image as HTMLCanvasElement;
   
@@ -59,7 +61,7 @@ export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, pr
   const shade=new THREE.Group();lampModel.add(shade);shade.position.copy(head);
   shade.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),lampTarget.position.clone().sub(head).normalize());
   // Closed lathed shell includes the top, thick rolled lip and inner wall.
-  const shadeMaterial=material(palette.lamp,0.38);
+  const shadeMaterial=material(0x737968,0.62);
   const shadeProfile=[[0,-0.045],[0.055,-0.045],[0.075,-0.065],[0.19,-0.22],[0.203,-0.244],[0.218,-0.244],[0.22,-0.229],[0.09,-0.04],[0.063,-0.018],[0.063,0.005],[0,0.005]].map(([x,y])=>new THREE.Vector2(x,y));
   mesh(shade,new THREE.LatheGeometry(shadeProfile,48),shadeMaterial,0,-0.065,0);
   cylinder(shade,0.025,0.07,[0,-0.03,0],brass);
@@ -73,8 +75,10 @@ export function createStudioAtmosphere(scene: THREE.Scene, room: THREE.Group, pr
   const sun=new THREE.DirectionalLight(0xffedce,3.2);sun.position.set(-3,7,2.5);sun.castShadow=true;
   cleanup.push(()=>{sun.shadow.map?.dispose();lamp.shadow.map?.dispose();});
   sun.target.position.set(0,0,-0.8);scene.add(sun.target);
-  sun.shadow.radius=12;
-  sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-3.8;sun.shadow.camera.right=3.8;sun.shadow.camera.top=3.8;sun.shadow.camera.bottom=-3.8;
-  sun.shadow.camera.near=0.5;sun.shadow.camera.far=16;sun.shadow.normalBias=0.012;sun.shadow.bias=-0.0001;scene.add(sun);
+  // The island-wide shadow frustum needs a smaller filter to retain leaf detail.
+  sun.shadow.radius=3;
+  sun.position.multiplyScalar(3);
+  sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-12;sun.shadow.camera.right=12;sun.shadow.camera.top=12;sun.shadow.camera.bottom=-12;
+  sun.shadow.camera.near=0.5;sun.shadow.camera.far=60;sun.shadow.normalBias=0.012;sun.shadow.bias=-0.0001;scene.add(sun);
   return { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient };
 }
