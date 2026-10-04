@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "playwright/test";
+import { expect, type Page } from "playwright/test";
+import { test } from './helpers/app';
 import { phase, visual } from "./helpers/journal";
 
 test("T19/T32 cover midpoint draws and Escape during opening exits", async ({ page }, info) => {

@@ -9,7 +9,7 @@ import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
-import type { StudioLighting } from "../../../contracts/studioPorts";
+import type { StudioLighting, EntranceTransition, SurfaceRect } from "../../../contracts/studioPorts";
 import { createJournalBook } from "../journal/journalBook";
 import { createActiveMotion } from "../../../animation/activeMotion";
 import type { OperationResult } from "../../../contracts/operation";
@@ -20,7 +20,8 @@ import { createStudioBounds } from "../../interaction/studio/sceneBounds";
 import { disposeSafely } from "../../../infrastructure/client/dispose";
 import { createIslandEnvironment } from "./islandEnvironment";
 import { deviceSurfaceSize } from './deviceGeometry.ts';
-import { islandViewDistance } from "../../../animation/studio/islandFraming";
+import { islandViewDistance, islandEntranceDistance } from "../../../animation/studio/islandFraming";
+import { entrancePose, entranceBlend, entranceContentProgress, ENTRANCE_AZIMUTH, ENTRANCE_PITCH, ENTRANCE_OCCUPANCY } from '../../../animation/studio/entranceMotion';
 import { islandAppearance } from "../../../config/islandAppearance";
 import { acceptsIslandFocus,clampIslandFocus } from '../../../animation/studio/islandNavigation.ts';
 import { createScenePerformanceOverlay } from './scenePerformanceOverlay.ts';
@@ -71,7 +72,9 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   cleanup.push(releaseResources);
   const tooltip = mount.querySelector<HTMLElement>("[data-studio-tooltip]")!;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  let active = true;
+  // The shell activates only after prepareStartup. Starting active would make
+  // setActive(false) submit an unheated full render before compileAsync.
+  let active = false;
   let destroyed = false;
   let failed = false;
   let frame = 0;
@@ -97,22 +100,29 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function resetCameraSpeed(){for(const state of cameraStates)state.velocity=0;}
   let zoomed = false;
   const motion = createActiveMotion();
+  let entranceProgress: number | undefined;
+  let entranceFlight=false;
+  let entranceUpdate:((progress:number)=>void)|undefined;
+  const entranceCamera=camera.clone(),contentCamera=camera.clone();
+  let startupVersion = 0;
   const chairRocking = createChairRocking();
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
   const environment = createIslandEnvironment(scene, materials, geometries);
   cleanup.push(()=>scene.remove(environment.group));
+  let settleNormals: () => void;
+  const normalsReady = new Promise<void>(resolve => { settleNormals = resolve; });
   const oceanNormals = new THREE.TextureLoader().load(
     new URL("../../../content/scene/waternormals.jpg", import.meta.url).href,
-    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}},
-    undefined,()=>{ /* The analytic swells remain usable if the detail texture is unavailable. */ },
+    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}settleNormals();},
+    undefined,()=>{settleNormals(); /* Analytic swells are the existing detail-texture fallback. */ },
   );
   oceanNormals.wrapS=oceanNormals.wrapT=THREE.RepeatWrapping;
   oceanNormals.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
   textures.add(oceanNormals);
 
   const {
-    canopy,dressing,leisure,
+    canopy,dressing,leisure,fileLibrary,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
@@ -151,6 +161,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     currentLook.lerpVectors(journalHomeLook,journalLook,smooth(journalAmount));
     journalUp.set(0,1,0).applyQuaternion(diaryRotation);
     camera.up.set(0,1,0).lerp(journalUp,smooth(journalAmount)).normalize();camera.lookAt(currentLook);
+    if(entranceFlight)blendEntranceCamera();
   }
   cleanup.push(()=>journalBook?.dispose());
 
@@ -168,8 +179,30 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     const base=baseLook(targetZoom),point=clampIslandFocus(base.clone().add(targetOffset));
     targetOffset.set(point.x-base.x,point.y-base.y,point.z-base.z);
   }
-  function roomInteractive() {return active&&!failed&&!destroyed&&!motion.running&&!zoomed&&!mount.closest<HTMLElement>("[data-studio]")?.inert;}
+  function roomInteractive() {return entranceProgress===undefined&&active&&!failed&&!destroyed&&!motion.running&&!zoomed&&!mount.closest<HTMLElement>("[data-studio]")?.inert;}
   function setRoomCamera() {camera.up.set(0,1,0);camera.position.copy(roomPosition());currentLook.copy(roomLook());camera.lookAt(currentLook);mount.dataset.cameraZoom=roomZoom.toFixed(4);mount.dataset.cameraAngle=angle.toFixed(4);mount.dataset.cameraElevation=elevation.toFixed(4);}
+  function poseEntrance(progress: number) {
+    entranceProgress = progress;
+    const distance = islandEntranceDistance(camera.aspect, ENTRANCE_AZIMUTH, ENTRANCE_PITCH, ENTRANCE_OCCUPANCY, camera.fov);
+    camera.position.fromArray(entrancePose(reducedMotion.matches ? 1 : progress, distance, roomPosition().toArray(), roomLook().toArray()));
+    camera.up.set(0,1,0);currentLook.copy(roomLook());camera.lookAt(currentLook);
+    mount.dataset.entranceProgress = String(progress);
+  }
+  function blendEntranceCamera() {
+    const progress=entranceProgress??0, blend=reducedMotion.matches?1:entranceBlend(progress);
+    contentCamera.position.copy(camera.position);contentCamera.quaternion.copy(camera.quaternion);
+    const destinationLook=currentLook.clone();
+    poseEntrance(Math.min(1,progress/.72));
+    entranceProgress=progress;mount.dataset.entranceProgress=String(progress);
+    entranceCamera.position.copy(camera.position);entranceCamera.quaternion.copy(camera.quaternion);
+    camera.position.lerpVectors(entranceCamera.position,contentCamera.position,blend);
+    camera.quaternion.slerpQuaternions(entranceCamera.quaternion,contentCamera.quaternion,blend);
+    currentLook.lerp(destinationLook,blend);camera.updateMatrixWorld();
+  }
+  function finishEntrance() {
+    entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;
+    roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;focusOffset.copy(targetOffset);resetCameraSpeed();
+  }
   function cameraMoving() {return angle!==targetAngle||elevation!==targetElevation||roomZoom!==targetZoom||!focusOffset.equals(targetOffset)||cameraStates.some(state=>state.velocity!==0);}
   function stopCamera() {cameraFrameTime=undefined;resetCameraSpeed();targetZoom=roomZoom;targetAngle=angle;targetElevation=elevation;targetOffset.copy(focusOffset);onViewChange(viewSnapshot());}
   function requestCamera() {
@@ -194,7 +227,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     inputFrameTime=previousDrawTime??now-1000/60;previousDrawTime=now;
     processingInput=true;
     try { gestures.flushMove(); } finally { processingInput=false;inputFrameTime=undefined; }
-    const cameraChanged=cameraMoving()&&!motion.running&&!zoomed;
+    const cameraChanged=entranceProgress===undefined&&cameraMoving()&&!motion.running&&!zoomed;
     const objectsChanged=chairRocking.moving||drawers.some(drawer=>drawer.moving);
     if(cameraChanged) {
       const elapsed=cameraFrameTime===undefined?0:now-cameraFrameTime;cameraFrameTime=now;
@@ -241,7 +274,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     if(breezeActive){breezeTime+=breezeFrameTime===undefined?0:Math.min(50,Math.max(0,now-breezeFrameTime))/1000;breezeFrameTime=now;}
     else breezeFrameTime=undefined;
     environment.setWind(breezeTime);dressing.setWind(breezeTime);leisure.setWind(breezeTime);
-    const canopyState=canopy.update(now,camera.position,currentLook,reducedMotion.matches,breezeTime,breezeActive,motion.running||zoomed);
+    const canopyState=canopy.update(now,camera.position,currentLook,reducedMotion.matches,breezeTime,breezeActive,entranceProgress===undefined&&(motion.running||zoomed));
     // The roof is above the downward task-light cone; it only casts into the sun map.
     if(canopyState.shadowChanged)invalidateShadows(true);
     // The broad task-light cone can also reach understory near the desk.
@@ -313,7 +346,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     bounds.invalidate();
     const {width:w,height:h}=bounds.mount();if(!w||!h)return;
     renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
-    clearHover();if(!zoomed&&!motion.running)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
+    clearHover();if(entranceProgress!==undefined)poseEntrance(entranceProgress);else if(!zoomed&&!motion.running)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
   }
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mount);
   cleanup.push(()=>resizeObserver.disconnect());
@@ -350,7 +383,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     onAction, requestDraw, requestInputFrame,
   });
   const clearHover = gestures.clearHover;
-  reducedMotion.addEventListener("change",()=>{clearHover();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;focusOffset.copy(targetOffset);stopCamera();}if(!motion.running&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
+  reducedMotion.addEventListener("change",()=>{clearHover();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;focusOffset.copy(targetOffset);stopCamera();}if(entranceProgress!==undefined)poseEntrance(entranceProgress);else if(!motion.running&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
   canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();fail(new StudioFailure("context-lost",(event as WebGLContextEvent).statusMessage||"WebGL context lost"));},{signal:events.signal});
   canvas.addEventListener("webglcontextrestored",()=>{
     if(destroyed)return;
@@ -369,6 +402,59 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   })});
   cleanup.push(()=>performanceOverlay?.dispose());
   return {
+    async prepareStartup({ entrance, onProgress }: { entrance: boolean; onProgress: (progress: number) => void }): Promise<OperationResult> {
+      const token = ++startupVersion;
+      const valid = () => token === startupVersion && !destroyed && !failed;
+      this.setActive(false);stopCamera();
+      if(entrance)poseEntrance(0);
+      const timings:Record<string,number>={};
+      const measure=(name:string,start:number)=>{timings[name]=Math.round(performance.now()-start);mount.dataset.startupTimings=JSON.stringify(timings);};
+      const normalsStarted=performance.now();
+      await normalsReady;
+      measure('textureWait',normalsStarted);
+      if(!valid())return {status:'cancelled',reason:'startup-replaced'};
+      try {
+        const uploadStarted=performance.now();
+        for(const texture of textures) { if(texture.image)renderer.initTexture(texture); }
+        measure('textureUpload',uploadStarted);
+        onProgress(3/5);
+        const compileStarted=performance.now();
+        await renderer.compileAsync(scene,camera);
+        measure('shaderWarmup',compileStarted);
+        if(!valid())return {status:'cancelled',reason:'startup-replaced'};
+        onProgress(4/5);
+        const drawStarted=performance.now();
+        // Warm actual draws, including shadows and both canopy/LOD viewpoints.
+        setRoomCamera();canopy.update(performance.now(),camera.position,currentLook,true,breezeTime,false,false);
+        if(!render())return {status:'failed',code:'startup-render',retryable:true};
+        if(entrance)poseEntrance(0);
+        canopy.update(performance.now(),camera.position,currentLook,true,breezeTime,false,false);invalidateShadows();
+        if(!render())return {status:'failed',code:'startup-render',retryable:true};
+        if(!valid())return {status:'cancelled',reason:'startup-replaced'};
+        measure('firstDraws',drawStarted);
+        onProgress(1);
+        return {status:'completed',value:undefined};
+      } catch(error) {fail(studioFailure(error,'render'));return {status:'failed',code:'startup',retryable:true};}
+    },
+    async playEntrance({duration,onProgress,target,onSurfaceProgress}: EntranceTransition & {target?:'computer'|'canvas'|'works';onSurfaceProgress?:(progress:number,rect:SurfaceRect)=>void}): Promise<OperationResult> {
+      if(failed||destroyed)return {status:'failed',code:'entrance-unavailable',retryable:true};
+      stopCamera();clearHover();zoomed=false;
+      entranceFlight=Boolean(target);entranceUpdate=onProgress;
+      const task=target==='works'?motion.start(duration,progress=>{
+        entranceProgress=progress;onProgress(progress);
+        const look=fileLibrary.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0,.4,0));
+        const position=look.clone().add(new THREE.Vector3(-1.1,2.3,3.5));
+        const amount=smooth(entranceContentProgress(progress));
+        camera.position.lerpVectors(roomPosition(),position,amount);currentLook.lerpVectors(roomLook(),look,amount);
+        camera.up.set(0,1,0);camera.lookAt(currentLook);blendEntranceCamera();
+      }):target?this.moveToSurface(target,true,duration,onSurfaceProgress??(()=>{})):
+        motion.start(duration,progress=>{poseEntrance(progress);onProgress(progress);});
+      requestDraw();const result=await task;
+      if(result.status==='completed'&&!destroyed&&!failed) {
+        finishEntrance();if(!target)setRoomCamera();requestDraw();
+      }
+      return result;
+    },
     configureJournal(book:JournalManifest,index:number,onReport:(state:BookReport)=>void,onRegion:(region:JournalRegion)=>void,onIntent:(intent:JournalIntent)=>void) {
       journalBook??=createJournalBook(renderer,scene,camera,requestDraw);
       journalBook.configure(book,onReport,onRegion,onIntent);
@@ -381,21 +467,25 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(value)canvas.setAttribute("aria-keyshortcuts","Enter Space ArrowLeft ArrowRight PageUp PageDown Escape + - 0");
       else canvas.removeAttribute("aria-keyshortcuts");
     },
-    async moveJournal(enter:boolean,duration:number): Promise<OperationResult> {
+    async moveJournal(enter:boolean,duration:number,entrance?:EntranceTransition): Promise<OperationResult> {
       if(!journalBook||failed||destroyed)return {status:"failed",code:"三维书本不可用",retryable:true};
       stopCamera();clearHover();motion.cancel("superseded");zoomed=true;
+      if(entrance){entranceFlight=true;entranceProgress=0;entranceUpdate=entrance.onProgress;}
       if(enter){
-        journalHomePosition.copy(camera.position);journalHomeLook.copy(currentLook);
+        journalHomePosition.copy(entrance?roomPosition():camera.position);journalHomeLook.copy(entrance?roomLook():currentLook);
         journalActive=true;showDiary(false);journalBook.activate(true);
       }
       const sample=(value:number)=>{
-        journalAmount=enter?value:1-value;poseJournal();
+        if(entrance){entranceProgress=value;entranceUpdate?.(value);}
+        const amount=entrance?entranceContentProgress(value):value;
+        journalAmount=enter?amount:1-amount;poseJournal();
       };
       const finish=()=>{
+        if(entrance)finishEntrance();
         if(!enter){journalActive=false;journalAmount=0;showDiary(true);journalBook?.activate(false);zoomed=false;setRoomCamera();}
         requestDraw();
       };
-      const task=motion.start(duration,sample);requestDraw();
+      const task=motion.start(entrance?.duration??duration,sample);requestDraw();
       const result=await task;
       if(result.status==="completed")finish();
       return result;
@@ -445,7 +535,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       chairFrameTime=undefined;breezeFrameTime=undefined;canopy.pause();
       drawers.forEach(drawer=>drawer.frameTime=undefined);
       gestures.reset();
-      if(!zoomed&&!motion.running)setRoomCamera();
+      if(entranceProgress===undefined&&!zoomed&&!motion.running)setRoomCamera();
       if(wasActive&&!failed&&!destroyed)render();
     },
     adjustView(action:RoomViewAction) {
@@ -457,7 +547,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setDrawerOpen(action:typeof drawerActions[number],open:boolean) {
       const drawer=drawers.find(drawer=>drawer.action===action)!;
       if(drawer.open===open)return;
-      clearHover();drawer.open=open;drawer.from=drawer.group.position.z-workspaceAppearance.drawerFront;drawer.to=drawer.open?0.85:0;
+      clearHover();drawer.open=open;drawer.from=drawer.group.position.z-workspaceAppearance.drawerFront;drawer.to=drawer.open?workspaceAppearance.drawerMaxExtension:0;
       drawer.elapsed=0;drawer.frameTime=undefined;drawer.moving=!reducedMotion.matches;
       if(!drawer.moving)drawer.group.position.z=workspaceAppearance.drawerFront+drawer.to;
       invalidateShadows();
@@ -502,17 +592,21 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       clearHover();
       const surface=target==="computer"?computerSurface:canvasSurface;
       const view=surfaceView(surface);
-      const from=enter?camera.position.clone():roomPosition();
-      const roomCamera=camera.clone();roomCamera.position.copy(from);roomCamera.lookAt(enter?currentLook:roomLook());
+      const opening=entranceFlight&&enter;
+      const from=enter&&!opening?camera.position.clone():roomPosition();
+      const roomCamera=camera.clone();roomCamera.position.copy(from);roomCamera.lookAt(opening?roomLook():enter?currentLook:roomLook());
       const via=new THREE.Vector3(0,0,1).applyQuaternion(view.rotation).multiplyScalar(Math.max(2.5,from.distanceTo(view.look)*0.65)).add(view.look);
       const {width,height}=deviceSurfaceSize(surface.geometry);
       const sample=(progress:number)=>{
+        if(opening){entranceProgress=progress;entranceUpdate?.(progress);progress=entranceContentProgress(progress);}
         // A resize during return must land on the new viewport's room framing.
         if(!enter) {from.copy(roomPosition());roomCamera.position.copy(from);roomCamera.lookAt(roomLook());}
+        if(opening){from.copy(roomPosition());roomCamera.position.copy(from);roomCamera.lookAt(roomLook());view.position.copy(surfaceView(surface).position);}
         const {align}=surfacePhases(progress);
         camera.position.fromArray(surfaceFlight(from.toArray(),via.toArray(),view.position.toArray(),view.look.toArray(),progress));
         camera.quaternion.slerpQuaternions(roomCamera.quaternion,view.rotation,align);
         currentLook.copy(progress===0?roomLook():view.look);camera.updateMatrixWorld();
+        if(opening)blendEntranceCamera();
         const a=new THREE.Vector3(-width/2,height/2,0).applyMatrix4(surface.matrixWorld).project(camera);
         const b=new THREE.Vector3(width/2,-height/2,0).applyMatrix4(surface.matrixWorld).project(camera);
         const rect=bounds.mount();
@@ -521,8 +615,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(failed||destroyed)return Promise.resolve<OperationResult>({status:"failed",code:"三维场景不可用",retryable:true});
       const task=motion.start(duration,progress=>sample(enter?progress:1-progress));requestDraw();return task;
     },
-    cancelTransition() {stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
-    dispose() {if(destroyed)return;destroyed=true;mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
+    cancelTransition() {startupVersion++;entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
+    dispose() {if(destroyed)return;destroyed=true;startupVersion++;settleNormals();mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
   };
   } catch(error) {
     disposeSafely(cleanup.reverse());

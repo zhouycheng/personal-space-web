@@ -1,4 +1,5 @@
-import { expect, test } from 'playwright/test';
+import { expect } from 'playwright/test';
+import { test } from './helpers/app';
 
 test('device entry and return keep finite camera poses throughout both flights', async ({ page }) => {
   await page.addInitScript(() => {

@@ -8,13 +8,22 @@ import { palmBounds } from '../../config/islandVegetation.ts';
  * the existing orbit vector (sin(angle), sin(elevation), cos(angle)). */
 export function islandViewDistance(aspect: number, angle: number, elevation: number, fov = 38) {
   const sy = Math.sin(elevation), norm = Math.hypot(1, sy);
+  return fitEnvelope(aspect, angle, Math.atan(sy), fov, .76, .8) / norm;
+}
+
+export function islandEntranceDistance(aspect: number, angle: number, pitch: number, occupancy: number, fov = 38) {
+  return fitEnvelope(aspect, angle, pitch, fov, occupancy, occupancy);
+}
+
+function fitEnvelope(aspect: number, angle: number, pitch: number, fov: number, verticalInset: number, horizontalInset: number) {
+  const sy = Math.sin(pitch), cy = Math.cos(pitch);
   const sa = Math.sin(angle), ca = Math.cos(angle);
-  const vertical = Math.tan(fov * Math.PI / 360) * 0.76;
-  const horizontal = Math.tan(fov * Math.PI / 360) * Math.max(0.3, aspect) * 0.8;
+  const vertical = Math.tan(fov * Math.PI / 360) * verticalInset;
+  const horizontal = Math.tan(fov * Math.PI / 360) * Math.max(0.3, aspect) * horizontalInset;
   let distance = 0;
   const fit = (x: number, y: number, z: number) => {
-    const depth = (sa*x + sy*y + ca*z) / norm;
-    const right = ca*x - sa*z, up = (-sa*sy*x + y - ca*sy*z) / norm;
+    const depth = sa*cy*x + sy*y + ca*cy*z;
+    const right = ca*x - sa*z, up = -sa*sy*x + cy*y - ca*sy*z;
     distance = Math.max(distance, depth + Math.abs(right)/horizontal, depth + Math.abs(up)/vertical);
   };
   for (let i = 0; i < 128; i++) {
@@ -37,5 +46,5 @@ export function islandViewDistance(aspect: number, angle: number, elevation: num
     for(const z of [-palm.radius,palm.radius]) fit(palm.x+x,palm.top-.35,palm.z+z-island.centerZ);
   const roof=workspace.canopy;
   for(const x of [roof.left-.7,roof.right+.7]) for(const z of [roof.back-.7,roof.front+.5]) fit(x,roof.height+.3-.35,z-island.centerZ);
-  return distance / norm;
+  return distance;
 }

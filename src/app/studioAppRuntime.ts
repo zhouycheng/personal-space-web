@@ -14,6 +14,8 @@ import { createStudioClientStore } from "../data/stores/studioClient";
 import { resolveStudioIntent, studioTargetsForIntent } from "../application/studio/resolveIntent";
 import { createDomInstances } from "../justin-kit/runtime/domInstances";
 import { activeTimeout } from "../infrastructure/client/activeDeadline";
+import { createEntranceRuntime } from './entranceRuntime';
+import { entranceCompleted } from '../infrastructure/client/entranceSession';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -28,17 +30,21 @@ function init(shell: HTMLElement) {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const events = new AbortController();
   const initialPage = pageForPath(location.pathname);
-  const model = createStudioClientStore(initialPage, studioStateForPage(initialPage));
+  const needsEntrance = !entranceCompleted() && new URLSearchParams(location.search).get('entrance') !== 'skip';
+  let pendingPage = initialPage;
+  let entrance: ReturnType<typeof createEntranceRuntime>;
+  const model = createStudioClientStore(needsEntrance ? 'home' : initialPage, needsEntrance ? 'room' : studioStateForPage(initialPage));
   let historyPending = false;
   let scene: ScenePort | undefined;
   let sceneLoading: Promise<void> | undefined;
+  let scenePrepared = false;
   let sceneBlocked=false,lightweight=false,recoveryAttempted=false;
   let stopRecovery = () => {};
   let savedScene:ReturnType<ScenePort["snapshot"]>|undefined;
   const panelController = createExplorePanel({
     studio, mount, reducedMotion: reduce, signal: events.signal,
     scene: () => scene,
-    isRoom: () => model.page === "home" && model.state === "room",
+    isRoom: () => !entrance?.covered && model.page === "home" && model.state === "room",
   });
   const panel = panelController.element;
   const explore = panelController.explore;
@@ -96,9 +102,10 @@ function init(shell: HTMLElement) {
     diagnosticText.value=diagnosticEntries.slice(-12).join("\n\n");
   }
   function sceneReady() {
-    if(disposed)return;
+    if(disposed || !scenePrepared)return;
     const restored=sceneBlocked;stopRecovery();
     sceneBlocked=false;studio.classList.remove("is-fallback");status.hidden=true;retry.hidden=true;
+    if(entrance?.covered){report();return;}
     sceneAvailability(true);scene?.setPointerEnabled(!panel.open);
     mount.dataset.renderActive=String((model.page==="home"||model.page==="journal"||isMoving())&&!document.hidden);
     report();
@@ -116,16 +123,17 @@ function init(shell: HTMLElement) {
     status.textContent = retrying?"正在恢复工作室…":error.stage==="context-lost"?"三维场景已暂停，等待恢复…":"三维场景加载失败，可在探索中重试。";
     panelStatus.textContent=status.textContent;
     retry.hidden=retrying;
-    sceneAvailability(false);openExplore();
-    if(retrying) {recoveryAttempted=true;queueMicrotask(()=>void rebuildScene());}
+    sceneAvailability(false);
+    if(entrance?.covered)entrance.failed();else openExplore();
+    if(retrying) {recoveryAttempted=true;queueMicrotask(()=>{if(entrance?.covered)void entrance.start();else void rebuildScene();});}
     else if(error.stage==="context-lost"&&!recoveryAttempted){
-      stopRecovery();stopRecovery=activeTimeout(()=>{if(sceneBlocked&&!disposed){recoveryAttempted=true;void rebuildScene();}},journalRuntime.recoveryTimeoutMs);
+      stopRecovery();stopRecovery=activeTimeout(()=>{if(sceneBlocked&&!disposed){recoveryAttempted=true;if(entrance?.covered)void entrance.start();else void rebuildScene();}},journalRuntime.recoveryTimeoutMs);
     }
   }
   async function rebuildScene(restoreJournal=true) {
     await sceneLoading;
     if(disposed)return;
-    stopRecovery();savedScene=model.targets;scene?.dispose();scene=undefined;
+    stopRecovery();savedScene=model.targets;scene?.dispose();scene=undefined;scenePrepared=false;
     sceneBlocked=false;
     retry.hidden=true;status.hidden=false;status.textContent="正在恢复工作室…";
     await loadScene();
@@ -141,6 +149,20 @@ function init(shell: HTMLElement) {
   try {osHintShown=localStorage.getItem('justin-os-return-hint')==='seen';}catch {}
   shell.querySelector('[data-os-hint-close]')!.addEventListener('click',()=>{osHint.hidden=true;},{signal:events.signal});
   function sync() {
+    if(entrance?.blocking) {
+      shell.dataset.entrance=entrance.playing?'playing':'preparing';
+      closeExplore(false,true);clearInterval(clock);scene?.setPointerEnabled(false);
+      studio.inert=true;studio.style.visibility='';
+      shell.querySelectorAll<HTMLElement>('.app-page').forEach(el=>{
+        el.classList.toggle('is-active',el.id==='page-home'||(pendingPage==='canvas'&&el===personalCanvas)||(entrance.playing&&pendingPage==='works'&&el.id==='page-works'));el.inert=true;
+      });
+      desktop.inert=true;desktop.setAttribute('aria-hidden','true');
+      shell.querySelector<HTMLElement>('.app-dock')!.hidden=true;
+      scene?.setActive(entrance.playing&&!document.hidden);
+      return;
+    }
+    if(entrance?.covered)shell.dataset.entrance='refresh';
+    else delete shell.dataset.entrance;
     studio.querySelector('[data-studio-action="lamp"]')?.setAttribute('aria-checked',String(model.targets.lampOn));
     panel.querySelectorAll<HTMLButtonElement>('[data-studio-clock]').forEach(option=>option.setAttribute('aria-pressed',String((option.dataset.studioClock==='date')===model.targets.showDate)));
     model.targets.drawers.forEach((open,index)=>{
@@ -185,7 +207,7 @@ function init(shell: HTMLElement) {
     });
     if(model.page!=='journal')document.title = PAGE_TITLES[model.page];
     scene?.setActive((home || journalVisible || isMoving()) && !document.hidden);
-    if (home || journalVisible || isMoving() || model.page === "works") void loadScene();
+    if (!entrance?.covered && (home || journalVisible || isMoving() || model.page === "works")) void loadScene();
     clearInterval(clock);
     if ((home || isMoving() || osOpen) && !document.hidden) {
       const tick = () => {
@@ -195,16 +217,31 @@ function init(shell: HTMLElement) {
       tick(); clock = window.setInterval(tick, 1000);
     }
   }
-  function loadScene() {
+  function loadScene(onProgress: (value:number)=>void = ()=>{}, prepareForEntrance = false) {
     if (sceneLoading) return sceneLoading;
     if(scene||sceneBlocked||disposed)return Promise.resolve();
-    sceneLoading = import("../presentation/scene/studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(({ createStudioScene }) => {
+    sceneLoading = import("../presentation/scene/studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(async ({ createStudioScene }) => {
       if (disposed) return;
+      onProgress(1/5);
+      scenePrepared=false;
       scene = createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand);
       scene.restore(savedScene??model.targets);
-      scene.setPointerEnabled(!panel.open);
+      scene.setPointerEnabled(!entrance?.covered&&!panel.open);
       updateLighting();
-      // First-frame success owns availability and subsequent background suspension.
+      const current=scene;
+      if(prepareForEntrance) {
+        onProgress(2/5);
+        const result=await current.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress});
+        if(disposed||scene!==current)return;
+        scenePrepared=result.status==='completed';
+        if(scenePrepared)sceneReady();
+      } else {
+        // Normal direct navigation keeps its existing first-draw startup. Only
+        // the cloud-covered entrance/refresh path needs the explicit warmup.
+        scenePrepared=true;
+        if(model.page==='home'||model.page==='journal'||isMoving())current.setActive(!document.hidden);
+        else sceneReady();
+      }
     }).catch(error=>sceneFailed(studioFailure(error,"initialization"))).finally(()=>{sceneLoading=undefined;});
     return sceneLoading;
   }
@@ -221,6 +258,11 @@ function init(shell: HTMLElement) {
     void applyRoute(next);
   }
   async function applyRoute(next: AppPage) {
+    if(entrance?.covered){
+      pendingPage=next;
+      if(entrance.blocking){transition++;scene?.cancelTransition();void entrance.start();}
+      return;
+    }
     closeExplore(false,true);
     const from = model.page;
     const animate = !isMoving() && ((from === "home" && (next === "os" || next === "canvas")) || (next === "home" && (from === "os" || from === "canvas")));
@@ -269,7 +311,7 @@ function init(shell: HTMLElement) {
     else (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
   }
   async function act(action: StudioAction) {
-    if (model.page !== "home" || model.state !== "room") return;
+    if (entrance?.covered || model.page !== "home" || model.state !== "room") return;
     const command = resolveStudioIntent(action);
     if (command.kind === "navigate") { navigate(command.page); return; }
     if (action === "chair") { scene?.spinChair(reduce.matches); return; }
@@ -329,16 +371,74 @@ function init(shell: HTMLElement) {
     if (!event.persisted) return;
     historyPending=false;
     const restoredPage=pageForPath(location.pathname);
-    if(restoredPage!==model.page)void applyRoute(restoredPage);else sync();
+    const currentPage=entrance?.covered?pendingPage:model.page;
+    if(restoredPage!==currentPage)void applyRoute(restoredPage);else sync();
   }, { signal: events.signal });
-  // URL, not an old tab-wide session flag, determines refresh and deep-link state.
-  history.replaceState({ ...history.state, justinPage: model.page }, "", (model.page==='journal'?location.pathname:pathForPage(model.page)) + location.search + location.hash);
+  entrance=createEntranceRuntime(shell.querySelector<HTMLElement>('[data-cloud-entrance]')!,{
+    reducedMotion:reduce,
+    cancel:()=>{
+      mount.style.removeProperty('--entrance-blur');shell.style.removeProperty('--entrance-content-opacity');
+      delete shell.dataset.entranceTarget;clearProjection();scene?.cancelTransition();
+    },
+    sync,
+    async prepare(onProgress) {
+      await sceneLoading;
+      journal.deactivate();clearProjection();model.state='room';delete shell.dataset.entranceTarget;
+      if(sceneBlocked){scene?.dispose();scene=undefined;scenePrepared=false;sceneBlocked=false;}
+      // Preload only the requested content; documents and journal pages stay lazy.
+      const targetModule=pendingPage==='canvas'?import('../presentation/ui/canvas/MineCanvasEditor'):Promise.resolve();
+      const progress=(value:number)=>onProgress(Math.min(value,4/5));
+      const startup=scenePrepared?Promise.resolve():scene?(async()=>{
+        progress(2/5);updateLighting();
+        const result=await scene!.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress:progress});scenePrepared=result.status==='completed';
+      })():loadScene(progress,true);
+      await Promise.all([targetModule,startup]);
+      if(scenePrepared&&!sceneBlocked)onProgress(1);
+      return scenePrepared&&!sceneBlocked?{status:'completed',value:undefined}:{status:'failed',code:'startup',retryable:true};
+    },
+    async play(duration,onProgress) {
+      if(!scene)return {status:'failed',code:'scene-missing',retryable:true};
+      const reveal=(progress:number)=>{
+        onProgress(progress);
+        const t=Math.max(0,Math.min(1,(progress-.19)/.26));
+        mount.style.setProperty('--entrance-blur',`${reduce.matches?0:3.5*(1-t*t*(3-2*t))}px`);
+      };
+      shell.dataset.entranceTarget=pendingPage;
+      if(pendingPage==='works') {
+        sync();
+        return scene.playEntrance({duration,target:'works',onProgress:progress=>{
+          reveal(progress);shell.style.setProperty('--entrance-content-opacity',String(Math.max(0,Math.min(1,(progress-.84)/.16))));
+        }});
+      }
+      if(pendingPage==='journal') {
+        prepareJournalTargets();model.state='entering-journal';
+        await journal.enter(location.pathname+location.hash,0,{duration,onProgress:reveal});
+        return journal.ready?{status:'completed',value:undefined}:{status:'failed',code:'journal-startup',retryable:true};
+      }
+      if(pendingPage==='os'||pendingPage==='canvas') {
+        const target=pendingPage==='os'?'computer':'canvas';
+        model.state=target==='computer'?'entering':'entering-canvas';
+        const surface=target==='computer'?desktop:personalCanvas;
+        beginSurfaceProjection(surface,true);
+        return scene.playEntrance({duration,onProgress:reveal,target,onSurfaceProgress:(progress,rect)=>updateSurfaceProjection(surface,progress,rect)});
+      }
+      return scene.playEntrance({duration,onProgress:reveal});
+    },
+    complete(){
+      sceneAvailability(true);scene?.setPointerEnabled(!panel.open);delete shell.dataset.entrance;delete shell.dataset.entranceTarget;
+      model.page=pendingPage;model.state=studioStateForPage(pendingPage);clearProjection();sync();focusRoute();
+      shell.style.removeProperty('--entrance-content-opacity');
+      mount.style.removeProperty('--entrance-blur');
+    },
+  });
+  history.replaceState({ ...history.state, justinPage: initialPage }, "", (initialPage==='journal'?location.pathname:pathForPage(initialPage)) + location.search + location.hash);
   sync();
-  if(model.page==='journal'){prepareJournalTargets();void loadScene().then(()=>{if(!disposed&&model.page==='journal')return journal.enter(location.pathname+location.hash,0);});}
+  if(entrance.covered)void entrance.start();
+  else if(model.page==='journal'){prepareJournalTargets();void loadScene().then(()=>{if(!disposed&&model.page==='journal')return journal.enter(location.pathname+location.hash,0);});}
   function dispose() {
     if(disposed)return;
     disposed=true;transition++;clearInterval(clock);stopRecovery();events.abort();
-    for(const cleanup of [()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
+    for(const cleanup of [()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}
     }

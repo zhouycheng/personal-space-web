@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 
 test("studio intent navigates through OS and browser history without a stale transition", async ({ page, isMobile }) => {
   test.skip(isMobile, "Desktop pointer transition is covered here");
