@@ -6,7 +6,7 @@
 .studio-scene canvas[hidden] {display:none}
 .studio-loading {position:absolute;top:48%;width:100%;text-align:center;color:inherit;font-size:14px}
 .studio-tooltip {position:absolute;pointer-events:none;z-index:3;padding:4px 0;color:#fff;font:500 14px var(--sans);letter-spacing:.04em;white-space:nowrap}
-.studio-signature {position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:0;right:0;margin:0;text-align:center;font:16px var(--mono);letter-spacing:3px;pointer-events:none}
+.studio-signature {position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:0;right:0;margin:0;text-align:center;transform:none;rotate:0deg;white-space:nowrap;font:16px var(--mono);font-style:normal;letter-spacing:3px;pointer-events:none}
 .studio:not([data-state="room"]) .studio-signature {visibility:hidden}
 .studio-explore {position:absolute;bottom:max(80px,calc(env(safe-area-inset-bottom) + 56px));left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;flex-direction:column;width:280px}
 .studio-explore-trigger {display:flex;align-items:center;justify-content:center;gap:10px;width:144px;min-height:48px;border:0;border-radius:999px;background:#52614e;color:#fff;font-size:15px;box-shadow:0 3px 10px #52614e15}

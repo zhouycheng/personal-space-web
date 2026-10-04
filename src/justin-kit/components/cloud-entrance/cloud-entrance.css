@@ -1,6 +1,6 @@
 .cloud-entrance {
   position: fixed; inset: 0; z-index: 1000; overflow: hidden; isolation: isolate;
-  background: var(--cloud-entrance-background, #c6d0d2); color: var(--cloud-entrance-foreground, #657a80); font-family: ui-sans-serif, system-ui, sans-serif;
+  background: var(--cloud-entrance-background, var(--environment-background, #c6d0d2)); color: var(--cloud-entrance-foreground, var(--environment-foreground, #657a80)); font-family: ui-sans-serif, system-ui, sans-serif;
   --cloud-progress: 0%; touch-action: manipulation;
 }
 .cloud-entrance[hidden] { display: none; }

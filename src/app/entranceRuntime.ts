@@ -4,6 +4,7 @@ import type { OperationResult } from '../contracts/operation';
 import { ENTRANCE_DURATION } from '../animation/studio/entranceMotion';
 import type { StartupProgress,StartupStage } from '../contracts/startup';
 import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
+import type { EnvironmentPalette } from '../contracts/environment';
 
 const stageLabels:Record<StartupStage,string>={module:'正在加载场景',geometry:'正在布置小岛',texture:'正在准备海面与材质',shader:'正在预热光影','first-frame':'正在准备首帧',ready:'准备完成'};
 
@@ -14,13 +15,14 @@ export function createEntranceRuntime(root: HTMLElement, options: {
   sync(): void;
   complete(): void;
   reducedMotion: MediaQueryList;
+  palette: EnvironmentPalette;
 }) {
   const skipped = new URLSearchParams(location.search).get('entrance') === 'skip';
   let blocking = !entranceCompleted() && !skipped;
   let covered = !skipped && (blocking || isReloadNavigation());
   let playing = false, ready = false, disposed = false, version = 0;
   const cloudStart=performance.now();
-  const view = covered ? createCloudEntrance(root, enter, () => void start()) : undefined;
+  const view = covered ? createCloudEntrance(root, enter, () => void start(), options.palette) : undefined;
   const cloudCpu=performance.now()-cloudStart;
   const lifetime=new AbortController();
   root.hidden = !covered;
@@ -82,6 +84,7 @@ export function createEntranceRuntime(root: HTMLElement, options: {
     get covered() { return covered; },
     get playing() { return playing; },
     start, failed,
+    setPalette(palette:EnvironmentPalette) { view?.setPalette(palette); },
     dispose() { disposed = true; version++; lifetime.abort(); options.cancel(); view?.dispose(); },
   };
 }

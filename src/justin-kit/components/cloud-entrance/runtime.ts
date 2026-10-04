@@ -10,14 +10,14 @@ function setPaletteStyles(root:HTMLElement, palette:ReturnType<typeof entranceTi
   root.style.setProperty('--cloud-entrance-focus', paletteHex(palette.focus));
 }
 
-export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRetry: () => void) {
+export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRetry: () => void, initialPalette?:ReturnType<typeof entranceTimePalette>) {
   const canvas = root.querySelector<HTMLCanvasElement>('[data-cloud-canvas]')!;
   const context = canvas.getContext('2d');
   const status = root.querySelector<HTMLElement>('[data-cloud-status]')!;
   const error = root.querySelector<HTMLElement>('[data-cloud-error]')!;
   const events = new AbortController();
   const field=createFogField();
-  let palette=entranceTimePalette(new Date());
+  let palette=initialPalette??entranceTimePalette(new Date());
   setPaletteStyles(root,palette);
   const surface = document.createElement('canvas');
   const underneath = document.createElement('canvas');
@@ -66,6 +66,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     lastReveal = reveal;
   }
   function updatePalette() {
+    if(initialPalette||disposed||document.hidden||root.hidden)return;
     const next=entranceTimePalette(new Date());
     if(JSON.stringify(next)===JSON.stringify(palette))return;
     palette=next;setPaletteStyles(root,palette);bake();requestPaint();
@@ -109,7 +110,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     width = Math.max(1, Math.round(rect.width * scale)); height = Math.max(1, Math.round(rect.height * scale));
     canvas.width = width; canvas.height = height; bake(); requestPaint();
   }
-  const paletteTimer=window.setInterval(updatePalette,60_000);
+  const paletteTimer=initialPalette?undefined:window.setInterval(updatePalette,60_000);
   const observer = new ResizeObserver(resize); observer.observe(root); resize();
   function excluded(target: EventTarget | null) { return target instanceof Element && Boolean(target.closest('a,button,input,textarea,select,[contenteditable],[data-cloud-no-enter]')); }
   root.addEventListener('pointermove', event => {
@@ -136,6 +137,10 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; previous = 0; if (document.hidden) dismissal?.pause(); }, { signal: events.signal });
   window.addEventListener('pageshow', () => { updatePalette(); requestPaint(); }, { signal: events.signal });
   return {
+    setPalette(next:ReturnType<typeof entranceTimePalette>) {
+      if(disposed||root.hidden||JSON.stringify(next)===JSON.stringify(palette))return;
+      palette=next;setPaletteStyles(root,palette);bake();requestPaint();
+    },
     setState(value: CloudState, message?: string) {
       state = value; root.dataset.state = value; root.setAttribute('aria-busy', String(value === 'loading'));
       root.inert = value === 'revealing' || value === 'dismissing';

@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { siteIdentity } from '../../../data/repositories/siteIdentity';
+import environmentBootstrap from 'virtual:environment-bootstrap';
 
 type Props = {
   title?: string;
@@ -21,6 +22,7 @@ const {
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    <script is:inline set:html={environmentBootstrap} />
   </head>
   <body>
     <slot />

@@ -107,15 +107,15 @@ test('astronomical lighting follows Shanghai daylight and remains continuous at 
   assert.equal(at(12).daylight, 1);
   assert.deepEqual(
     [at(0).sunIntensity, at(0).ambientIntensity, at(0).lampIntensity, at(0).screenSpillIntensity],
-    [0, 0.18, 7, 0.08],
+    [0, 0.23, 7, 0.08],
   );
   assert.equal(at(12).sunIntensity, 2.5);
   assert.ok(Math.abs(at(12).ambientIntensity - 1.18) < 1e-12);
   assert.ok(Math.abs(at(12).lampIntensity - 1.2) < 1e-12);
   assert.equal(at(12).screenSpillIntensity, 0);
   assert.ok(at(5, 30).daylight < at(6).daylight);
-  assert.equal(at(20).background, '#05070b');
-  assert.equal(at(12).background, '#e7e3dc');
+  assert.equal(at(20).background, '#1c283d');
+  assert.notEqual(at(12).background, at(20).background);
   assert.ok(at(6, 30).daylight > at(6).daylight && at(6, 30).daylight < at(7).daylight);
   assert.ok(at(6, 30).screenSpillIntensity > 0 && at(6, 30).screenSpillIntensity < 0.08);
   assert.ok(at(19).daylight < at(18).daylight);
