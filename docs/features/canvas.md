@@ -24,7 +24,7 @@
 
 - `MineCanvasLoader.tsx` 首次进入时加载重组件。离页立即暂停活动订阅、尺寸观察与输入；离开 60 秒后卸载编辑器。再次进入按内存中的视角和卡片位置恢复，持久化范围仍只有卡片位置。
 - `canvasSession.ts` 描述加载器持有的内存状态；`canvasActivityContext.ts` 将活动状态传给卡片。后台和 BFCache 挂起时暂停副作用，恢复时重新判断路由。
-- `MineCanvasEditor.tsx` 每次挂载只读取一次保存的位置。节点索引和边派生按节点变化重算；`CanvasViewControls.tsx` 单独订阅缩放值，缩放标签更新不重新派生卡片与边。
+- `MineCanvasEditor.tsx` 每次挂载只读取一次保存的位置。`derivedEdges.ts` 维护节点索引和邻接关系，只重算位置或尺寸变化节点关联的端点；未改变的连线复用对象。`CanvasViewControls.tsx` 单独订阅缩放值，缩放标签更新不重新派生卡片与边。
 - 卡片拖动结束后才写入位置。坏数据单项回退，写入失败仍保留当前页面会话中的位置。恢复默认布局清除位置覆盖并重新适配内容。
 
 `tests/e2e/ui-lifecycle.spec.ts` 检查离页连接关闭、闲置卸载、视角恢复和位置存储边界。定量对比使用 `scripts/ui-performance-measure.mjs`；原始测量与冻结预算保存在 `.workspace/remediation/ui-probes/`。
