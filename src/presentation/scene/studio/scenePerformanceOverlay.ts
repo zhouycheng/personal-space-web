@@ -12,9 +12,8 @@ type Snapshot = SceneDetails & {
   platform:string; cores:number; memory:number|undefined;
 };
 
-// Keep this true so agent development builds always show diagnostics.
-// Production builds ignore this pin and use the modifier + lower-left hot corner.
-const ALWAYS_VISIBLE_IN_DEV = true;
+// Keep the overlay hidden by default in development and production builds.
+const ALWAYS_VISIBLE_IN_DEV = false;
 const HOT_CORNER_SIZE = 56;
 const WINDOW_MS = 5000;
 const MAX_FRAME_GAP_SAMPLE_MS = 250;
@@ -26,7 +25,7 @@ export function createScenePerformanceOverlay(options:{canvas:HTMLCanvasElement;
   const mac=/Macintosh|Mac OS X/.test(userAgent);
   const platform=/Macintosh|Mac OS X/.test(userAgent)?'macOS':/iPhone|iPad/.test(userAgent)?'iOS/iPadOS':/Windows/.test(userAgent)?'Windows':/Android/.test(userAgent)?'Android':/Linux/.test(userAgent)?'Linux':'unknown';
   const navigatorDetails=navigator as Navigator&{deviceMemory?:number};
-  let visible=pinned,armed=false,insideCorner=false,observer:PerformanceObserver|undefined,timer=0;
+  let visible:boolean=pinned,armed=false,insideCorner=false,observer:PerformanceObserver|undefined,timer=0;
   let chordDown=false,lastFrameTime:number|undefined,pendingInputTime:number|undefined;
   const frames:Sample[]=[],inputLatency:number[]=[],longTasks:number[]=[],errors:string[]=[];
   const shadowLights:string[]=[],leafMeshes:THREE.Mesh[]=[];
@@ -42,8 +41,7 @@ export function createScenePerformanceOverlay(options:{canvas:HTMLCanvasElement;
   const heading=document.createElement('div');
   heading.style.cssText='display:flex;justify-content:space-between;gap:12px;padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid rgba(151,198,156,.3);font-weight:700;color:#f4fff4;';
   const title=document.createElement('span');title.textContent='SCENE PERFORMANCE';
-  const mode=document.createElement('span');mode.style.color='#a6d8a8';mode.textContent=pinned?'DEV · 常驻':'HOT CORNER';
-  heading.append(title,mode);
+  heading.append(title);
   const content=document.createElement('pre');
   content.style.cssText='margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;color:inherit;';
   root.append(heading,content);root.hidden=true;document.body.append(root);
@@ -88,7 +86,6 @@ export function createScenePerformanceOverlay(options:{canvas:HTMLCanvasElement;
       `shadows ${snapshot.shadowEnabled?'on':'off'}   ${snapshot.shadowLights.join(', ')||'no shadow lights'}`,
       `leaf LOD ${snapshot.leafLevels.join('/')} / ${snapshot.leafMeshes}   resources ${snapshot.geometries} geometries / ${snapshot.textures} textures`,
       `errors ${snapshot.errors.length?snapshot.errors.slice(-2).join(' | '):'none'}   GPU execution time unavailable (CPU submission only)`,
-      pinned?'Agent development · ALWAYS_VISIBLE_IN_DEV = true':`${mac?'⌘':'Ctrl'}+Shift + move to the lower-left corner to toggle`,
     ].join('\n');
   }
   function startObservers(){
