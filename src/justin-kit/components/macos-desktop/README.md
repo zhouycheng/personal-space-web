@@ -68,6 +68,8 @@ public/os-desktop/
 
 `MacOsDesktop.astro` 只输出桌面结构；`runtime/desktopRuntime.js` 组装每个桌面实例和显示设置，`desktopIconLayout.js` 管理图标位置与碰撞，`desktopIconInteraction.js` 处理框选和拖动，`desktopWindowController.js` 管理窗口生命周期。`desktopContent.js` 渲染文件内容，`windowFrames.js` 与 `windowGestures.js` 处理窗体几何和手势，`desktopPersistence.js` 负责浏览器本地设置和图标位置。
 
+窗口拖动按帧合并输入，途中使用独立 CSS `translate`，保留现有 transform 动画；抬手提交最终 left/top，取消或暂停时提交已显示的位置并恢复样式。窗口缩放仍更新实际尺寸。共享 DOM 实例注册器首次扫描全页，之后只扫描新增子树；同一批变更中的节点搬移不销毁并重建实例。
+
 宿主如需为菜单或其他覆盖层留出图标空间，可在 `.macos-desktop` 上设置 `--macos-icon-safe-top` 和 `--macos-icon-safe-bottom`。组件只读取自己的图标层内边距，不依赖宿主的菜单或导航 DOM。样式分别位于 `macos-icons.css`、`macos-content.css` 和 `macos-display-controls.css`。
 - 重叠的图标通过 FLIP 弹跳动画推开。
 - 背景挂载 `symbol-dome-background`，在图标、窗口和菜单下方绘制符号半球。
