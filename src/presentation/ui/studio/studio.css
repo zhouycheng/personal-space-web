@@ -77,7 +77,7 @@
 .alpha-shell [data-os-fullscreen].is-settled {--projection-opacity:1}
 .alpha-shell #page-home {overflow:hidden;transform:none;filter:none;background:transparent}
 .alpha-shell.is-gallery-active {background:#171f23}
-.alpha-shell #page-works {background:transparent;z-index:3}
+.alpha-shell #page-works {background:transparent;z-index:3;filter:none}
 .alpha-shell.is-gallery-active #page-home {pointer-events:none;filter:blur(4px)}
 .alpha-shell.is-gallery-active .studio-signature,.alpha-shell.is-gallery-active .studio-explore {visibility:hidden}
 .alpha-shell .studio-canvas-open {z-index:58;filter:none;transition:none;transform:none}
