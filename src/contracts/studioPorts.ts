@@ -16,6 +16,8 @@ export type StudioLighting = {
   lampIntensity: number;
   screenSpillIntensity: number;
   sunDirection: readonly [number, number, number];
+  moonDirection: readonly [number, number, number];
+  moonIntensity: number;
   zenith: number;
   horizon: number;
   sunset: number;
