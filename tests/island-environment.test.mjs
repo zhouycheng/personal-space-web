@@ -85,7 +85,7 @@ test('water pauses without catching up hidden time; environment resources belong
   assert.equal(water.material.uniforms.time.value,.02);
   environment.pause();environment.tick(400000,true);
   assert.equal(water.material.uniforms.time.value,.02);
-  environment.setLighting(studioLighting(new Date(2026,9,3,23)));
+  environment.setLighting(studioLighting(new Date(Date.UTC(2026,9,3,15))));
   assert.equal(water.material.uniforms.daylight.value,0);
   const sky=environment.group.getObjectByName('island-sky');
   assert.equal(sky.material.uniforms.sunDirection,water.material.uniforms.sunDirection);
