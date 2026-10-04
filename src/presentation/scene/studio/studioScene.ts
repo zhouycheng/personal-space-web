@@ -53,6 +53,11 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   canvas.tabIndex = -1;
   mount.append(canvas);
   const scene = new THREE.Scene();
+  const threeDevtools=(window as Window&{__THREE_DEVTOOLS__?:EventTarget}).__THREE_DEVTOOLS__;
+  if(threeDevtools instanceof EventTarget){
+    threeDevtools.dispatchEvent(new CustomEvent('observe',{detail:renderer}));
+    threeDevtools.dispatchEvent(new CustomEvent('observe',{detail:scene}));
+  }
   const room = new THREE.Group(); scene.add(room);
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 900);
   const focus = new THREE.Vector3(0, 0.35, islandAppearance.centerZ);
