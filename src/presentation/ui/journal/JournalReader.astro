@@ -16,7 +16,9 @@ const selected = journal.articles.find(a => a.slug === Astro.props.slug) ?? jour
     <output data-journal-progress aria-live="polite">—</output>
     <button class="journal-retry" data-journal-retry hidden>重试书页</button>
   </footer>
-  <p class="journal-hint" data-journal-hint>拖动旋转 · 点击封面打开</p>
+  <button class="journal-side journal-side-left" data-journal-direction="-1" aria-label="向左阅读" hidden>‹</button>
+  <button class="journal-side journal-side-right" data-journal-direction="1" aria-label="向右阅读" hidden>›</button>
+  <p class="journal-hint" data-journal-hint>点击封面打开 · 拖动调整视角</p>
   <dialog class="journal-image" data-journal-image aria-label="查看插图"><button data-journal-image-close aria-label="关闭图片">×</button><img alt=""/></dialog>
   <script type="application/json" data-journal-manifest set:html={JSON.stringify(journal).replace(/</g,"\\u003c")} />
 </section>

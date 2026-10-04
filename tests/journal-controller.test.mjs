@@ -50,9 +50,9 @@ test('invalid articles and unavailable packages cannot enter the renderer',async
   const h=harness();await h.controller.enter({slug:'removed'},0);
   assert.equal(h.controller.$session.get().availability,'error');assert.deepEqual(h.calls,[]);
 });
-test('ordinary entry observes a closed book while explicit anchors open the chosen article',async()=>{
+test('entry opens the desktop book and explicit anchors select the chosen article',async()=>{
   const plain=harness();await plain.controller.enter({},0);
-  assert.equal(plain.controller.$session.get().phase,'observing');assert.equal(plain.calls.some(([kind])=>kind==='open'),false);
+  assert.equal(plain.controller.$session.get().phase,'reading');assert.equal(plain.calls.some(([kind])=>kind==='open'),true);
   const linked=harness();await linked.controller.enter({slug:'first',anchor:'two'},0);
   assert.equal(linked.calls[0][1],1);assert.deepEqual(linked.calls.at(-1),['open',true]);
   assert.equal(linked.controller.$session.get().phase,'reading');
@@ -124,5 +124,5 @@ test('synchronous book initialization failure exposes an exit and a working retr
   h.controller.escape();assert.deepEqual(h.calls.at(-1),['exit']);
   h.scene.configureJournal=configure;await h.controller.retry();
   assert.equal(h.controller.$session.get().availability,'ready');
-  assert.equal(h.controller.$session.get().phase,'observing');
+  assert.equal(h.controller.$session.get().phase,'reading');
 });

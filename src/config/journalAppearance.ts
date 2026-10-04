@@ -1,4 +1,4 @@
-// Shared by the drawer model and the full-size reading shell.
+// Shared by the desktop book and its reading geometry.
 export const journalAppearance = {
   cover: 0x34465d,
   coverCss: "#34465d",
