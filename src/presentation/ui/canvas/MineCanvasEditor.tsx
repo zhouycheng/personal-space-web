@@ -6,7 +6,7 @@ import { getPublishedCanvas } from '../../../data/repositories/canvas';
 import type { FlowNode as MineCanvasNode, FlowEdge as MineCanvasEdge } from './flowTypes';
 import { CanvasCardContent } from './CanvasCardContent';
 import { MineCanvasEdgeComponent } from './MineCanvasEdge';
-import { inferHandlePair } from '../../interaction/canvas/mineCanvasGeometry';
+import { createEdgeDeriver } from './derivedEdges';
 import { applyPositions, parsePositions, POSITION_KEY, type Positions } from '../../../infrastructure/client/canvasPositions';
 import type { CanvasSession } from './canvasSession';
 import { CanvasViewControls } from './CanvasViewControls';
@@ -36,15 +36,8 @@ export default function MineCanvasEditor({ active, session }: { active: boolean;
   const contentButton = useRef<HTMLButtonElement>(null), sidebar = useRef<HTMLElement>(null);
   const dragging = useRef(false);
   const dragTimer = useRef(0);
-  const nodeById = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
-  const edges: MineCanvasEdge[] = useMemo(() => mineCanvasSeed.edges.map(edge => {
-    const source = nodeById.get(edge.source), target = nodeById.get(edge.target);
-    const pair = source && target ? inferHandlePair(
-      { x: source.position.x + source.data.width / 2, y: source.position.y + source.data.height / 2 },
-      { x: target.position.x + target.data.width / 2, y: target.position.y + target.data.height / 2 },
-    ) : { sourceHandle: 'right', targetHandle: 'left' };
-    return { ...edge, ...pair, selectable: false, reconnectable: false };
-  }), [nodeById]);
+  const [deriveEdges]=useState(()=>createEdgeDeriver(mineCanvasSeed.edges));
+  const {nodeById,edges}=useMemo(()=>deriveEdges(nodes),[nodes,deriveEdges]);
   const fit = useCallback(() => { void instance?.fitView({ padding: .18, duration: duration(), minZoom: .08, maxZoom: 1 }); }, [instance]);
   useEffect(() => {
     if (!active || !instance || !wrap.current) return;
