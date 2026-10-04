@@ -10,6 +10,7 @@ import JournalReader from "../journal/JournalReader.astro";
 import { journal } from "../../../infrastructure/server/journal";
 import { siteIdentity } from '../../../data/repositories/siteIdentity';
 import { articleTitle } from '../../../data/selectors/siteIdentity';
+import CloudEntrance from '../../../justin-kit/components/cloud-entrance/CloudEntrance.astro';
 type Props = { initialPage?: AppPage; journalSlug?: string };
 const { initialPage = "home", journalSlug } = Astro.props;
 const activePage = isAppPage(initialPage) ? initialPage : "home";
@@ -17,7 +18,27 @@ const entries = await getMacOsDesktopEntries();
 const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journalSlug)??journal.articles.at(-1) : undefined;
 ---
 <BaseLayout title={article?articleTitle(siteIdentity, article.title):PAGE_TITLES[activePage]} description={article?.description}>
-  <main class:list={["app-shell", "alpha-shell", activePage === "home" && "is-home-active",activePage==='journal'&&'is-journal-active']} data-initial-page={activePage} aria-label={siteIdentity.brand}>
+  <main class:list={["app-shell", "alpha-shell", activePage === "home" && "is-home-active",activePage==='journal'&&'is-journal-active']} data-initial-page={activePage} data-entrance="preparing" aria-label={siteIdentity.brand}>
+    <CloudEntrance>
+      <Fragment slot="fallback"><a href="/works?entrance=skip">作品</a><a href="/canvas?entrance=skip">画布</a><a href="/os?entrance=skip">OS</a></Fragment>
+    </CloudEntrance>
+    <script is:inline>
+      // A completed tab only uses the automatic cloud cover on a browser refresh.
+      const shell = document.currentScript.closest('main');
+      try {
+        const navigation = performance.getEntriesByType('navigation')[0];
+        const cloud = shell.querySelector('[data-cloud-entrance]');
+        if (sessionStorage.getItem('justin-entrance-completed') === '1' && navigation?.type === 'reload') {
+          cloud.dataset.loadingText = '正在布置工作室…';
+          cloud.querySelector('[data-cloud-status]').textContent = '正在布置工作室…';
+          shell.dataset.entrance = 'refresh';
+        } else if (sessionStorage.getItem('justin-entrance-completed') === '1') {
+          cloud.hidden = true;
+          shell.removeAttribute('data-entrance');
+        }
+      } catch {}
+      if (new URLSearchParams(location.search).get('entrance') === 'skip') shell.removeAttribute('data-entrance');
+    </script>
     <div class="app-content">
       <section id="page-home" class:list={["app-page", activePage === "home" && "is-active"]} aria-label="工作室"><InteractiveStudio /></section>
       <section id="page-works" class:list={["app-page", activePage === "works" && "is-active"]} aria-label="文件夹"><StudioPortfolio /></section>
@@ -42,3 +63,17 @@ const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journ
   </main>
   <script>import "../../../app/studioAppRuntime";</script>
 </BaseLayout>
+
+<style is:global>
+  .alpha-shell:not([data-entrance]) > .cloud-entrance { display: none; }
+  .alpha-shell[data-entrance]:not([data-entrance="refresh"]) .app-page { transition: none; }
+  .alpha-shell[data-entrance]:not([data-entrance="refresh"]) #page-home { visibility: visible; opacity: 1; transform: none; filter: none; z-index: 1; }
+  .alpha-shell[data-entrance]:not([data-entrance="refresh"]) .app-page:not(#page-home),
+  .alpha-shell[data-entrance]:not([data-entrance="refresh"]) .os-fullscreen-projection { visibility: hidden; opacity: 0; pointer-events: none; }
+  .alpha-shell[data-entrance] .studio { visibility: visible !important; }
+  .alpha-shell[data-entrance-target="os"] .os-fullscreen-projection.studio-projecting,
+  .alpha-shell[data-entrance-target="canvas"] #page-canvas.studio-projecting { visibility: visible; opacity: unset; z-index: 58; }
+  .alpha-shell[data-entrance-target="works"] #page-works { visibility: visible; opacity: var(--entrance-content-opacity,0); z-index: 58; }
+  .alpha-shell[data-entrance="playing"] [data-studio-scene] canvas { filter: blur(var(--entrance-blur,0px)); }
+  .alpha-shell[data-entrance] :is(.studio-signature,.studio-loading,.studio-hint,[data-studio-explore]) { visibility: hidden; }
+</style>

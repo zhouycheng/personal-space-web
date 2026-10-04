@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "playwright/test";
+import { expect, type Page } from "playwright/test";
+import { test } from './helpers/app';
 import { bookCanvas, longBook, phase, visual } from "./helpers/journal";
 
 async function drawerPanel(page: Page) {

@@ -23,14 +23,17 @@ export type StudioLighting = {
   sunset: number;
 };
 export type SurfaceRect = { left: number; top: number; width: number; height: number };
+export type EntranceTransition = { duration:number; onProgress:(progress:number)=>void };
 
 export interface TransitionPort {
   moveToSurface(target: "computer" | "canvas", enter: boolean, duration: number, update: (progress: number, rect: SurfaceRect) => void): Promise<OperationResult>;
-  moveJournal(enter: boolean, duration: number): Promise<OperationResult>;
+  moveJournal(enter: boolean, duration: number, entrance?: EntranceTransition): Promise<OperationResult>;
   cancelTransition(): void;
 }
 
 export interface ScenePort extends TransitionPort {
+  prepareStartup(options: { entrance: boolean; onProgress: (progress: number) => void }): Promise<OperationResult>;
+  playEntrance(options: EntranceTransition & { target?: 'computer' | 'canvas' | 'works'; onSurfaceProgress?: (progress:number,rect:SurfaceRect)=>void }): Promise<OperationResult>;
   snapshot(): SceneSnapshot;
   restore(snapshot: SceneSnapshot): void;
   setPointerEnabled(value: boolean): void;

@@ -57,6 +57,19 @@ test('entry opens the desktop book and explicit anchors select the chosen articl
   assert.equal(linked.calls[0][1],1);assert.deepEqual(linked.calls.at(-1),['open',true]);
   assert.equal(linked.controller.$session.get().phase,'reading');
 });
+test('first journal entrance forwards the shared motion clock and budgets its duration',async()=>{
+  const deadlines=[];
+  const h=harness(book,{deadline:(task,duration)=>{deadlines.push(duration);return task;}});
+  const progress=[];const entrance={duration:3000,onProgress:value=>progress.push(value)};
+  h.scene.moveJournal=async(enter,duration,options)=>{
+    assert.equal(enter,true);assert.equal(duration,0);assert.equal(options,entrance);
+    options.onProgress(.35);options.onProgress(1);return complete();
+  };
+  await h.controller.enter({slug:'first',anchor:'two'},0,entrance);
+  assert.ok(deadlines[0]>=entrance.duration);
+  assert.deepEqual(progress,[.35,1]);assert.equal(h.controller.$session.get().phase,'reading');
+  assert.equal(h.calls[0][1],1);
+});
 test('only a stable, rendered reading frame commits a bookmark and cross-article URL',async()=>{
   const h=harness();await h.controller.enter({slug:'first'},0);
   h.report({drawn:false});h.report({busy:true});assert.equal(h.saves.length,0);

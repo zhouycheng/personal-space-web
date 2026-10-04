@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 import { phase } from "./helpers/journal";
 
 test('ocean animates only in the visible home and respects reduced motion', async ({ page }, info) => {

@@ -32,14 +32,14 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
     createStudioFurniture(room, primitives, materials, textures);
   const { computerSurface, canvasSurface, screenGlow, tabletGlow } =
     createStudioDevices(primitives, renderer, materials, textures, computerLabel);
-  createStudioFiles(primitives,studioFiles,materials,geometries,textures);
+  const fileLibrary=createStudioFiles(primitives,studioFiles,materials,geometries,textures);
   const { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient } =
     createStudioAtmosphere(scene, room, primitives, materials, textures, cleanup);
   batchStaticChildren(room,geometries,new Set([computerSurface,canvasSurface,deskClock]));
   primitives.releaseConstructionGeometry(scene);
 
   return {
-    canopy,dressing,leisure,
+    canopy,dressing,leisure,fileLibrary,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chair, chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
