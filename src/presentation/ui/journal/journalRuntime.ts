@@ -64,7 +64,7 @@ export function bindJournalReader(root: HTMLElement, book: JournalManifest, cont
   }, { signal: events.signal });
   window.addEventListener('keydown', event => {
     const state = controller.$session.get();
-    if (!state.active || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (root.inert || !state.active || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       if (image.open) image.close();

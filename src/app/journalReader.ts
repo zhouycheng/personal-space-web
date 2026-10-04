@@ -1,4 +1,4 @@
-import type { ScenePort } from "../contracts/studioPorts";
+import type { ScenePort, EntranceTransition } from "../contracts/studioPorts";
 import type { JournalManifest } from "../contracts/journal";
 import { journalSlug } from "../application/journal/book-state";
 import { createJournalController } from "../application/journal/readerController";
@@ -26,7 +26,8 @@ export function createJournalReader(root: HTMLElement, scene: () => ScenePort | 
   }
   return {
     book,
-    enter(path: string, duration: number) { return controller.enter(request(path), duration); },
+    enter(path: string, duration: number, entrance?: EntranceTransition) { return controller.enter(request(path), duration, entrance); },
+    get ready() { return controller.$session.get().availability==='ready'; },
     fallback(message = "三维书本暂不可用，请重试或返回首页。") { controller.failed(message, "unsupported"); },
     select(path: string) { return controller.select(request(path)); },
     async leave(duration: number) { binding.closeImage(); await controller.leave(duration); },
