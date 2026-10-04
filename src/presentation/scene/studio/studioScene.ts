@@ -457,7 +457,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setDrawerOpen(action:typeof drawerActions[number],open:boolean) {
       const drawer=drawers.find(drawer=>drawer.action===action)!;
       if(drawer.open===open)return;
-      clearHover();drawer.open=open;drawer.from=drawer.group.position.z-workspaceAppearance.drawerFront;drawer.to=drawer.open?0.85:0;
+      clearHover();drawer.open=open;drawer.from=drawer.group.position.z-workspaceAppearance.drawerFront;drawer.to=drawer.open?workspaceAppearance.drawerMaxExtension:0;
       drawer.elapsed=0;drawer.frameTime=undefined;drawer.moving=!reducedMotion.matches;
       if(!drawer.moving)drawer.group.position.z=workspaceAppearance.drawerFront+drawer.to;
       invalidateShadows();
