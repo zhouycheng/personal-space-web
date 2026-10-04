@@ -114,7 +114,7 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   const field=await readFile('src/justin-kit/components/cloud-entrance/fogField.ts','utf8');
   const runtime=(await readFile('src/justin-kit/components/cloud-entrance/runtime.ts','utf8'))
     .replace("import { createFogField } from './fogField';",'')
-    .replace("import { entranceTimePalette, paletteHex, paletteRgb } from './timePalette';",'');
+    .replace("import { entranceTimePalette, paletteHex } from './timePalette';",'');
   const paletteSource=ts.transpileModule(timePalette,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
@@ -142,6 +142,22 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   await overlay(page).focus();await page.keyboard.press('Space');
   expect(await page.evaluate(()=>Reflect.get(window,'enterCount'))).toBe(1);
   await page.screenshot({path:info.outputPath('standalone.png')});
+  await overlay(page).dispatchEvent('pointerleave');
+  await page.waitForTimeout(1200);
+  const initial = await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL());
+  await page.evaluate(() => {
+    Reflect.get(window, 'cloud').setState('revealing');
+    Reflect.get(window, 'cloud').setRevealProgress(0);
+  });
+  expect(await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL())).toBe(initial);
+  for (const [label, hour] of [['day', 12], ['night', 1], ['dawn', 6], ['dusk', 18]] as const) {
+    await page.clock.setFixedTime(new Date(2026, 9, 5, hour));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    for (const progress of [0, .15, .35, .6, .85]) {
+      await page.evaluate(progress => Reflect.get(window, 'cloud').setRevealProgress(progress), progress);
+      await page.screenshot({path:info.outputPath(`cloud-${label}-${progress}.png`)});
+    }
+  }
   await page.evaluate(()=>Reflect.get(window,'cloud').dispose());
   expect(await page.locator('[data-cloud-canvas]').evaluate(canvas=>(canvas as HTMLCanvasElement).width)).toBe(0);
 });
