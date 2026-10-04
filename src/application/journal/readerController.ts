@@ -1,5 +1,5 @@
 import type { BookReport, JournalAvailability, JournalManifest, JournalSession, JournalRegion, ReadingAnchor, JournalIntent } from "../../contracts/journal";
-import type { ScenePort } from "../../contracts/studioPorts";
+import type { ScenePort, EntranceTransition } from "../../contracts/studioPorts";
 import type { OperationResult } from "../../contracts/operation";
 import { resolveReadingPage } from "./book-state.ts";
 import { journalRuntime } from "../../config/journalRuntime.ts";
@@ -75,7 +75,7 @@ export function createJournalController(book: JournalManifest, services: Service
     if (event.kind === "open" || event.kind === "close") { void open(event.kind === "open"); return; }
     if (event.kind === "turn" && current().availability === "ready" && ["reading", "turning"].includes(current().phase)) services.scene()?.turnJournal(event.direction);
   }
-  async function enter(input: ReadingRequest, duration: number) {
+  async function enter(input: ReadingRequest, duration: number, entrance?: EntranceTransition) {
     const token = ++generation; request = input;
     const page = resolve(input);
     set({ active: true, phase: "preparing", availability: "loading", error: "", busy: true });
@@ -100,7 +100,8 @@ export function createJournalController(book: JournalManifest, services: Service
       return;
     }
     set({ phase: "extracting" });
-    const moved = await services.deadline(scene.moveJournal(true, duration), duration + journalRuntime.drawerDurationMs + journalRuntime.animationSlackMs, () => scene.cancelTransition());
+    const travelDuration=entrance?.duration??duration;
+    const moved = await services.deadline(scene.moveJournal(true, duration, entrance), travelDuration + journalRuntime.drawerDurationMs + journalRuntime.animationSlackMs, () => scene.cancelTransition());
     if (!accepted(moved, token)) return;
     set({ phase: "preparing" });
     const ready = await services.deadline(scene.journalReady(), journalRuntime.prepareTimeoutMs, () => scene.cancelTransition());
