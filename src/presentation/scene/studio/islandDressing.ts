@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {createWoolMaterial,addWoolPile} from './woolRug.ts';
+import {createHurricaneLantern} from './hurricaneLantern.ts';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { dressingProps } from '../../../config/islandDressing.ts';
@@ -58,33 +60,8 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
     for(let i=1;i<7;i++)p.box(parent,[.001,h-.012,d-.005],[x-w/2+i*w/7,y+h/2,z-.004],canvas);
   }
   function lantern(parent:THREE.Object3D,x:number,y:number,z:number,scale=1) {
-    const g=new THREE.Group();g.position.set(x,y,z);g.scale.setScalar(scale);parent.add(g);
-    // Fuel reservoir, burner, glass chimney and protective rails define a hurricane lamp.
-    const lathe=(profile:number[][],mat:THREE.Material)=>{
-      const curve=new THREE.CatmullRomCurve3(profile.map(([r,h])=>new THREE.Vector3(r,h,0)));
-      return p.mesh(g,new THREE.LatheGeometry(curve.getPoints(64).map(v=>new THREE.Vector2(Math.max(0,v.x),Math.max(0,v.y))),48),mat,0,0,0);
-    };
-    const ring=(radius:number,y:number,thickness:number,mat:THREE.Material)=>{const mesh=p.mesh(g,new THREE.TorusGeometry(radius,thickness,8,48),mat,0,y,0);mesh.rotation.x=Math.PI/2;};
-    lathe([[0,0],[.145,0],[.166,.018],[.169,.037],[.161,.084],[.13,.113],[.075,.135],[0,.135]],metal);
-    ring(.164,.03,.005,brass);ring(.097,.154,.005,metal);
-    lathe([[.055,.135],[.063,.15],[.065,.17],[.036,.185],[.025,.195]],brass);
-    p.box(g,[.022,.018,.009],[0,.196,0],dark);
-    const fire=new THREE.SphereGeometry(1,24,20),verts=fire.attributes.position;
-    for(let i=0;i<verts.count;i++){const y=verts.getY(i),t=(y+1)/2;verts.setXYZ(i,verts.getX(i)*(1-.7*t)+.23*t*t,y,verts.getZ(i)*(1-.7*t));}fire.computeVertexNormals();
-    const flame=p.mesh(g,fire,wick,0,.239,0);flame.scale.set(.026,.05,.023);
-    const core=p.mesh(g,fire,flameCore,0,.226,.003);core.scale.set(.014,.033,.014);
-    lathe([[.073,.177],[.085,.186],[.106,.223],[.109,.28],[.098,.336],[.073,.383],[.063,.421]],glass);
-    ring(.073,.183,.0025,glass);ring(.064,.419,.002,glass);
-    lathe([[.064,.422],[.123,.43],[.128,.444],[.11,.463],[.068,.49],[.061,.523],[.044,.542],[0,.545]],metal);
-    ring(.12,.441,.004,brass);
-    for(let i=0;i<10;i++){const a=i*Math.PI/5;const vent=p.box(g,[.011,.018,.003],[Math.sin(a)*.064,.505,Math.cos(a)*.064],dark);vent.rotation.y=a;}
-    for(const side of [-1,1]) {
-      tube(g,[[side*.13,.075,0],[side*.163,.135,0],[side*.168,.325,0],[side*.13,.424,0],[side*.065,.488,0]],.014,metal);
-      const pivot=p.cylinder(g,.02,.019,[side*.158,.365,0],brass);pivot.rotation.x=Math.PI/2;
-    }
-    tube(g,[[-.158,.365,.01],[-.175,.56,.035],[-.1,.665,.045],[.08,.668,.045],[.174,.55,.035],[.158,.365,.01]],.0055,brass);
-    const knob=p.cylinder(g,.023,.015,[.096,.162,.015],brass);knob.rotation.z=Math.PI/2;
-    p.cylinder(g,.028,.013,[.105,.104,.057],brass);
+    const g=createHurricaneLantern(p,{metal,brass,dark,glass,wick,core:flameCore});
+    g.position.set(x,y,z);g.scale.setScalar(scale);parent.add(g);
     const light=new THREE.PointLight(0xffb35f,.5,3.3,1);light.position.set(0,.245,0);light.castShadow=false;g.add(light);lanternLights.push(light);
   }
   function foldedCloth(parent:THREE.Object3D,x:number,y:number,z:number) {
@@ -202,13 +179,15 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   tube(source,[[-2.5,3.48,-2.9],[-2.25,3.42,-2.68],[-2.22,3.05,-2.65]],.009,brass);
 
   // A low woven mat joins desk, chair and storage visually without moving their floor anchors.
-  const matMaterial=canvas.clone();matMaterial.color.setHex(0xb49b71);materials.add(matMaterial);
+  const matMaterial=createWoolMaterial(materials,0xb49b71);
+  const rugSurface=(u:number,v:number)=>{const x=u+Math.sin(v*3)*.014,z=v-.62+u*.035;return new THREE.Vector3(x,terrainHeight(x,z)+.014+.003*Math.sin(u*17+v*9),z);};
   const matGeometry=new THREE.PlaneGeometry(4.4,3.15,32,24),matPoints=matGeometry.attributes.position;
   for(let i=0;i<matPoints.count;i++) {
-    const u=matPoints.getX(i),v=matPoints.getY(i),x=u+Math.sin(v*3)*.014,z=v-.62+u*.035;
-    matPoints.setXYZ(i,x,terrainHeight(x,z)+.008+.003*Math.sin(u*17+v*9),z);
+    const point=rugSurface(matPoints.getX(i),matPoints.getY(i));
+    matPoints.setXYZ(i,point.x,point.y,point.z);
   }
   matGeometry.computeVertexNormals();p.mesh(source,matGeometry,matMaterial,0,0,0).castShadow=false;
+  addWoolPile(p,source,matMaterial,4.4,3.15,rugSurface);
   for(let i=0;i<46;i++)for(const edge of [-1,1]) {
     const x=-2.14+i*.095,z=edge*1.575-.62+x*.035;
     tube(source,[[x,terrainHeight(x,z)+.01,z],[x+.014*Math.sin(i),terrainHeight(x,z)+.012,z+edge*(.045+.025*Math.sin(i*7))]],.004,matMaterial);
@@ -225,10 +204,6 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   foldedCloth(basket,.02,.415,.05);
 
   const desktop=new THREE.Group();source.add(desktop);desktop.position.set(-1.24,workspaceAppearance.tabletop+.008,-1.65);desktop.rotation.y=.08;
-  for(let i=0;i<2;i++) {const sheet=p.box(desktop,[.43,.003,.32],[.025*i,.004+i*.004,.025*i],paper);sheet.rotation.y=i*.16;}
-  p.rounded(desktop,[.35,.042,.43],[-.035,.032,.005],leather,.007);
-  p.rounded(desktop,[.323,.025,.405],[-.035,.032,.009],paper,.003);
-  for(const y of [.01,.054])p.rounded(desktop,[.35,.005,.43],[-.035,y,.005],leather,.003);
   vase(desktop,.29,0,-.02,.48);
   for(let i=0;i<3;i++) {const pen=p.cylinder(desktop,.007,.22,[.28+i*.012,.2,-.023+i*.012],i===1?dark:timber);pen.rotation.z=(i-1)*.13;}
 

@@ -15,7 +15,6 @@ export const dressingFerns = [
   {x:-4.5,z:-2.8,scale:.5,seed:181}, {x:-2.1,z:-4.3,scale:.46,seed:191},
   {x:.65,z:-4.2,scale:.5,seed:193}, {x:2.1,z:-4.35,scale:.43,seed:197},
   {x:4.7,z:-2.8,scale:.48,seed:199}, {x:4.6,z:.35,scale:.42,seed:211},
-  {x:-3.8,z:2.5,scale:.48,seed:223},
   {x:-3.65,z:-2.65,scale:.36,seed:301}, {x:-3.9,z:-.35,scale:.35,seed:307},
   {x:3.8,z:-.9,scale:.32,seed:311}, {x:4.15,z:.7,scale:.34,seed:313},
   {x:-.15,z:-3.25,scale:.43,seed:317}, {x:1.6,z:-3.4,scale:.33,seed:331},

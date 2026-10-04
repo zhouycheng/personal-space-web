@@ -16,29 +16,40 @@ export function loungePanel(angle:number,t:number) {
     // Sculpt the filling as connected masses, not a raised ring around a hole.
     y=.18+.28*vertical+.51*back*vertical**.6+.17*sides*vertical**.5
       -.15*seat*vertical+.18*front*vertical;
-    y+=.012*Math.sin(x*31+Math.sin(z*14)*1.2)*back*vertical+.006*Math.sin(x*43-z*11)*front*vertical;
-    y+=.012*Math.sin(x*4+z*3)*vertical;
+    // Folds gather toward the loaded seat and peter out across the inflated front.
+    const pressureDistance=x*x+(z+.08)*(z+.08);
+    const creaseEnvelope=gaussian((z+.31)/.46)*(1-seat*.78)*vertical*(1-Math.exp(-pressureDistance/.085));
+    const fan=Math.atan2(x,z+.08);
+    y-=.024*Math.pow(.5+.5*Math.cos(fan*17+Math.sin(z*9)),8)*creaseEnvelope;
+    y+=.009*Math.sin(x*31+Math.sin(z*14)*1.2)*back*vertical+.005*Math.sin(x*43-z*11)*front*vertical;
+    y+=.017*Math.sin(x*3.1+z*2.3)*vertical;
   }
-  return new THREE.Vector3(x*.91,y,z*.77);
+  // Flatten the load-bearing underside; a full ellipsoid makes the bag look inflated.
+  y=Math.max(.03,y);
+  return new THREE.Vector3(x*.91*(1+.025*Math.sin(angle*3)*r),y,z*.77);
 }
 
 export function createLoungeShell() {
   const positions:number[]=[],uvs:number[]=[],indices:number[]=[];
   const rings=96,segments=160;
   for(let j=0;j<=rings;j++)for(let i=0;i<=segments;i++){
-    const v=loungePanel(i/segments*Math.PI*2,j/rings);positions.push(v.x,v.y,v.z);uvs.push(i/segments,j/rings);
+    const v=loungePanel(i/segments*Math.PI*2,j/rings);positions.push(v.x,v.y,v.z);uvs.push(v.x*2.1,v.z*2.1);
     if(i<segments&&j<rings){const a=j*(segments+1)+i,b=a+segments+1;indices.push(a,b+1,a+1,a,b,b+1);}
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);g.computeVertexNormals();return g;
 }
 
 /** Closed, thin fabric panel with a tensioned edge and sag toward its center. */
+export function campCanvasPoint(x:number,v:number,back=false,thickness=0) {
+  const u=x/.325,t=v/(back?.215:.28),envelope=Math.max(0,1-u*u)*Math.max(0,1-t*t);
+  const folds=.004*Math.sin(u*27+t*8)*Math.exp(-Math.pow((Math.abs(u)-.85)*7,2))*(1-t*t);
+  return back?new THREE.Vector3(x,v,thickness+.075*envelope-.15*v+folds):new THREE.Vector3(x,thickness-.080*envelope+folds,v);
+}
 export function createCampCanvas(back=false) {
-  const g=new THREE.BoxGeometry(.65,back?.43:.025,back?.025:.56,24,back?20:1,back?1:20),p=g.attributes.position;
+  const g=new THREE.BoxGeometry(.65,back?.43:.008,back?.008:.56,48,back?40:1,back?1:40),p=g.attributes.position;
   for(let i=0;i<p.count;i++){
-    const x=p.getX(i),y=p.getY(i),z=p.getZ(i),u=x/.325;
-    if(back){const v=y/.215;p.setXYZ(i,x,y,z+.062*(1-u*u)*(1-v*v)+.12*y);}
-    else {const v=z/.28;p.setXYZ(i,x,y-.065*(1-u*u)*(1-v*v),z);}
+    const x=p.getX(i),y=p.getY(i),z=p.getZ(i),point=campCanvasPoint(x,back?y:z,back,back?z:y);
+    p.setXYZ(i,point.x,point.y,point.z);
   }
   g.computeVertexNormals();return g;
 }

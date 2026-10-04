@@ -1,9 +1,20 @@
-export const CHAIR_TURN_MS = 3600;
+import { stepSpring } from './spring.ts';
 export const CHAIR_ROCKER_RADIUS = 1.45;
 
-/** Damped fore/aft rocking; the circular runners roll without sliding or sinking. */
-export function chairTurn(elapsed: number) {
-  const t = Math.max(0, Math.min(1, elapsed / CHAIR_TURN_MS));
-  const angle=t===0||t===1?0:.16*Math.sin(t*Math.PI*4.5)*(1-Math.exp(-t*28))*(1-t)**2;
-  return { angle, y:CHAIR_ROCKER_RADIUS*(1-Math.cos(angle)), z:CHAIR_ROCKER_RADIUS*(angle-Math.sin(angle)), done:t===1 };
+export function createChairRocking() {
+  const state = { value: 0, velocity: 0 };
+  let moving = false;
+  return {
+    get moving() { return moving; },
+    push() { state.velocity = Math.min(.68, state.velocity + .48); moving = true; },
+    reset() { state.value = state.velocity = 0; moving = false; },
+    step(seconds: number) {
+      stepSpring(state, 0, seconds, .72, .24);
+      if (Math.abs(state.value) < .00015 && Math.abs(state.velocity) < .0006) {
+        state.value = state.velocity = 0; moving = false;
+      }
+      const angle = state.value;
+      return { angle, y: CHAIR_ROCKER_RADIUS * (1 - Math.cos(angle)), z: CHAIR_ROCKER_RADIUS * (angle - Math.sin(angle)) };
+    },
+  };
 }
