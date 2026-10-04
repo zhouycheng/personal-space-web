@@ -107,7 +107,7 @@ export function createJournalController(book: JournalManifest, services: Service
     if (!accepted(ready, token)) return;
     set({ availability: "ready", phase: "observing", busy: false });
     scene.setJournalInteractionEnabled(true);
-    if (input.slug) await open(true);
+    await open(true);
   }
   return {
     $session, book, enter, intent, open,

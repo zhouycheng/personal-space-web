@@ -42,14 +42,20 @@ export function createStudioFurniture(room: THREE.Group, primitives: StudioPrimi
     rounded(group,[0.24,0.027,0.025],[0,0.07,0.073],brass,0.01);
     return {action,group,open:false,from:0,to:0,elapsed:0,frameTime:undefined as number|undefined,moving:false};
   });
-  const diary=new THREE.Group();drawers[0].group.add(diary);diary.userData.action="diary";
-  diary.position.set(0,-0.105,-0.39);diary.rotation.y=-0.08;
+  const diary=new THREE.Group();room.add(diary);diary.userData.action="diary";
+  diary.position.set(layout.diary.x,layout.tabletop+layout.diary.lift,layout.diary.z);diary.rotation.y=layout.diary.angle;
+  diary.scale.set(layout.diary.width/.39,1,layout.diary.height/.47);
   const leather=material(journalAppearance.cover,journalAppearance.roughness);
   rounded(diary,[0.39,0.038,0.47],[0,0,0],material(journalAppearance.edge),0.008);
   for(const y of [-0.026,0.026]) rounded(diary,[0.41,0.016,0.49],[0,y,0],leather,0.008);
   rounded(diary,[0.03,0.065,0.49],[-0.2,0,0],leather,0.008);
   for(const y of [-0.01,0,0.01]) box(diary,[0.375,0.002,0.002],[0.01,y,0.236],material(0xb9b1a2,0.95));
-  const diaryTitle=label(diary,"JOURNAL",0.22,0.07,[0,0.035,-0.065],journalAppearance.coverCss,journalAppearance.titleCss,0.22);diaryTitle.rotation.x=-Math.PI/2;
+  const diaryTitle=label(diary,"JOURNAL",0.22,0.07,[0,0.035,-0.065],"transparent",journalAppearance.titleCss,0.22);diaryTitle.rotation.x=-Math.PI/2;
+  // Print directly on the cover: no rectangular backing or independent decal shadow.
+  const diaryTitleMaterial=diaryTitle.material as THREE.MeshStandardMaterial;
+  diaryTitleMaterial.transparent=true;diaryTitleMaterial.depthWrite=false;
+  diaryTitleMaterial.roughness=journalAppearance.roughness;
+  diaryTitle.castShadow=false;
   const diaryHitMaterial=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,colorWrite:false});materials.add(diaryHitMaterial);
   const diaryHit=mesh(diary,new THREE.BoxGeometry(.49,.12,.57),diaryHitMaterial,0,.015,0);
   diaryHit.castShadow=false;diaryHit.receiveShadow=false;diaryHit.userData.hitProxy=true;

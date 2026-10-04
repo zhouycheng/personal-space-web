@@ -5,11 +5,11 @@ import { createStudioPrimitives } from '../src/presentation/scene/studio/studioP
 import { createStudioFurniture } from '../src/presentation/scene/studio/studioFurniture.ts';
 import { createStudioDevices } from '../src/presentation/scene/studio/studioDevices.ts';
 import { createStudioFiles } from '../src/presentation/scene/studio/studioFiles.ts';
-import { canopyOpacity } from '../src/animation/studio/canopyVisibility.ts';
+import { canopyOpacity,fadeCanopyOpacity } from '../src/animation/studio/canopyVisibility.ts';
 import { workspaceAppearance as layout } from '../src/config/workspaceAppearance.ts';
 import { createWorkspaceMaterials } from '../src/presentation/scene/studio/workspaceMaterials.ts';
 import { canopySurface } from '../src/animation/studio/canopySurface.ts';
-import { chairTurn,CHAIR_ROCKER_RADIUS,CHAIR_TURN_MS } from '../src/animation/studio/chairMotion.ts';
+import { createChairRocking,CHAIR_ROCKER_RADIUS } from '../src/animation/studio/chairMotion.ts';
 
 test('roof leaves frontal views open, clears crossing and close cameras, and restores after return',()=>{
   assert.equal(canopyOpacity([0,2,8],[0,1.5,-1]),1);
@@ -18,6 +18,23 @@ test('roof leaves frontal views open, clears crossing and close cameras, and res
   assert.equal(canopyOpacity([8,7,0],[8,1,0]),1);
   assert.equal(canopyOpacity([0,2,8],[0,1.5,-1]),1);
   assert.equal(canopyOpacity([0,2,8],[0,2,-1]),1);
+});
+
+test('canopy anticipates an approaching camera and opacity reverses continuously',()=>{
+  const roof=layout.canopy,y=roof.height;
+  const samples=Array.from({length:81},(_,i)=>canopyOpacity([roof.right+1-i*.0125,y,0],[roof.right+3,y,0]));
+  assert.ok(samples.some(value=>value>0&&value<1));
+  for(let i=1;i<samples.length;i++)assert.ok(samples[i]<=samples[i-1]&&samples[i-1]-samples[i]<.04);
+  let opacity=1;
+  for(let i=0;i<30;i++){
+    const next=fadeCanopyOpacity(opacity,0,16);
+    assert.ok(next<opacity&&opacity-next<.1);opacity=next;
+  }
+  assert.ok(opacity<.08);
+  const restored=fadeCanopyOpacity(opacity,1,16);
+  assert.ok(restored>opacity&&restored-opacity<.06);
+  assert.equal(fadeCanopyOpacity(opacity,1,0),opacity,'Paused time must not advance a fade');
+  assert.equal(fadeCanopyOpacity(1,0,16,true),0);
 });
 
 test('workspace textures and materials share one scene owner and dispose without crossing scenes',()=>{
@@ -32,7 +49,7 @@ test('workspace textures and materials share one scene owner and dispose without
   assert.equal(disposed,8);roof.dispose();
 });
 
-test('furniture keeps diary in the moving drawer, leaves device anchors fixed, and puts files beside the desk',()=>{
+test('furniture keeps diary on the desktop, leaves device anchors fixed, and puts files beside the desk',()=>{
   const before=globalThis.document;
   globalThis.document={createElement:()=>({getContext:()=>new Proxy({},{get:()=>()=>{}})})};
   const room=new THREE.Group(),materials=new Set(),geometries=new Set(),textures=new Set();
@@ -40,12 +57,13 @@ test('furniture keeps diary in the moving drawer, leaves device anchors fixed, a
     const renderer={capabilities:{getMaxAnisotropy:()=>1}};
     const p=createStudioPrimitives(renderer,room,materials,geometries,textures);
     const furniture=createStudioFurniture(room,p,materials,textures);
-    assert.equal(furniture.diary.parent,furniture.drawers[0].group);
+    assert.equal(furniture.diary.parent,room);
+    assert.deepEqual(furniture.diary.position.toArray(),[layout.diary.x,layout.tabletop+layout.diary.lift,layout.diary.z]);
     assert.equal(furniture.drawers.length,3);
     assert.ok(furniture.drawers.every(d=>d.group.position.z===layout.drawerFront));
     assert.equal(furniture.chairSeat.children.filter(child=>child.name==='curved-rocker').length,2);
     assert.ok(furniture.chairSeat.children.some(child=>child.name==='solid-canvas-back'));
-    const pose=chairTurn(550);furniture.chairSeat.rotation.x=pose.angle;furniture.chairSeat.position.set(0,pose.y,pose.z);
+    const motion=createChairRocking();motion.push();const pose=motion.step(.05);furniture.chairSeat.rotation.x=pose.angle;furniture.chairSeat.position.set(0,pose.y,pose.z);
     const devices=createStudioDevices(p,renderer,materials,textures,'Justin OS');
     createStudioFiles(p,[],materials,geometries,textures);room.updateMatrixWorld(true);
     const tablet=devices.canvasSurface.getWorldPosition(new THREE.Vector3());
@@ -65,8 +83,9 @@ test('furniture keeps diary in the moving drawer, leaves device anchors fixed, a
 });
 
 test('rocker rolling contact stays grounded and sail corners stay pinned under the shared breeze',()=>{
-  for(let elapsed=0;elapsed<=CHAIR_TURN_MS;elapsed+=50) {
-    const {angle,y,z}=chairTurn(elapsed),R=CHAIR_ROCKER_RADIUS;
+  const motion=createChairRocking();motion.push();
+  for(let elapsed=0;elapsed<=10000;elapsed+=50) {
+    const {angle,y,z}=motion.step(.05),R=CHAIR_ROCKER_RADIUS;
     const contact=new THREE.Vector3(0,R-R*Math.cos(angle),R*Math.sin(angle));
     contact.applyAxisAngle(new THREE.Vector3(1,0,0),angle).add(new THREE.Vector3(0,y,z));
     assert.ok(Math.abs(contact.y)<1e-10);assert.ok(Math.abs(contact.z-R*angle)<1e-10);

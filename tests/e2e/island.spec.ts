@@ -27,8 +27,7 @@ test('ocean animates only in the visible home and respects reduced motion', asyn
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state',state);
     await expect(mount).toHaveAttribute('data-ocean-active','false');
     if(action==='diary') {
-      await phase(page,'observing');
-      await page.locator('canvas[data-journal-phase]').focus();await page.keyboard.press('Enter');
+      // The current entry flow opens the book automatically after preparation.
       await phase(page,'reading');
       await expect(mount).toHaveAttribute('data-ocean-active','false');
     }

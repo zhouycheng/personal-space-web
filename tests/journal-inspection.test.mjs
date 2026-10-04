@@ -10,5 +10,6 @@ test('journal fits two readable pages without requiring a landscape window',()=>
 });
 test('reading angles remain legible even after large object rotations',()=>{
   assert.deepEqual(constrainReading(7,-8),{pitch:readingLimits.pitch,yaw:-readingLimits.yaw});
-  assert.deepEqual(constrainReading(.1,.2),{pitch:.1,yaw:.2});
+  assert.deepEqual(constrainReading(.1,.1),{pitch:.1,yaw:.1});
+  assert.deepEqual(constrainReading(-7,8),{pitch:readingLimits.minPitch,yaw:readingLimits.yaw});
 });

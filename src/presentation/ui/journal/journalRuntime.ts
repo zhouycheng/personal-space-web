@@ -29,7 +29,13 @@ export function bindJournalReader(root: HTMLElement, book: JournalManifest, cont
     q<HTMLButtonElement>('[data-journal-fold]').disabled = busy || !usable;
     const hint = q('[data-journal-hint]');
     hint.hidden = !usable || busy;
-    hint.textContent = reading ? '点击书页翻页 · 拖动调整 · 滚轮 / 双指缩放' : '点击封面打开 · 拖动旋转';
+    hint.textContent = reading ? (single?'点击两侧移动视角 · 看完双页后继续翻页':'点击书页翻页 · 拖动调整视角 · 滚轮缩放') : '点击封面打开 · 拖动调整视角';
+    for(const direction of [-1,1]){
+      const button=q<HTMLButtonElement>(`[data-journal-direction="${direction}"]`);
+      button.hidden=!single||!reading||!usable||zoom>1.05;
+      button.disabled=busy||page+direction<0||page+direction>=book.pages.length;
+      button.setAttribute('aria-label',direction===1?(page%2===0?'查看右页':'翻到下一页'):(page%2===1?'查看左页':'翻到上一页'));
+    }
     status.hidden = (usable || phase === "extracting" || phase === "returning") && !error;
     status.textContent = error || (availability === "recovering" ? "正在恢复三维日记…" : "正在准备日记书页…");
     q('[data-journal-retry]').hidden = !retryable;
@@ -50,6 +56,7 @@ export function bindJournalReader(root: HTMLElement, book: JournalManifest, cont
     const target = event.target.closest<HTMLElement>('button,a'); if (!target) return;
     if (target.matches('[data-journal-retry]')) void controller.retry();
     if (target.matches('[data-journal-fold]')) void controller.open(false);
+    if(target.matches('[data-journal-direction]'))controller.intent({kind:'turn',direction:target.dataset.journalDirection==='1'?1:-1});
     if (target.matches('[data-journal-image-close]')) image.close();
   }, { signal: events.signal });
   image.addEventListener('close', () => {

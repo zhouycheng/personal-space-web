@@ -44,7 +44,7 @@ test("application target rules preserve independent drawers and make journal pre
   const middle = studioTargetsForIntent(lamp, "drawer-middle");
   assert.deepEqual(middle.drawers, [false, true, false]);
   const journal = studioTargetsForIntent(middle, "diary");
-  assert.deepEqual(journal.drawers, [true, true, false]);
+  assert.deepEqual(journal.drawers, [false, true, false]);
   assert.equal(studioTargetsForIntent(journal, "diary"), journal);
   assert.equal(studioTargetsForIntent(journal, "zoom-in"), journal);
 });

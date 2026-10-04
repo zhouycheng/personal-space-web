@@ -16,6 +16,8 @@
 .journal[data-phase="reading"] .journal-hint,.journal[data-phase="turning"] .journal-hint{bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
 .journal.is-zoomed .journal-controls,.journal.is-zoomed .journal-hint{opacity:0;pointer-events:none}
 .alpha-shell.is-journal-active .studio-scene canvas{touch-action:none}
+.journal .journal-side{position:absolute;top:20%;bottom:20%;width:12%;min-width:40px;padding:0;pointer-events:auto;font-size:24px;opacity:.6;text-shadow:0 1px 5px #0008}
+.journal .journal-side:disabled{opacity:.15;cursor:default}.journal-side-left{left:0}.journal-side-right{right:0}
 
 .journal-status{position:absolute;top:90px;left:50%;transform:translateX(-50%);max-width:90%;text-align:center;font:13px/1.6 var(--sans);padding:8px 16px;background:#262c29d9;color:#f5eddf;border-radius:4px;pointer-events:none}
 .journal-controls:has(.journal-retry:not([hidden])){flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px)}
