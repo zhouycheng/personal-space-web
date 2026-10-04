@@ -1,6 +1,6 @@
 import { expect, test } from 'playwright/test';
 
-test('device entry and return keep finite camera poses throughout both flights', async ({ page }, info) => {
+test('device entry and return keep finite camera poses throughout both flights', async ({ page }) => {
   await page.addInitScript(() => {
     const host=window as typeof window & {__THREE_DEVTOOLS__:EventTarget;__invalidCamera?:boolean};
     host.__THREE_DEVTOOLS__=new EventTarget();
@@ -20,9 +20,9 @@ test('device entry and return keep finite camera poses throughout both flights',
   for(const action of ['computer','canvas']) {
     await page.locator('[data-studio-explore]').focus();await page.keyboard.press('Enter');
     await page.locator(`[data-studio-action="${action}"]`).click();
-    await page.waitForTimeout(200);await page.screenshot({path:info.outputPath(`${action}-enter.png`)});
+    await page.waitForTimeout(200);
     await expect(mount).toHaveAttribute('data-render-active','false');
-    await page.goBack();await page.waitForTimeout(200);await page.screenshot({path:info.outputPath(`${action}-return.png`)});
+    await page.goBack();await page.waitForTimeout(200);
     await expect(page).toHaveURL(/\/home$/);await expect(mount).toHaveAttribute('data-render-active','true');
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state','room');
     expect(await page.evaluate(()=>(window as typeof window & {__invalidCamera?:boolean}).__invalidCamera??false)).toBe(false);
