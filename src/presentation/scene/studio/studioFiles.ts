@@ -73,4 +73,5 @@ export function createStudioFiles(primitives:StudioPrimitives,studioFiles:readon
   for(const x of [-.3,.3]) for(const y of [.06,.2]) {
     const bolt=mesh(library,new THREE.SphereGeometry(.012,8,6),primitives.brass,x,y,.327);bolt.scale.z=.3;
   }
+  return library;
 }
