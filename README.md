@@ -1,6 +1,14 @@
 <p align="center"><strong>JustinSpace 是一个以交互式 3D 工作室为入口的个人空间网站</strong></p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/status-Office%20Scene%20Archive-5B5B5B" alt="Office Scene Archive">
+  <br>
+  <a href="https://github.com/zhouycheng/personal-space-web/tree/main">返回正式开发主线 main</a>
+</p>
+
+> 此分支保存 JustinSpace 从办公桌场景切换到海岛场景前的完整主线快照。后续开发请查看 <a href="https://github.com/zhouycheng/personal-space-web/tree/main">main</a>。
+
+<p align="center">
   <img src="docs/images/justinspace-homepage.png" alt="JustinSpace 三维工作室首页" width="100%">
 </p>
 
