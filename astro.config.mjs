@@ -23,6 +23,7 @@ export default defineConfig({
         output: {
           codeSplitting: {
             groups: [
+              { name: "react-runtime", test: /node_modules[\/](react|react-dom|scheduler)([\/]|$)/, priority: 5 },
               { name: "canvas-flow", test: /node_modules[\\/]@xyflow[\\/]/, priority: 3 },
             ],
           },

@@ -16,6 +16,8 @@ import { createDomInstances } from "../justin-kit/runtime/domInstances";
 import { activeTimeout } from "../infrastructure/client/activeDeadline";
 import { createEntranceRuntime } from './entranceRuntime';
 import { entranceCompleted } from '../infrastructure/client/entranceSession';
+import type { StartupProgress } from '../contracts/startup';
+import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -37,6 +39,7 @@ function init(shell: HTMLElement) {
   let historyPending = false;
   let scene: ScenePort | undefined;
   let sceneLoading: Promise<void> | undefined;
+  let preparationAbort:AbortController|undefined;
   let scenePrepared = false;
   let sceneBlocked=false,lightweight=false,recoveryAttempted=false;
   let stopRecovery = () => {};
@@ -116,7 +119,12 @@ function init(shell: HTMLElement) {
     if(disposed)return;
     report(error);sceneBlocked=true;
     if(model.page==='journal')journal.fallback();
-    if(isMoving()) {transition++;model.state=studioStateForPage(model.page);clearProjection();scene?.cancelTransition();sync();}
+    if(isMoving()) {
+      // Journal entry still has to activate its independent error/retry UI after loadScene settles.
+      // Its controller owns animation cancellation; other surface flights end here.
+      if(model.state!=='entering-journal')transition++;
+      model.state=studioStateForPage(model.page);clearProjection();scene?.cancelTransition();sync();
+    }
     studio.classList.add("is-fallback");
     status.hidden = false;
     const retrying=canRetryStudio(error,recoveryAttempted,disposed);
@@ -217,20 +225,35 @@ function init(shell: HTMLElement) {
       tick(); clock = window.setInterval(tick, 1000);
     }
   }
-  function loadScene(onProgress: (value:number)=>void = ()=>{}, prepareForEntrance = false) {
+  function loadScene(onProgress: (value:StartupProgress)=>void = ()=>{}, prepareForEntrance = false) {
     if (sceneLoading) return sceneLoading;
     if(scene||sceneBlocked||disposed)return Promise.resolve();
-    sceneLoading = import("../presentation/scene/studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(async ({ createStudioScene }) => {
-      if (disposed) return;
-      onProgress(1/5);
+    const abort=preparationAbort=new AbortController(),timings:Record<string,number>={};
+    onProgress({stage:'module',progress:0});
+    const moduleStarted=performance.now();
+    sceneLoading = import("../presentation/scene/studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(async ({ createStudioScene,prepareSceneGeometry,disposePreparedGeometry }) => {
+      if (disposed||abort.signal.aborted) return;
+      timings.moduleWait=performance.now()-moduleStarted;
+      onProgress({stage:'geometry',progress:1/5});
+      await paintOpportunity(abort.signal);
+      let started!:()=>void;
+      const workerStarted=new Promise<void>(resolve=>{started=resolve;});
+      const geometry=prepareSceneGeometry(abort.signal,timings,started);
+      // Observe early worker failure even if renderer/furniture construction fails first.
+      void geometry.catch(()=>{});
+      // Let the worker finish module loading before synchronous furniture work blocks its launch.
+      await workerStarted;
+      if(disposed||abort.signal.aborted){void geometry.then(disposePreparedGeometry,()=>{});return;}
       scenePrepared=false;
-      scene = createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand);
+      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
+      catch(error){void geometry.then(disposePreparedGeometry,()=>{});throw error;}
+      if(disposed||abort.signal.aborted){scene.dispose();scene=undefined;return;}
+      mount.dataset.startupTimings=JSON.stringify(timings);
       scene.restore(savedScene??model.targets);
       scene.setPointerEnabled(!entrance?.covered&&!panel.open);
       updateLighting();
       const current=scene;
       if(prepareForEntrance) {
-        onProgress(2/5);
         const result=await current.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress});
         if(disposed||scene!==current)return;
         scenePrepared=result.status==='completed';
@@ -242,7 +265,7 @@ function init(shell: HTMLElement) {
         if(model.page==='home'||model.page==='journal'||isMoving())current.setActive(!document.hidden);
         else sceneReady();
       }
-    }).catch(error=>sceneFailed(studioFailure(error,"initialization"))).finally(()=>{sceneLoading=undefined;});
+    }).catch(error=>{if(!disposed&&!abort.signal.aborted)sceneFailed(studioFailure(error,"initialization"));abort.abort();}).finally(()=>{sceneLoading=undefined;if(preparationAbort===abort)preparationAbort=undefined;});
     return sceneLoading;
   }
   function navigate(next: AppPage) {
@@ -377,23 +400,25 @@ function init(shell: HTMLElement) {
   entrance=createEntranceRuntime(shell.querySelector<HTMLElement>('[data-cloud-entrance]')!,{
     reducedMotion:reduce,
     cancel:()=>{
+      preparationAbort?.abort();
       mount.style.removeProperty('--entrance-blur');shell.style.removeProperty('--entrance-content-opacity');
       delete shell.dataset.entranceTarget;clearProjection();scene?.cancelTransition();
     },
     sync,
     async prepare(onProgress) {
       await sceneLoading;
+      if(disposed)return {status:'cancelled',reason:'disposed'};
       journal.deactivate();clearProjection();model.state='room';delete shell.dataset.entranceTarget;
       if(sceneBlocked){scene?.dispose();scene=undefined;scenePrepared=false;sceneBlocked=false;}
       // Preload only the requested content; documents and journal pages stay lazy.
-      const targetModule=pendingPage==='canvas'?import('../presentation/ui/canvas/MineCanvasEditor'):Promise.resolve();
-      const progress=(value:number)=>onProgress(Math.min(value,4/5));
+      const targetModule=pendingPage==='canvas'?import('../presentation/ui/canvas/canvasEditorModule').then(module=>module.loadCanvasEditor()):Promise.resolve();
+      const progress=(value:StartupProgress)=>{if(value.stage!=='ready')onProgress({...value,progress:Math.min(value.progress,4/5)});};
       const startup=scenePrepared?Promise.resolve():scene?(async()=>{
-        progress(2/5);updateLighting();
+        updateLighting();
         const result=await scene!.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress:progress});scenePrepared=result.status==='completed';
       })():loadScene(progress,true);
       await Promise.all([targetModule,startup]);
-      if(scenePrepared&&!sceneBlocked)onProgress(1);
+      if(scenePrepared&&!sceneBlocked)onProgress({stage:'ready',progress:1});
       return scenePrepared&&!sceneBlocked?{status:'completed',value:undefined}:{status:'failed',code:'startup',retryable:true};
     },
     async play(duration,onProgress) {
@@ -437,7 +462,7 @@ function init(shell: HTMLElement) {
   else if(model.page==='journal'){prepareJournalTargets();void loadScene().then(()=>{if(!disposed&&model.page==='journal')return journal.enter(location.pathname+location.hash,0);});}
   function dispose() {
     if(disposed)return;
-    disposed=true;transition++;clearInterval(clock);stopRecovery();events.abort();
+    disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
     for(const cleanup of [()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}

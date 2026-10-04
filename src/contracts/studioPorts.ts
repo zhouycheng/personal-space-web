@@ -1,6 +1,7 @@
 import type { BookReport, JournalManifest, JournalRegion, JournalIntent } from "./journal";
 import type { OperationResult } from "./operation";
 import type { RoomView, RoomViewAction } from "./studio";
+import type { StartupProgress } from './startup';
 
 export type DrawerId = "drawer-top" | "drawer-middle" | "drawer-bottom";
 export type StudioTargets = { view: RoomView; lampOn: boolean; showDate: boolean; drawers: boolean[] };
@@ -32,7 +33,7 @@ export interface TransitionPort {
 }
 
 export interface ScenePort extends TransitionPort {
-  prepareStartup(options: { entrance: boolean; onProgress: (progress: number) => void }): Promise<OperationResult>;
+  prepareStartup(options: { entrance: boolean; onProgress: (progress: StartupProgress) => void }): Promise<OperationResult>;
   playEntrance(options: EntranceTransition & { target?: 'computer' | 'canvas' | 'works'; onSurfaceProgress?: (progress:number,rect:SurfaceRect)=>void }): Promise<OperationResult>;
   snapshot(): SceneSnapshot;
   restore(snapshot: SceneSnapshot): void;

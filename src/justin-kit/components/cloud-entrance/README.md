@@ -15,6 +15,8 @@ import CloudEntrance from './CloudEntrance.astro';
 
 由宿主创建 `createCloudEntrance(root, onEnter, onRetry)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
 
+默认加载文字为「正在加载场景」。宿主可通过 `setState('loading', message)` 替换当前阶段文字；阶段定义、耗时记录和错误重试由宿主持有。`setProgress` 表示宿主任务的完成节点，不自动推算下载字节或剩余时间。
+
 `loading` 和 `ready` 使用同一个底部文本节点。加载文字的颜色从左向右填充；就绪文字原位替换。首次进入使用 `ready` 等待用户点击，再由场景时钟驱动 `revealing`。已完成标签页刷新时，宿主继续传入真实准备进度，准备完成后调用 `dismiss(duration)` 自动淡出云雾，不启动相机开场动画。错误状态显示重试和注入的 `fallback` 插槽。按钮、链接、表单、`contenteditable`、`data-cloud-no-enter`、文字选区和移动超过 6px 的拖动均不会触发进入；就绪根节点支持 Enter / Space。
 
 `fogField.ts` 将多尺度平滑噪声和坐标扭曲预计算为数值密度缓冲；横向拉伸的三层云纱以不同尺度与速度采样，不计算凸起表面法线。准备页使用揭幕进度为零的同一画面，字形在尺寸改变时烘焙。悬停只揭开另一层不透明雾面；点击前不会暴露底层内容。

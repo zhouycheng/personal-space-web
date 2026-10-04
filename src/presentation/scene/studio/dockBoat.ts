@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeIndexed } from './indexedGeometry.ts';
 import type { StudioPrimitives } from './studioPrimitives.ts';
 import { createWorkspaceMaterials } from './workspaceMaterials.ts';
 import { stepSpring } from '../../../animation/studio/spring.ts';
@@ -97,8 +97,7 @@ export function createDockBoat(p:StudioPrimitives,materials:Set<THREE.Material>,
   }});
   hull.updateMatrixWorld(true);
   for(const [material,objects] of hullBatches){
-    const parts=objects.map(object=>(object.geometry.index?object.geometry.toNonIndexed():object.geometry.clone()).applyMatrix4(object.matrixWorld));
-    const geometry=mergeGeometries(parts);parts.forEach(part=>part.dispose());
+    const geometry=mergeIndexed(objects.map(object=>({geometry:object.geometry,matrix:object.matrixWorld})));
     if(geometry){objects.forEach(object=>object.removeFromParent());p.mesh(hull,geometry,material,0,0,0);}
   }
   const endPoint=new THREE.Vector3(),along=new THREE.Vector3(),side=new THREE.Vector3(),up=new THREE.Vector3(),vertical=new THREE.Vector3(0,1,0);
