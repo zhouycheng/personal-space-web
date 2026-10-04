@@ -74,15 +74,31 @@ export function createRockMaterial() {
 }
 
 // The same centers, orientation and extents drive the seabed silhouette and foam.
-const distanceField=(name:string,surfaceOnly:boolean)=>`float ${name}(vec2 p) {
-  float distanceToRock=100.0;
-  ${islandRocks.filter(r=>rockBase(r)<islandAppearance.seaLevel&&(!surfaceOnly||rockBase(r)+r.height>islandAppearance.seaLevel-.06)).map(r=>{
+export function rockWaterFootprints(surfaceOnly:boolean) {
+  const limit=surfaceOnly?.65:.25;
+  return islandRocks.filter(r=>rockBase(r)<islandAppearance.seaLevel&&(!surfaceOnly||rockBase(r)+r.height>islandAppearance.seaLevel-.06)).map(r=>{
     const base=rockBase(r),relative=Math.max(-1,Math.min(1,2*(islandAppearance.seaLevel-base)/r.height-1));
     const slice=!surfaceOnly?1:Math.sqrt(Math.max(.12,1-relative*relative));
-    return `{vec2 d=p-vec2(${r.x.toFixed(5)},${r.z.toFixed(5)});
-      d=mat2(${Math.cos(r.rotation).toFixed(5)},${(-Math.sin(r.rotation)).toFixed(5)},${Math.sin(r.rotation).toFixed(5)},${Math.cos(r.rotation).toFixed(5)})*d;
-      distanceToRock=min(distanceToRock,(length(d/vec2(${(r.width*slice).toFixed(5)},${(r.depth*slice).toFixed(5)}))-1.0)*${(Math.min(r.width,r.depth)*slice).toFixed(5)});}`;
-  }).join('\n')}
-  return distanceToRock;
-}`;
+    const width=r.width*slice,depth=r.depth*slice,minimum=Math.min(width,depth),c=Math.cos(r.rotation),s=Math.sin(r.rotation);
+    // Enclose the entire nonzero influence, including rounding in generated GLSL.
+    const factor=1+limit/minimum;
+    return {x:r.x,z:r.z,width,depth,minimum,c,s,limit,
+      extentX:Math.hypot(c*width,s*depth)*factor+.001,extentZ:Math.hypot(s*width,c*depth)*factor+.001};
+  });
+}
+const distanceField=(name:string,surfaceOnly:boolean)=>{
+  const rocks=rockWaterFootprints(surfaceOnly),limit=surfaceOnly?.65:.25;
+  const low=[Math.min(...rocks.map(r=>r.x-r.extentX)),Math.min(...rocks.map(r=>r.z-r.extentZ))];
+  const high=[Math.max(...rocks.map(r=>r.x+r.extentX)),Math.max(...rocks.map(r=>r.z+r.extentZ))];
+  return `float ${name}(vec2 p) {
+    if(any(lessThan(p,vec2(${low.join(',')})))||any(greaterThan(p,vec2(${high.join(',')}))))return ${limit};
+    float distanceToRock=${limit};
+    ${rocks.map(r=>`{vec2 d=p-vec2(${r.x.toFixed(5)},${r.z.toFixed(5)});
+      if(abs(d.x)<${r.extentX.toFixed(5)}&&abs(d.y)<${r.extentZ.toFixed(5)}){
+        d=mat2(${r.c.toFixed(5)},${(-r.s).toFixed(5)},${r.s.toFixed(5)},${r.c.toFixed(5)})*d;
+        distanceToRock=min(distanceToRock,(length(d/vec2(${r.width.toFixed(5)},${r.depth.toFixed(5)}))-1.0)*${r.minimum.toFixed(5)});
+      }}`).join('\n')}
+    return distanceToRock;
+  }`;
+};
 export const rockCoastGLSL=distanceField('rockDistance',true)+distanceField('reefDistance',false);

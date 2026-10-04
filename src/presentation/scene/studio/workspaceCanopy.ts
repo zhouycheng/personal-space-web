@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
-import { canopyOpacity } from '../../../animation/studio/canopyVisibility.ts';
+import { canopyDistanceOpacity,fadeCanopyOpacity } from '../../../animation/studio/canopyVisibility.ts';
 import type { StudioPrimitives } from './studioPrimitives';
 import { createWorkspaceMaterials } from './workspaceMaterials';
-import { canopySurface } from '../../../animation/studio/canopySurface.ts';
+import { canopySurface,canopySurfaceGLSL } from '../../../animation/studio/canopySurface.ts';
 
 export function createWorkspaceCanopy(scene:THREE.Scene,p:StudioPrimitives,materials:Set<THREE.Material>,textures:Set<THREE.Texture>) {
   const group=new THREE.Group();group.name='workspace-canopy';scene.add(group);
   const {timber,canvas:cloth}=createWorkspaceMaterials(materials,textures);
   const canvas=cloth.clone();materials.add(canvas);
-  canvas.map=null;canvas.bumpMap=null;canvas.color.setHex(0xe8dcc3);canvas.roughness=.94;canvas.shadowSide=THREE.BackSide;
-  canvas.emissive.setHex(0xc2b697);canvas.emissiveIntensity=.065;canvas.alphaHash=true;
+  canvas.color.setHex(0xe8dcc3);canvas.bumpScale=.0001;canvas.roughness=.94;canvas.shadowSide=THREE.DoubleSide;
+  canvas.emissive.setHex(0xc2b697);canvas.emissiveIntensity=.065;
+  canvas.transparent=true;canvas.depthWrite=false;canvas.forceSinglePass=true;
   const rope=p.material(0xb0a080,.97);
   function point(u:number,v:number,time=0) {
     const q=canopySurface(u,v,time);return new THREE.Vector3(q.x,q.y,q.z);
@@ -33,8 +34,10 @@ export function createWorkspaceCanopy(scene:THREE.Scene,p:StudioPrimitives,mater
     const u=pos.getX(i)+.5,v=pos.getY(i)+.5,q=point(u,v);
     coordinates.push(u,v);pos.setXYZ(i,q.x,q.y,q.z);
   }
+  // Use the upper surface orientation for shadow receiver bias on this thin cloth.
+  const index=geo.index!;for(let i=0;i<index.count;i+=3){const b=index.getX(i+1);index.setX(i+1,index.getX(i+2));index.setX(i+2,b);}
   geo.computeVertexNormals();const roof=p.mesh(group,geo,canvas,0,0,0);roof.name='workspace-canopy-cloth';
-  const depth=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.BackSide,alphaHash:true});materials.add(depth);roof.customDepthMaterial=depth;
+  const depth=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide,alphaHash:true});materials.add(depth);roof.customDepthMaterial=depth;
   const seams:THREE.Mesh[]=[];
   const hem=canvas.clone();hem.color.setHex(0xd3c2a2);materials.add(hem);
   const surfaces=[{geometry:geo,uv:coordinates,offset:0}];
@@ -46,25 +49,57 @@ export function createWorkspaceCanopy(scene:THREE.Scene,p:StudioPrimitives,mater
     }
     geometry.computeVertexNormals();const seam=p.mesh(group,geometry,hem,0,0,0);seam.castShadow=false;seam.receiveShadow=false;seams.push(seam);surfaces.push({geometry,uv,offset:.004});
   }
-  let previous:number|undefined,opacity=1,lastWind=-1,lastShadow=-1;
-  return {group,pause(){previous=undefined;},update(now:number,camera:THREE.Vector3,target:THREE.Vector3,reduced:boolean,windTime=0,windActive=false) {
+  // Keep all deformed passes coherent without rebuilding vertex arrays or normals.
+  const time={value:0};
+  for(const surface of surfaces) {
+    const g=surface.geometry;
+    g.setAttribute('canopyUv',new THREE.Float32BufferAttribute(surface.uv,2));
+    g.setAttribute('canopyLift',new THREE.Float32BufferAttribute(new Float32Array(surface.uv.length/2).fill(surface.offset),1));
+    const uv=g.attributes.uv;
+    for(let i=0;i<uv.count;i++)uv.setXY(i,surface.uv[i*2]*12,surface.uv[i*2+1]*9);
+    g.computeBoundingSphere();g.boundingSphere!.radius+=.18;
+  }
+  for(const material of [canvas,hem,depth]) {
+    material.onBeforeCompile=shader=>{
+      shader.uniforms.canopyTime=time;
+      shader.vertexShader=`uniform float canopyTime;attribute vec2 canopyUv;attribute float canopyLift;\n${canopySurfaceGLSL}\n`+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>
+        vec2 lo=max(vec2(0.),canopyUv-vec2(.001)),hi=min(vec2(1.),canopyUv+vec2(.001));
+        vec3 du=canopySurface(vec2(hi.x,canopyUv.y),canopyTime)-canopySurface(vec2(lo.x,canopyUv.y),canopyTime);
+        vec3 dv=canopySurface(vec2(canopyUv.x,hi.y),canopyTime)-canopySurface(vec2(canopyUv.x,lo.y),canopyTime);
+        objectNormal=normalize(cross(dv,du));`);
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`vec3 transformed=canopySurface(canopyUv,canopyTime)+vec3(0.,canopyLift,0.);`);
+      // A thin, deforming two-sided sheet needs a receiver offset as well as
+      // normal bias, otherwise its underside develops contour-like self shadows.
+      shader.vertexShader=shader.vertexShader.replace('#include <shadowmap_vertex>',`#include <shadowmap_vertex>
+        #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+          vDirectionalShadowCoord[0].z-=.00035*vDirectionalShadowCoord[0].w;
+        #endif`);
+    };
+    material.customProgramCacheKey=()=> 'anchored-canopy-v3';
+  }
+  // Sewn reinforcement triangles share the same surface deformation.
+  for(const u of [0,1])for(const v of [0,1]){
+    const g=new THREE.BufferGeometry(),uv=[u,v,u+(u?-.055:.055),v,u,v+(v?-.075:.075)];
+    const positions=[];for(let i=0;i<3;i++){const q=point(uv[i*2],uv[i*2+1]);positions.push(q.x,q.y+.007,q.z);}
+    g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv.map(n=>n*10),2));
+    g.setAttribute('canopyUv',new THREE.Float32BufferAttribute(uv,2));g.setAttribute('canopyLift',new THREE.Float32BufferAttribute([.007,.007,.007],1));g.computeVertexNormals();
+    const patch=p.mesh(group,g,hem,0,0,0);patch.castShadow=false;seams.push(patch);
+    const top=point(u,v),ring=p.mesh(group,new THREE.TorusGeometry(.032,.008,8,24),p.brass,top.x,top.y+.012,top.z);ring.rotation.x=-Math.PI/2;
+  }
+  let previous:number|undefined,opacity=1,lastWind=-1;
+  return {group,pause(){previous=undefined;},update(now:number,camera:THREE.Vector3,_target:THREE.Vector3,reduced:boolean,windTime=0,windActive=false,clearWorkspace=false) {
     const from=camera.toArray();
-    const wanted=Math.min(canopyOpacity(from,target.toArray()),canopyOpacity(from,[-.2,1.8,-1.4]),canopyOpacity(from,[1.04,1.474,-1.1]));
+    const wanted=clearWorkspace?0:canopyDistanceOpacity(from);
     const elapsed=previous===undefined?16:Math.min(50,now-previous);previous=now;
-    const next=reduced?wanted:THREE.MathUtils.lerp(opacity,wanted,1-Math.exp(-elapsed/85));
-    const settled=Math.abs(next-wanted)<.005?wanted:next,changed=settled!==opacity;opacity=settled;
+    const next=fadeCanopyOpacity(opacity,wanted,elapsed,reduced),changed=next!==opacity;opacity=next;
     canvas.opacity=depth.opacity=opacity;roof.visible=opacity>0;for(const seam of seams)seam.visible=opacity>0;
     hem.opacity=opacity;
-    const windChanged=windActive&&opacity>0&&windTime-lastWind>=1/30;
+    const windChanged=windActive&&opacity>0&&windTime!==lastWind;
     if(windChanged) {
-      for(const surface of surfaces) {
-        const a=surface.geometry.attributes.position;
-        for(let i=0;i<a.count;i++){const q=canopySurface(surface.uv[i*2],surface.uv[i*2+1],windTime);a.setXYZ(i,q.x,q.y+surface.offset,q.z);}
-        a.needsUpdate=true;surface.geometry.computeVertexNormals();
-      }
-      lastWind=windTime;
+      time.value=windTime;lastWind=windTime;
     }
-    const shadowChanged=changed||(windChanged&&windTime-lastShadow>=.1);if(shadowChanged)lastShadow=windTime;
+    const shadowChanged=changed||windChanged;
     return {changed:changed||windChanged,shadowChanged,moving:opacity!==wanted||(windActive&&opacity>0)};
   }};
 }

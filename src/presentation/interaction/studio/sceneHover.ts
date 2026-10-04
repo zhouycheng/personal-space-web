@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ACTION_LABELS, type StudioAction } from '../../../contracts/studio';
+import { ACTION_LABELS, type StudioAction } from '../../../contracts/studio.ts';
 
 type Options = {
   canvas: HTMLCanvasElement; mount: HTMLElement; tooltip: HTMLElement;
@@ -29,7 +29,10 @@ export function createStudioHover({ canvas, mount, tooltip, bounds, requestDraw,
     } else material.copy(original);
     // Original lamp colors and textures can change between hover visits.
     if (material instanceof THREE.MeshStandardMaterial && original instanceof THREE.MeshStandardMaterial && original.emissive.getHex() === 0) {
-      material.emissive.copy(original.color); material.emissiveIntensity = .06;
+      material.emissive.copy(original.color);
+      material.emissiveIntensity = target?.userData.action === 'diary' ? .24 : .06;
+      // Keep the diary's printed title textured instead of illuminating its whole decal.
+      if (target?.userData.action === 'diary') material.emissiveMap = original.map;
     }
     material.needsUpdate = true;
     return material;

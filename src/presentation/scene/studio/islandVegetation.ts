@@ -4,9 +4,9 @@ import { islandPalms,islandUnderstory } from '../../../config/islandVegetation.t
 import { terrainHeight } from '../../../config/islandTerrain.ts';
 import { dressingPlants } from '../../../config/islandDressing.ts';
 import { breezeGLSL } from '../../../animation/studio/breeze.ts';
+import { emptyLeaves,createLeafDetails,leafDetailLevel,type LeafMesh } from './leafDetails.ts';
 
 const variation=(seed:number)=>{const x=Math.sin(seed*127.1+311.7)*43758.5453;return x-Math.floor(x);};
-type LeafMesh={positions:number[];colors:number[];indices:number[];anchors:number[];uvs:number[]};
 function windAnchor(geometry:THREE.BufferGeometry,origin:THREE.Vector3) {
   const values=new Float32Array(geometry.attributes.position.count*3);
   for(let i=0;i<values.length;i+=3){values[i]=origin.x;values[i+1]=origin.y;values[i+2]=origin.z;}
@@ -16,6 +16,7 @@ function windAnchor(geometry:THREE.BufferGeometry,origin:THREE.Vector3) {
 /** Curved, folded leaflets model the silhouette and cast individual leaf shadows. */
 function blade(mesh:LeafMesh,start:THREE.Vector3,end:THREE.Vector3,width:number,seed:number,dry=false,anchor=start) {
   const offset=mesh.positions.length/3,broad=width>.12,segments=broad?22:8,columns=broad?9:5;
+  mesh.blades.push({offset,segments,columns});
   const direction=end.clone().sub(start);
   const side=new THREE.Vector3(-direction.z,0,direction.x).normalize();
   const green=dry?new THREE.Color(0x786344):new THREE.Color().setHSL(.25+variation(seed)*.045,.48+variation(seed+1)*.15,.23+variation(seed+2)*.09).convertSRGBToLinear();
@@ -93,9 +94,12 @@ function trunk(x:number,z:number,height:number,leanX:number,leanZ:number) {
 
 export function createIslandVegetation(materials:Set<THREE.Material>,geometries:Set<THREE.BufferGeometry>) {
   const group=new THREE.Group();group.name='island-vegetation';
-  const leaves:LeafMesh={positions:[],colors:[],indices:[],anchors:[],uvs:[]};
+  let leaves=emptyLeaves();
+  const plants:LeafMesh[]=[];
+  const plant=()=>{leaves=emptyLeaves();plants.push(leaves);};
   const trunks:THREE.BufferGeometry[]=[],stems:THREE.BufferGeometry[]=[];
   for(const palm of islandPalms) {
+    plant();
     trunks.push(trunk(palm.x,palm.z,palm.height,palm.leanX,palm.leanZ));
     for(let i=0;i<7;i++) {
       const angle=i*2.39996+palm.seed,length=.32+variation(i+palm.seed)*.28;
@@ -115,6 +119,7 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
     }
   }
   for(const plant of islandUnderstory) {
+    leaves=emptyLeaves();plants.push(leaves);
     const base=new THREE.Vector3(plant.x,terrainHeight(plant.x,plant.z)-.045,plant.z);
     for(let i=0;i<14;i++) {
       const seed=plant.seed+i*17,length=plant.scale*(.58+variation(seed)*.72),angle=i*2.39996+plant.seed;
@@ -140,6 +145,7 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
   }
   // Upright petioles and broad folded leaves add a middle layer beneath the palms.
   for(const plant of dressingPlants) {
+    leaves=emptyLeaves();plants.push(leaves);
     const origin=new THREE.Vector3(plant.x,terrainHeight(plant.x,plant.z)-.035,plant.z);
     for(let i=0;i<11;i++) {
       const seed=plant.seed+i*11,angle=i*2.39996+plant.seed,young=i>7;
@@ -154,6 +160,7 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
       blade(leaves,tip,end,plant.radius*(young?.16:.26),seed,false,origin);
     }
   }
+  plant();
   for(const patch of [...islandPalms.map(p=>({x:p.x,z:p.z,scale:.75,seed:p.seed})),...islandUnderstory]) {
     for(let i=0;i<9;i++) {
       const angle=i*2.39996+patch.seed,r=(.2+variation(i+patch.seed)*.55)*patch.scale;
@@ -177,19 +184,26 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
   foliage.shadowSide=THREE.BackSide;
   const stemMaterial=new THREE.MeshStandardMaterial({color:0x65763a,roughness:.9});
   const time={value:0};
-  const windHeader=`uniform float breezeTime;attribute vec3 windAnchor;${breezeGLSL}`;
+  const windHeader=`uniform float breezeTime;attribute vec3 windAnchor;${breezeGLSL}
+  vec3 branchOffset(vec3 p) {
+    vec3 b=p-windAnchor;float r=length(b),wind=breezeAt(windAnchor.xz,max(0.,breezeTime-r*.085));
+    float flutter=sin(breezeTime*3.1-r*4.7+dot(windAnchor.xz,vec2(.73,.51)))*.0025*(1.-exp(-breezeTime*.7));
+    return vec3(.85,.18,.53)*r*r*(.024*wind+flutter);
+  }`;
   const displacement=`
-    vec3 branch=position-windAnchor;
-    float flex=length(branch)*length(branch)*.024;
-    float wind=breezeAt(windAnchor.xz,breezeTime);
-    transformed+=vec3(.85,.18,.53)*flex*wind;
+    transformed+=branchOffset(position);
   `;
   const depth=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});materials.add(depth);
   for(const mat of [foliage,stemMaterial,depth]) {
-    mat.onBeforeCompile=shader=>{shader.uniforms.breezeTime=time;shader.vertexShader=windHeader+shader.vertexShader;
+    mat.onBeforeCompile=shader=>{shader.uniforms.breezeTime=time;shader.vertexShader=windHeader+'\n'+shader.vertexShader;
       shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>\n${displacement}`);
+      shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>
+        vec3 b=position-windAnchor;float r=length(b);
+        float strength=.024*breezeAt(windAnchor.xz,max(0.,breezeTime-r*.085));
+        vec3 gradient=2.*b*strength,dir=vec3(.85,.18,.53);
+        objectNormal=normalize(objectNormal-gradient*dot(dir,objectNormal)/(1.+dot(dir,gradient)));`);
     };
-        mat.customProgramCacheKey=()=> 'island-anchored-breeze-v2';
+        mat.customProgramCacheKey=()=> 'island-anchored-breeze-v3';
   }
   const foliageCompile=foliage.onBeforeCompile;
   foliage.onBeforeCompile=(shader,renderer)=>{
@@ -203,19 +217,33 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
       float mottling=sin(vLeafUv.y*47.+sin(vLeafUv.x*31.))*sin(vLeafUv.x*73.+vLeafUv.y*19.);
       diffuseColor.rgb*=1.+.055*centerVein-.045*veins+.025*mottling;`);
   };
-  const leafGeometry=new THREE.BufferGeometry();
-  leafGeometry.setAttribute('position',new THREE.Float32BufferAttribute(leaves.positions,3));
-  leafGeometry.setAttribute('color',new THREE.Float32BufferAttribute(leaves.colors,3));
-  leafGeometry.setAttribute('leafUv',new THREE.Float32BufferAttribute(leaves.uvs,2));
-  leafGeometry.setAttribute('windAnchor',new THREE.Float32BufferAttribute(leaves.anchors,3));
-  leafGeometry.setIndex(leaves.indices);leafGeometry.computeVertexNormals();
+  const details=plants.map(leaves=>{
+    const levels=createLeafDetails(leaves),mesh=new THREE.Mesh(levels[0].geometry,foliage);
+    mesh.name='plant-leaves';mesh.userData.detailLevel=0;mesh.castShadow=true;mesh.customDepthMaterial=depth;
+    group.add(mesh);levels.forEach(level=>geometries.add(level.geometry));
+    return {mesh,levels,errors:levels.map(level=>level.error),level:0};
+  });
+  materials.add(foliage);
   const trunkGeometry=mergeGeometries(trunks)!,stemGeometry=mergeGeometries(stems)!;
   [...trunks,...stems].forEach(geometry=>geometry.dispose());
-  for(const [geometry,material] of [[trunkGeometry,bark],[leafGeometry,foliage],[stemGeometry,stemMaterial]] as const) {
+  for(const [geometry,material] of [[trunkGeometry,bark],[stemGeometry,stemMaterial]] as const) {
     geometry.computeBoundingBox();geometry.computeBoundingSphere();
-    const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=material!==foliage;
+    const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;
     if(material!==bark){mesh.customDepthMaterial=depth;geometry.boundingSphere!.radius+=.35;}
     group.add(mesh);geometries.add(geometry);materials.add(material);
   }
-  return Object.assign(group,{setWind(seconds:number){time.value=seconds;}});
+  const center=new THREE.Vector3();
+  return Object.assign(group,{setWind(seconds:number){time.value=seconds;},updateDetail(camera:THREE.PerspectiveCamera,height:number){
+    camera.updateMatrixWorld();let changed=false;
+    const scale=height/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
+    for(const item of details) {
+      const sphere=item.levels[0].geometry.boundingSphere!;
+      center.copy(sphere.center).applyMatrix4(camera.matrixWorldInverse);
+      const near=Math.max(camera.near,-center.z-sphere.radius);
+      const projectionScale=scale/near*Math.sqrt(1+((Math.abs(center.x)+sphere.radius)**2+(Math.abs(center.y)+sphere.radius)**2)/(near*near));
+      const level=leafDetailLevel(item.errors,projectionScale,item.level);
+      if(level!==item.level){item.level=level;item.mesh.geometry=item.levels[level].geometry;item.mesh.userData.detailLevel=level;changed=true;}
+    }
+    return changed;
+  }});
 }
