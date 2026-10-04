@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 import { bookCanvas, drag, longBook, manifest, phase, serveBook, visual } from "./helpers/journal";
 
 test("T23–T26 article URLs, refresh, legacy redirects and invalid slugs", async ({ page }, info) => {

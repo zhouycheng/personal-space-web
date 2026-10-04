@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 
 test("file selection centers before opening, preserves copyable details and supports keyboard", async ({ page, isMobile }) => {
   await page.goto("/works");

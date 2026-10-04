@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 import { bookCanvas, manifest, phase, visual } from "./helpers/journal";
 
 test("T29 context loss restores a rendered book and never leaves input locked", async ({ page }, info) => {

@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 
 test("T36 narrow canvas contents focus a readable card without persisting viewport", async ({ page, isMobile }) => {
   await page.setViewportSize({ width: 390, height: 844 });

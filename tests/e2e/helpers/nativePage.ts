@@ -5,8 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 /** Lifecycle checks need real visibility; Playwright's normal focus emulation keeps tabs visible. */
-export const test = base.extend<{ nativePage: Page }>({
-  nativePage: async ({ baseURL }, use) => {
+export const test = base.extend<{ nativePage: Page; freshEntrance: boolean }>({
+  freshEntrance: [false, { option: true }],
+  nativePage: async ({ baseURL, freshEntrance }, use) => {
     const directory = await mkdtemp(path.join(tmpdir(), "justin-native-browser-"));
     const process = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${directory}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: "ignore" });
     let browser;
@@ -21,6 +22,7 @@ export const test = base.extend<{ nativePage: Page }>({
       browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
       const context = browser.contexts()[0];
       const page = context.pages()[0];
+      if(!freshEntrance)await page.addInitScript(() => sessionStorage.setItem('justin-entrance-completed','1'));
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto(baseURL!);
       await use(page);

@@ -1,4 +1,5 @@
-import { expect, test } from 'playwright/test';
+import { expect } from 'playwright/test';
+import { test } from './helpers/app';
 import { oceanWavesGLSL } from '../../src/presentation/scene/studio/oceanShader';
 
 test('Gerstner GPU particles move laterally and vertically with consistent non-overturning tangents',async({page})=>{
