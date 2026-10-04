@@ -3,6 +3,7 @@ import {createWoolMaterial,addWoolPile} from './woolRug.ts';
 import {createHurricaneLantern} from './hurricaneLantern.ts';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { indexedCopy } from './indexedGeometry.ts';
 import { dressingProps } from '../../../config/islandDressing.ts';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
 import { workspaceAppearance } from '../../../config/workspaceAppearance.ts';
@@ -229,7 +230,7 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   let woodIndex=0;
   source.traverse(object=>{
     if(!(object instanceof THREE.Mesh))return;
-    const geometry=object.geometry.index?object.geometry.toNonIndexed():object.geometry.clone();geometry.applyMatrix4(object.matrixWorld);
+    const geometry=indexedCopy(object.geometry,object.matrixWorld);
     const mat=object.material as THREE.Material;
     if(mat===timber) {
       const count=geometry.attributes.position.count,colours=new Float32Array(count*3),shade=.87+.12*(Math.sin(++woodIndex*7.13)*.5+.5);

@@ -25,10 +25,16 @@ import { entrancePose, entranceBlend, entranceContentProgress, ENTRANCE_AZIMUTH,
 import { islandAppearance } from "../../../config/islandAppearance";
 import { acceptsIslandFocus,clampIslandFocus } from '../../../animation/studio/islandNavigation.ts';
 import { createScenePerformanceOverlay, type SceneDebugGroup } from './scenePerformanceOverlay.ts';
+import type { StartupProgress } from '../../../contracts/startup.ts';
+import type { PreparedSceneGeometry } from './sceneGeometryData.ts';
+import { paintOpportunity } from '../../../infrastructure/client/paintOpportunity.ts';
+import { waitForOptionalResource } from '../../../infrastructure/client/optionalResource.ts';
+export { prepareSceneGeometry } from './prepareSceneGeometry.ts';
+export { disposePreparedGeometry } from './sceneGeometryData.ts';
 
-export type StudioScene = ReturnType<typeof createStudioScene>;
+export type StudioScene = Awaited<ReturnType<typeof createStudioScene>>;
 
-export function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "") {
+export async function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "", preparation?:{geometry:Promise<PreparedSceneGeometry>;signal:AbortSignal;timings:Record<string,number>}) {
   const cleanup: (()=>void)[] = [];
   const canvas = document.createElement("canvas");
   let creationError="";
@@ -112,28 +118,36 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let entranceUpdate:((progress:number)=>void)|undefined;
   const entranceCamera=camera.clone(),contentCamera=camera.clone();
   let startupVersion = 0;
+  let startupAbort:AbortController|undefined;
+  cleanup.push(()=>startupAbort?.abort());
   const chairRocking = createChairRocking();
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
-  const environment = createIslandEnvironment(scene, materials, geometries);
-  cleanup.push(()=>scene.remove(environment.group));
-  let settleNormals: () => void;
-  const normalsReady = new Promise<void>(resolve => { settleNormals = resolve; });
-  const oceanNormals = new THREE.TextureLoader().load(
-    new URL("../../../content/scene/waternormals.jpg", import.meta.url).href,
-    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}settleNormals();},
-    undefined,()=>{settleNormals(); /* Analytic swells are the existing detail-texture fallback. */ },
-  );
-  oceanNormals.wrapS=oceanNormals.wrapT=THREE.RepeatWrapping;
-  oceanNormals.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
-  textures.add(oceanNormals);
-
+  const furnitureStarted=performance.now();
   const {
     canopy,dressing,leisure,fileLibrary,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
   } = createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup });
+  if(preparation)preparation.timings.furnitureCpu=performance.now()-furnitureStarted;
+  const prepared=await preparation?.geometry;
+  if(prepared)for(const geometry of [prepared.sand,prepared.water,prepared.rocks,prepared.vegetation.trunkGeometry,prepared.vegetation.stemGeometry,...prepared.vegetation.details.flatMap(levels=>levels.map(l=>l.geometry))])geometries.add(geometry);
+  if(preparation?.signal.aborted)throw new DOMException('Preparation cancelled','AbortError');
+  const assemblyStarted=performance.now();
+  const environment = createIslandEnvironment(scene, materials, geometries, prepared);
+  cleanup.push(()=>scene.remove(environment.group));
+  let settleNormals: () => void;
+  const normalsReady = new Promise<void>(resolve => { settleNormals = resolve; });
+  const oceanNormals = new THREE.TextureLoader().load(
+    new URL("../../../content/scene/waternormals.jpg", import.meta.url).href,
+    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}else texture.dispose();settleNormals();},
+    undefined,()=>{settleNormals(); /* Analytic swells are the existing detail-texture fallback. */ },
+  );
+  oceanNormals.wrapS=oceanNormals.wrapT=THREE.RepeatWrapping;
+  oceanNormals.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  textures.add(oceanNormals);
+
   let steamElapsed=0,steamFrameTime:number|undefined;
   let breezeTime=0,breezeFrameTime:number|undefined;
   sun.shadow.autoUpdate=false;lamp.shadow.autoUpdate=false;
@@ -471,28 +485,34 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setShadows:setDebugShadows,setRenderRatio:setDebugRenderRatio,resetRenderRatio:()=>setDebugRenderRatio(initialRenderRatio),setDebugTime,
   }});
   cleanup.push(()=>performanceOverlay?.dispose());
+  if(preparation)preparation.timings.assemblyCpu=performance.now()-assemblyStarted;
   return {
-    async prepareStartup({ entrance, onProgress }: { entrance: boolean; onProgress: (progress: number) => void }): Promise<OperationResult> {
+    async prepareStartup({ entrance, onProgress }: { entrance: boolean; onProgress: (progress: StartupProgress) => void }): Promise<OperationResult> {
       const token = ++startupVersion;
+      startupAbort?.abort();const abort=startupAbort=new AbortController();
       const valid = () => token === startupVersion && !destroyed && !failed;
       this.setActive(false);stopCamera();
       if(entrance)poseEntrance(0);
-      const timings:Record<string,number>={};
+      const timings:Record<string,number>=JSON.parse(mount.dataset.startupTimings??'{}');
       const measure=(name:string,start:number)=>{timings[name]=Math.round(performance.now()-start);mount.dataset.startupTimings=JSON.stringify(timings);};
-      const normalsStarted=performance.now();
-      await normalsReady;
-      measure('textureWait',normalsStarted);
-      if(!valid())return {status:'cancelled',reason:'startup-replaced'};
       try {
+        onProgress({stage:'texture',progress:2/5});
+        await paintOpportunity(abort.signal);
+        const normalsStarted=performance.now();
+        const normalsResult=await waitForOptionalResource(normalsReady,abort.signal);
+        measure('textureWait',normalsStarted);mount.dataset.normalsWait=normalsResult;
+        if(!valid())return {status:'cancelled',reason:'startup-replaced'};
         const uploadStarted=performance.now();
         for(const texture of textures) { if(texture.image)renderer.initTexture(texture); }
         measure('textureUpload',uploadStarted);
-        onProgress(3/5);
+        onProgress({stage:'shader',progress:3/5});
+        await paintOpportunity(abort.signal);
         const compileStarted=performance.now();
         await renderer.compileAsync(scene,camera);
         measure('shaderWarmup',compileStarted);
         if(!valid())return {status:'cancelled',reason:'startup-replaced'};
-        onProgress(4/5);
+        onProgress({stage:'first-frame',progress:4/5});
+        await paintOpportunity(abort.signal);
         const drawStarted=performance.now();
         // Warm actual draws, including shadows and both canopy/LOD viewpoints.
         setRoomCamera();canopy.update(performance.now(),camera.position,currentLook,true,breezeTime,false,false);
@@ -502,9 +522,9 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         if(!render())return {status:'failed',code:'startup-render',retryable:true};
         if(!valid())return {status:'cancelled',reason:'startup-replaced'};
         measure('firstDraws',drawStarted);
-        onProgress(1);
+        onProgress({stage:'ready',progress:1});
         return {status:'completed',value:undefined};
-      } catch(error) {fail(studioFailure(error,'render'));return {status:'failed',code:'startup',retryable:true};}
+      } catch(error) {if(!valid()||abort.signal.aborted)return {status:'cancelled',reason:'startup-replaced'};fail(studioFailure(error,'render'));return {status:'failed',code:'startup',retryable:true};}
     },
     async playEntrance({duration,onProgress,target,onSurfaceProgress}: EntranceTransition & {target?:'computer'|'canvas'|'works';onSurfaceProgress?:(progress:number,rect:SurfaceRect)=>void}): Promise<OperationResult> {
       if(failed||destroyed)return {status:'failed',code:'entrance-unavailable',retryable:true};
@@ -672,7 +692,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(failed||destroyed)return Promise.resolve<OperationResult>({status:"failed",code:"三维场景不可用",retryable:true});
       const task=motion.start(duration,progress=>sample(enter?progress:1-progress));requestDraw();return task;
     },
-    cancelTransition() {startupVersion++;entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
+    cancelTransition() {startupVersion++;startupAbort?.abort();entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
     dispose() {if(destroyed)return;destroyed=true;startupVersion++;settleNormals();mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
   };
   } catch(error) {

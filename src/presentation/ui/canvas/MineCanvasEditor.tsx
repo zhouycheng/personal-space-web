@@ -1,7 +1,5 @@
 import { Background, ReactFlow, Handle, Position, ConnectionMode, useNodesState, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
-import '@xyflow/react/dist/style.css';
-import './mine-canvas.css';
 import { getPublishedCanvas } from '../../../data/repositories/canvas';
 import type { FlowNode as MineCanvasNode, FlowEdge as MineCanvasEdge } from './flowTypes';
 import { CanvasCardContent } from './CanvasCardContent';

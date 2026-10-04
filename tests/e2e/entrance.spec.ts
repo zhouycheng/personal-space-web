@@ -8,13 +8,16 @@ async function enter(page:Page) { await ready(page); await overlay(page).focus()
 
 test('loading reports real progress and a completed refresh auto-fades the cloud cover',async({page},info)=>{
   test.setTimeout(90_000);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  // Fix the cloud palette without mocking PerformanceNavigationTiming on reload.
+  await page.addInitScript(()=>{Date.prototype.getHours=()=>14;Date.prototype.getMinutes=()=>0;});
   let gate:Promise<void>|undefined;
   let releaseInitial!:()=>void;
   gate=new Promise<void>(resolve=>{releaseInitial=resolve;});
   await page.route('**/*waternormals*',async route=>{if(gate)await gate;await route.continue();});
   await page.goto('/home?source=entrance#start',{waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
-  await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备小岛');
+  await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
   const initialPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(initialPalette).toMatch(/^#[\da-f]{6}$/i);
   await overlay(page).click({position:{x:100,y:100}});
@@ -24,14 +27,17 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await expect(page.locator('[data-cloud-status]')).toHaveCount(1);
   await expect(page.locator('[data-cloud-status]')).toHaveText('点击拨开云雾');
   await expect(page.locator('[data-studio-scene]')).toHaveAttribute('data-render-active','false');
-  const before=await page.screenshot();await page.mouse.move(600,450);await page.waitForTimeout(250);
+  await page.locator('[data-cloud-entrance]').dispatchEvent('pointerleave');await page.waitForTimeout(1000);
+  const before=await page.screenshot();
+  const bounds=(await overlay(page).boundingBox())!;
+  await page.mouse.move(bounds.x+bounds.width*.42,bounds.y+bounds.height*.5);await page.waitForTimeout(500);
   expect(before.equals(await page.screenshot({path:info.outputPath('hover.png')}))).toBe(false);
   await enter(page);await expect(page).toHaveURL(/\/home\?source=entrance#start$/);
   let releaseRefresh!:()=>void;
   gate=new Promise<void>(resolve=>{releaseRefresh=resolve;});
   await page.reload({waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
-  await expect(page.locator('[data-cloud-status]')).toHaveText('正在布置工作室…');
+  await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
   const refreshPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(refreshPalette).toMatch(/^#[\da-f]{6}$/i);
   await expect(page.locator('[data-cloud-status]')).toHaveCSS('background-image',/linear-gradient/);

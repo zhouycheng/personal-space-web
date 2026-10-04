@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeIndexed } from './indexedGeometry.ts';
 
 /** Only siblings move and pick as one unit. Named/referenced meshes keep identity. */
 export function batchStaticChildren(root: THREE.Object3D, geometries: Set<THREE.BufferGeometry>,
@@ -23,9 +23,7 @@ export function batchStaticChildren(root: THREE.Object3D, geometries: Set<THREE.
   }
   for (const objects of batches.values()) {
     if (objects.length < 2) continue;
-    const pieces = objects.map(object => (object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone()).applyMatrix4(object.matrix));
-    const geometry = mergeGeometries(pieces);
-    pieces.forEach(piece => piece.dispose());
+    const geometry = mergeIndexed(objects);
     if (!geometry) continue;
     const first = objects[0], mesh = new THREE.Mesh(geometry, first.material);
     mesh.castShadow = first.castShadow; mesh.receiveShadow = first.receiveShadow;

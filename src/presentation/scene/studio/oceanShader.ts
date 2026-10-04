@@ -19,6 +19,8 @@ export const oceanWavesGLSL = `
       const wx=Math.cos(crossDirection)*k*.23,wz=Math.sin(crossDirection)*k*.23;
       const px=Math.cos(direction-.8)*k*.13,pz=Math.sin(direction-.8)*k*.13;
       return `{
+        float bandWeight = 1.0-smoothstep(${(length*.12).toFixed(6)},${(length*.5).toFixed(6)},footprint);
+        if (bandWeight > 0.0) {
         vec2 direction = vec2(${x.toFixed(8)},${z.toFixed(8)});
         float k = ${k.toFixed(8)};
         vec2 warpK=vec2(${wx.toFixed(8)},${wz.toFixed(8)});
@@ -29,7 +31,6 @@ export const oceanWavesGLSL = `
         vec2 envelopeGradient=0.28*cos(packet)*packetK;
         float phase = dot(direction*k,p) - ${Math.sqrt(9.81*k).toFixed(6)}*time*0.45 + ${phase.toFixed(2)} + 0.9*sin(warp);
         vec2 phaseGradient=direction*k+0.9*cos(warp)*warpK;
-        float bandWeight = 1.0-smoothstep(${(length*.12).toFixed(6)},${(length*.5).toFixed(6)},footprint);
         float amplitude = ${amplitude.toFixed(6)}*bandWeight;
         float lateral = ${horizontal.toFixed(8)}*bandWeight;
         float s=sin(phase), c=cos(phase);
@@ -38,6 +39,7 @@ export const oceanWavesGLSL = `
         result.offset += orbit*envelope;
         result.tangentX += derivative*phaseGradient.x*envelope + orbit*envelopeGradient.x;
         result.tangentZ += derivative*phaseGradient.y*envelope + orbit*envelopeGradient.y;
+        }
       }`;
     }).join("\n")}
     return result;
