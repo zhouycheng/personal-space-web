@@ -224,7 +224,7 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         base *= 0.91+0.09*noise(p*1.4);
         vec3 color = mix(base*(0.08+daylight*0.55),reflectedSky,fresnel);
         float specular = pow(max(dot(reflect(-sunDirection,normal),view),0.0),360.0);
-        color += sunColor * specular * (0.01+daylight*(.18+sunset*.65));
+        color += sunColor * specular * (0.01+daylight*(.18+sunset*.65))*smoothstep(0.0,.07,sunDirection.y);
         if(radius<2.) {
         float rockEdge=rockDistance(p);
         float washPhase=time*.72+p.x*.17+p.y*.11;

@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import journalIntegration from "./scripts/journal-integration.mjs";
+import environmentBootstrap from './scripts/environment-bootstrap.mjs';
 
 export default defineConfig({
   output: "server",
@@ -13,6 +14,7 @@ export default defineConfig({
     mode: "standalone",
   }),
   vite: {
+    plugins: [environmentBootstrap()],
     optimizeDeps: {
       include: [
         "@xyflow/react",

@@ -5,7 +5,7 @@ import { createChairRocking } from "../../../animation/studio/chairMotion";
 import { breezeAt } from '../../../animation/studio/breeze.ts';
 import { ACTION_LABELS, type StudioAction } from "../../../contracts/studio";
 import { smooth, surfaceDistance, surfacePhases, surfaceFlight, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX, CAMERA_ZOOM_OMEGA } from "../../../animation/studio/studioMotion";
-import { clockText, studioLighting } from "../../../config/studioTime";
+import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
@@ -361,12 +361,16 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   function applyLighting(light:StudioLighting) {
     dressing.setLighting(light.daylight);leisure.setLighting(light.daylight);
     if(lastLighting&&JSON.stringify(lastLighting)===JSON.stringify(light))return;
-    const sunMoved=!lastLighting||lastLighting.sunDirection.some((v,i)=>v!==light.sunDirection[i])||lastLighting.moonDirection.some((v,i)=>v!==light.moonDirection[i]);
-    lastLighting=light;environment.setLighting(light);
+    const previousMoon=lastLighting&&lastLighting.sunIntensity<lastLighting.moonIntensity;
     const moonlight=light.sunIntensity<light.moonIntensity;
+    const direction=moonlight?light.moonDirection:light.sunDirection;
+    const previousDirection=previousMoon?lastLighting?.moonDirection:lastLighting?.sunDirection;
+    const previousIntensity=previousMoon?lastLighting?.moonIntensity:lastLighting?.sunIntensity;
+    const sunMoved=!previousDirection||direction.some((v,i)=>Math.abs(v-previousDirection[i])>1e-7)||previousMoon!==moonlight||!previousIntensity;
+    lastLighting=light;environment.setLighting(light);
     sun.intensity=moonlight?light.moonIntensity:light.sunIntensity;sun.color.setHex(moonlight?0xa6bbeb:light.sun);
     sun.position.fromArray(moonlight?light.moonDirection:light.sunDirection).multiplyScalar(35).add(sun.target.position);
-    if(sunMoved)invalidateShadows(true);
+    if(sunMoved&&sun.intensity>0)invalidateShadows(true);
     ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
     lampPower=light.lampIntensity;lamp.intensity=lampOn?lampPower:0;
     screenGlow.intensity=tabletGlow.intensity=light.screenSpillIntensity;requestDraw();
@@ -375,7 +379,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     debugTimeHour=hour===null?null:Math.max(0,Math.min(23.75,hour));
     const date=debugTimeHour===null?new Date():debugClockDate(debugTimeHour);
     clockDate=date;updateClock();
-    const light=debugTimeHour===null?actualLighting:studioLighting(date);
+    mount.dispatchEvent(new CustomEvent('studio-time-preview',{detail:debugTimeHour}));
+    const light=actualLighting;
     if(light)applyLighting(light);
   }
   function setDebugGroupVisible(group:SceneDebugGroup,visible:boolean) {
@@ -659,7 +664,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     },
     setLighting(light:StudioLighting) {
       actualLighting=light;
-      applyLighting(debugTimeHour===null?light:studioLighting(debugClockDate(debugTimeHour)));
+      applyLighting(light);
     },
     setTime(date:Date) {
       clockDate=debugTimeHour===null?date:debugClockDate(debugTimeHour);updateClock();

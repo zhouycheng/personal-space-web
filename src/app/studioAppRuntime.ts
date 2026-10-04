@@ -3,7 +3,9 @@ import { ACTION_LABELS, type StudioAction } from "../contracts/studio";
 import type { ScenePort } from "../contracts/studioPorts";
 import { canRetryStudio } from "../application/studio/studioFailure";
 import { studioFailure, type StudioFailure } from "../contracts/studioFailure";
-import { studioLighting } from "../config/studioTime";
+import { environmentAt } from "../config/studioTime";
+import { readObservation } from '../infrastructure/client/observation';
+import type { EnvironmentSnapshot } from '../contracts/environment';
 import { beginSurfaceProjection, updateSurfaceProjection, clearSurfaceProjection } from "../animation/studio/surfaceProjection";
 import { createJournalReader } from "./journalReader";
 import { createExplorePanel } from "../presentation/ui/studio/explorePanel";
@@ -67,12 +69,21 @@ function init(shell: HTMLElement) {
   let disposed = false;
   let transition = 0;
   let clock = 0;
+  let previewHour:number|null=null;
+  mount.addEventListener('studio-time-preview',event=>{
+    previewHour=(event as CustomEvent<number|null>).detail;updateLighting();
+  },{signal:events.signal});
+  function environmentNow() {
+    const date=new Date();
+    if(previewHour!==null){const minutes=Math.round(previewHour*60);date.setHours(Math.floor(minutes/60),minutes%60,0,0);}
+    return environmentAt(date,readObservation());
+  }
   const journal = createJournalReader(shell.querySelector<HTMLElement>('[data-journal-root]')!,()=>scene,path=>{
     history.pushState({justinPage:'journal',from:model.page},'',path);
     if(model.page==='journal')journal.select(location.pathname+location.hash);else void applyRoute('journal');
   },()=>rebuildScene(false));
   function prepareJournalTargets(){
-    if(!model.targets.lampOn&&studioLighting(new Date()).daylight<.25){
+    if(!model.targets.lampOn&&environmentNow().lighting.daylight<.25){
       model.targets={...model.targets,lampOn:true};scene?.setLampEnabled(true);
     }
   }
@@ -84,8 +95,13 @@ function init(shell: HTMLElement) {
 
   let appliedBackground = "", appliedForeground = "";
   function updateLighting() {
-    const now = new Date();
-    const light = studioLighting(now);
+    applyEnvironment(environmentNow());
+  }
+  function applyEnvironment(environment:EnvironmentSnapshot) {
+    const now = new Date(environment.timestamp);
+    const light = environment.lighting;
+    shell.dataset.skyPhase=environment.phase;
+    entrance?.setPalette(environment.palette);
     if (appliedBackground !== light.background) {
       appliedBackground = light.background; studio.style.backgroundColor = light.background;
     }
@@ -160,6 +176,7 @@ function init(shell: HTMLElement) {
     if(entrance?.blocking) {
       shell.dataset.entrance=entrance.playing?'playing':'preparing';
       closeExplore(false,true);clearInterval(clock);scene?.setPointerEnabled(false);
+      if(!document.hidden){updateLighting();clock=window.setInterval(updateLighting,1000);}
       studio.inert=true;studio.style.visibility='';
       shell.querySelectorAll<HTMLElement>('.app-page').forEach(el=>{
         el.classList.toggle('is-active',el.id==='page-home'||(pendingPage==='canvas'&&el===personalCanvas)||(entrance.playing&&pendingPage==='works'&&el.id==='page-works'));el.inert=true;
@@ -217,10 +234,10 @@ function init(shell: HTMLElement) {
     scene?.setActive((home || journalVisible || isMoving()) && !document.hidden);
     if (!entrance?.covered && (home || journalVisible || isMoving() || model.page === "works")) void loadScene();
     clearInterval(clock);
-    if ((home || isMoving() || osOpen) && !document.hidden) {
+    if ((home || isMoving() || osOpen || entrance?.covered) && !document.hidden) {
       const tick = () => {
-        if (!osOpen) updateLighting();
-        else shell.querySelector("[data-os-time]")!.textContent = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date());
+        if (!osOpen||entrance?.covered) updateLighting();
+        if (osOpen) shell.querySelector("[data-os-time]")!.textContent = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date());
       };
       tick(); clock = window.setInterval(tick, 1000);
     }
@@ -399,6 +416,7 @@ function init(shell: HTMLElement) {
   }, { signal: events.signal });
   entrance=createEntranceRuntime(shell.querySelector<HTMLElement>('[data-cloud-entrance]')!,{
     reducedMotion:reduce,
+    palette:environmentNow().palette,
     cancel:()=>{
       preparationAbort?.abort();
       mount.style.removeProperty('--entrance-blur');shell.style.removeProperty('--entrance-content-opacity');
