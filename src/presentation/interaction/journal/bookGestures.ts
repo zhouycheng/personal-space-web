@@ -6,6 +6,7 @@ type Hit = { x: number; y: number; left: boolean; cover: boolean; region: boolea
 export type PageTurnGrip = { u: number; v: number; skew: number };
 type Options = {
   canvas: HTMLCanvasElement; enabled(): boolean; phase(): JournalBookPhase; zoom(): number; single(): boolean;
+  canDragTurn?():boolean;
   hit(event: PointerEvent): Hit | undefined; begin(direction: 1 | -1, grip: PageTurnGrip): boolean;
   deform(value: number, grip: PageTurnGrip): void; progress(): number; finish(commit: boolean, velocity: number): void;
   rotate(dx: number, dy: number): void; pan(dx: number, dy: number): void;
@@ -39,7 +40,7 @@ export function createBookGestures(options: Options) {
     }
     const hit = options.hit(event); if (!hit) return;
     const { x, y } = hit;
-    const direction = options.phase() === 'reading' && !hit.region && (y < .2 || y > .8)
+    const direction = options.canDragTurn?.()!==false && options.phase() === 'reading' && !hit.region && (y < .2 || y > .8)
       ? (options.single() ? (x > .84 ? 1 : x < .16 ? -1 : 0) : (!hit.left && x > .84 ? 1 : hit.left && x < .16 ? -1 : 0)) : 0;
     const grip = { u: THREE.MathUtils.clamp(direction === -1 ? 1 - x : x, 0, 1), v: y * 2 - 1, skew: 0 };
     if (direction && !options.begin(direction, grip)) return;

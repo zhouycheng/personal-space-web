@@ -141,16 +141,16 @@ export function createJournalBookGeometry(scene: THREE.Scene) {
   }
   const hinge = new THREE.Group();content.add(hinge);
   const lid = slab(1.06,H+.08,.028,coverMaterial);lid.position.set(.5,0,.065);hinge.add(lid);
-  // At the drawer pose these dimensions become the same 0.22 × 0.07 label as
-  // the room book. The unlit patch and lettering then survive the hand-off.
+  // Print the lettering on the cover without an unlit rectangular backing,
+  // matching the tabletop book before and after reading.
   const coverCanvas = document.createElement("canvas");coverCanvas.width=1024;coverCanvas.height=384;
   const ctx=coverCanvas.getContext("2d")!;
-  ctx.fillStyle=journalAppearance.coverCss;ctx.fillRect(0,0,coverCanvas.width,coverCanvas.height);
   ctx.fillStyle=journalAppearance.titleCss;ctx.textAlign="center";ctx.textBaseline="middle";
   ctx.font=`600 ${Math.round(coverCanvas.height*.22)}px monospace`;
   ctx.fillText("JOURNAL",coverCanvas.width/2,coverCanvas.height/2,coverCanvas.width*.9);
   const coverTexture=keep(new THREE.CanvasTexture(coverCanvas));coverTexture.colorSpace=THREE.SRGBColorSpace;
-  const title=new THREE.Mesh(keep(new THREE.PlaneGeometry(.56,.21)),keep(new THREE.MeshBasicMaterial({map:coverTexture})));title.position.set(.5,.195,.081);hinge.add(title);
+  const titleMaterial=keep(new THREE.MeshStandardMaterial({map:coverTexture,roughness:journalAppearance.roughness,transparent:true,depthWrite:false}));
+  const title=new THREE.Mesh(keep(new THREE.PlaneGeometry(.56,.21)),titleMaterial);title.position.set(.5,.195,.081);title.receiveShadow=true;hinge.add(title);
   const lining=slab(.98,H-.015,.003,keep(new THREE.MeshStandardMaterial({color:journalAppearance.lining,roughness:1})));lining.position.set(.5,0,.049);hinge.add(lining);
   // Use the room lights so lifting the book does not illuminate nearby furniture.
   const leftMat=keep(new THREE.MeshStandardMaterial({color:paper,roughness:1})),rightMat=keep(new THREE.MeshStandardMaterial({color:paper,roughness:1}));

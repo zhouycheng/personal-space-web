@@ -1,15 +1,20 @@
 import * as THREE from "three";
-import { studioPalette as palette, paletteHex } from "../../../config/studioPalette";
-import type { StudioSceneFile } from "../../../contracts/studio";
 import type { StudioPrimitives } from "./studioPrimitives";
+import { deviceOutline,devicePanel,deviceScreen } from './deviceGeometry.ts';
 
-export function createStudioDevices(primitives: StudioPrimitives, studioFiles: readonly StudioSceneFile[], renderer: THREE.WebGLRenderer, materials: Set<THREE.Material>, geometries: Set<THREE.BufferGeometry>, textures: Set<THREE.Texture>, computerLabel: string) {
+export function createStudioDevices(primitives: StudioPrimitives, renderer: THREE.WebGLRenderer, materials: Set<THREE.Material>, textures: Set<THREE.Texture>, computerLabel: string) {
   const { material, mesh, box, cylinder, rounded, hotspot, label,
-    paper, aluminum, keycap, rubber, chrome } = primitives;
+    aluminum, keycap, rubber, chrome } = primitives;
   // 2023 16-inch MacBook Pro: 35.57 × 24.81 cm footprint, space grey.
   // Stylized at room scale; the lid, keyboard and trackpad belong to one hotspot.
   const computer = hotspot("computer");
-  rounded(computer,[1.6,0.06,1.116],[-0.2,1.47,-1.32],aluminum,0.028);
+  const laptopMetal=aluminum.clone();laptopMetal.roughness=.32;laptopMetal.metalness=.8;materials.add(laptopMetal);
+  const chassisOutline=deviceOutline(1.6,1.116,.035,.06);
+  const trackpadOpening=deviceOutline(.69,.31,.018);
+  const hole=new THREE.Path(trackpadOpening.getPoints(12).map(point=>point.add(new THREE.Vector2(0,-.301))));
+  chassisOutline.holes.push(hole);
+  const chassis=mesh(computer,devicePanel(chassisOutline,.06),laptopMetal,-.2,1.47,-1.32);
+  chassis.name='laptop-recessed-chassis';chassis.rotation.x=-Math.PI/2;
   rounded(computer,[1.05,0.012,0.45],[-0.2,1.5,-1.46],keycap,0.02);
   const keyboardImage=document.createElement("canvas");keyboardImage.width=1536;keyboardImage.height=672;
   const keys=keyboardImage.getContext("2d")!;keys.fillStyle="#d4d8da";keys.textAlign="center";keys.textBaseline="middle";
@@ -33,8 +38,9 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   const keyboardTexture=new THREE.CanvasTexture(keyboardImage);keyboardTexture.colorSpace=THREE.SRGBColorSpace;keyboardTexture.anisotropy=renderer.capabilities.getMaxAnisotropy();textures.add(keyboardTexture);
   const legendsMaterial=new THREE.MeshBasicMaterial({map:keyboardTexture,transparent:true,depthWrite:false});materials.add(legendsMaterial);
   const legends=mesh(computer,new THREE.PlaneGeometry(1.05,0.45),legendsMaterial,-0.2,1.518,-1.462);legends.rotation.x=-Math.PI/2;legends.castShadow=false;
-  rounded(computer,[0.69,0.006,0.31],[-0.2,1.502,-1.019],keycap,0.019);
-  rounded(computer,[0.678,0.006,0.298],[-0.2,1.505,-1.019],aluminum,0.017);
+  box(computer,[.69,.05,.31],[-.2,1.465,-1.019],keycap);
+  const trackpad=mesh(computer,devicePanel(deviceOutline(.678,.298,.014),.006),laptopMetal,-.2,1.493,-1.019);
+  trackpad.name='recessed-trackpad';trackpad.rotation.x=-Math.PI/2;
   const speakerImage=document.createElement("canvas");speakerImage.width=64;speakerImage.height=256;
   const speakerCtx=speakerImage.getContext("2d")!;speakerCtx.fillStyle="#30343a";
   for(let x=7;x<64;x+=10)for(let y=5;y<256;y+=10){speakerCtx.beginPath();speakerCtx.arc(x,y,1.6,0,Math.PI*2);speakerCtx.fill();}
@@ -49,12 +55,32 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
     if(index!==1)box(computer,[0.012,0.004,width*0.65],[-0.2+side*0.803,1.469,z],aluminum);
   }
   const lid=new THREE.Group();computer.add(lid);lid.position.set(-0.2,1.505,-1.84);lid.rotation.x=-0.23;lid.scale.set(1.127,1.127,1);
-  rounded(lid,[1.42,0.91,0.035],[0,0.455,0],aluminum,0.017);
-  rounded(lid,[1.38,0.873,0.011],[0,0.455,0.022],keycap,0.005);
+  mesh(lid,devicePanel(deviceOutline(1.42,.91,.045,.012),.035),laptopMetal,0,.455,0);
+  // Recess the bezel behind the unchanged screen anchor. At overview distance
+  // the former near-coplanar surfaces fought for the same depth-buffer values.
+  const bezel=mesh(lid,devicePanel(deviceOutline(1.38,.873,.035,.008),.011),keycap,0,.455,.017);bezel.name='laptop-screen-bezel';
+  // Inlaid rear emblem: actual curved silhouette, with no rectangular decal.
+  const apple=new THREE.Shape();apple.moveTo(0,.047);
+  apple.bezierCurveTo(-.024,.047,-.039,.066,-.065,.049);
+  apple.bezierCurveTo(-.109,.02,-.073,-.077,-.039,-.088);
+  apple.bezierCurveTo(-.024,-.094,-.014,-.081,0,-.081);
+  apple.bezierCurveTo(.016,-.081,.023,-.094,.039,-.087);
+  apple.bezierCurveTo(.055,-.079,.068,-.057,.077,-.035);
+  apple.bezierCurveTo(.040,-.024,.035,.017,.068,.038);
+  apple.bezierCurveTo(.046,.065,.024,.057,0,.047);apple.closePath();
+  const leaf=new THREE.Shape();leaf.moveTo(-.003,.06);
+  leaf.bezierCurveTo(-.004,.083,.013,.107,.036,.111);
+  leaf.bezierCurveTo(.039,.087,.021,.062,-.003,.06);leaf.closePath();
+  const emblemMetal=material(0x15181c,.23);emblemMetal.metalness=.85;
+  const emblem=mesh(lid,new THREE.ShapeGeometry([apple,leaf],32),emblemMetal,0,.455,-.018);
+  emblem.name='laptop-rear-apple';emblem.rotation.y=Math.PI;emblem.castShadow=false;
   const computerSurface=label(lid,computerLabel,1.31,0.81,[0,0.457,0.029],"#002fa7","#fff9e9",0.156,true);
+  const screenMaterial=computerSurface.material as THREE.MeshBasicMaterial;
+  screenMaterial.polygonOffset=true;screenMaterial.polygonOffsetFactor=-1;screenMaterial.polygonOffsetUnits=-1;
+  const screenShape=deviceScreen(1.31,.81,.025);computerSurface.geometry.copy(screenShape);screenShape.dispose();
   const screenGlow=new THREE.PointLight(0x4f72ff,0,0.9,2);
   screenGlow.position.set(0,0.455,0.12);lid.add(screenGlow);
-  rounded(lid,[0.18,0.041,0.007],[0,0.851,0.033],keycap,0.003);
+  mesh(lid,devicePanel(deviceOutline(.18,.041,.002,.012),.007),keycap,0,.851,.033);
   mesh(lid,new THREE.SphereGeometry(0.006,8,6),chrome,0,0.851,0.038);
   const hinge=cylinder(computer,0.027,1.32,[-0.2,1.5,-1.84],keycap);hinge.rotation.z=Math.PI/2;
   for(const x of [-0.83,0.43]) {const collar=cylinder(computer,0.029,0.08,[x,1.5,-1.84],aluminum);collar.rotation.z=Math.PI/2;}
@@ -75,74 +101,5 @@ export function createStudioDevices(primitives: StudioPrimitives, studioFiles: r
   tabletGlow.position.set(0,0.09,0);tablet.add(tabletGlow);
   cylinder(tablet,0.008,0.003,[0,0.025,-0.263],chrome);
   
-  // Files rest on their lower edge; the manifest distinguishes folders from loose paper.
-  const library=hotspot("works");
-  library.position.set(-1.25,1.44,-1.68);
-  library.userData.label=`文件夹 · ${studioFiles.length} 个文件`;
-  const fileBox=material(palette.box,0.92);
-  rounded(library,[0.68,0.028,0.5],[0,0,0],fileBox,0.009);
-  rounded(library,[0.68,0.24,0.023],[0,0.12,0.24],fileBox,0.009);
-  box(library,[0.68,0.7,0.023],[0,0.35,-0.24],fileBox);
-  const side=new THREE.Shape();
-  side.moveTo(-0.24,0);side.lineTo(0.24,0);side.lineTo(0.24,0.7);
-  side.lineTo(0.10,0.7);side.lineTo(-0.24,0.24);side.closePath();
-  for(const x of [-0.34,0.32]) {
-    const wall=mesh(library,new THREE.ExtrudeGeometry(side,{depth:0.02,bevelEnabled:false}),fileBox,x,0,0);
-    wall.rotation.y=Math.PI/2;
-  }
-  label(library,"FILES",0.22,0.06,[0,0.13,0.253],paletteHex(palette.box),"#45483e",0.5);
-  const slot=0.58/Math.max(1,studioFiles.length);
-  const fileLean=Math.min(0.025,slot*0.12);
-  // The left wall's inner face is x=-0.32; lean into its 0.7-high rear support.
-  let fileEdge=-0.32+(0.7-0.014)*Math.tan(fileLean);
-  studioFiles.forEach((file,index)=>{
-    const folder=new THREE.Group();library.add(folder);
-    const thickness=Math.min(0.10,slot*0.65),height=0.76+(index%3)*0.045;
-    const occupied=file.kind==="resume"?Math.min(0.012,slot*0.1):thickness+Math.min(0.009,slot*0.08);
-    folder.position.set(fileEdge+occupied/2,0.014+occupied/2*Math.sin(fileLean),0);
-    fileEdge+=occupied;
-    folder.rotation.z=fileLean;
-    if(file.kind==="resume") {
-      // The sheet rests alongside the cover with only a slight outward bow.
-      const sheetHeight=0.86,sheetWidth=0.40;
-      folder.position.z=0.018;
-      folder.rotation.y=-Math.min(0.018,slot*0.1);
-      const sheet=label(folder,`${file.resume.name} · 简历`,sheetWidth,sheetHeight,[0,sheetHeight/2,0],"#fffdf5","#303b39",0.045);
-      const geometry=new THREE.PlaneGeometry(sheetWidth,sheetHeight,8,16);
-      geometry.rotateY(Math.PI/2);
-      const positions=geometry.attributes.position;
-      for(let vertex=0;vertex<positions.count;vertex++) {
-        const t=(positions.getY(vertex)+sheetHeight/2)/sheetHeight;
-        positions.setX(vertex,Math.min(0.012,slot*0.08)*t*(1-t));
-      }
-      geometry.computeVertexNormals();geometries.add(geometry);sheet.geometry=geometry;
-      const sheetMaterial=new THREE.MeshStandardMaterial({map:(sheet.material as THREE.MeshStandardMaterial).map,side:THREE.DoubleSide,roughness:0.96});
-      materials.add(sheetMaterial);sheet.material=sheetMaterial;
-      const image=sheetMaterial.map!.image as HTMLCanvasElement;
-      const ctx=image.getContext("2d")!;
-      ctx.fillStyle="#fffdf5";ctx.fillRect(0,0,image.width,image.height);
-      ctx.textAlign="left";ctx.fillStyle="#303b39";
-      ctx.font="600 88px sans-serif";ctx.fillText(file.resume.name,100,235);
-      ctx.font="38px sans-serif";ctx.fillStyle="#002fa7";ctx.fillText(file.resume.role,100,315);
-      ctx.fillRect(100,365,100,6);
-      file.resume.sections.forEach((section,index)=>{
-        const y=490+index*290;
-        ctx.fillStyle="#303b39";ctx.font="600 42px sans-serif";ctx.fillText(section.title,100,y);
-        ctx.fillStyle="#c5c8be";
-        for(let line=0;line<4;line++) ctx.fillRect(100,y+55+line*35,line===3?520:800,8);
-      });
-      sheetMaterial.map!.needsUpdate=true;
-      return;
-    }
-    const color=index%2?(palette.accent):(palette.upholstery);
-    const cover=material(color),edge=Math.min(0.006,thickness*0.08);
-    for(const x of [-thickness/2,thickness/2]) box(folder,[edge,height,0.40],[x,height/2,0],cover);
-    box(folder,[thickness,height,edge],[0,height/2,0.20],cover);
-    box(folder,[thickness*0.85,height-0.025,0.37],[0,(height-0.025)/2,0],paper);
-    for(let sheet=1;sheet<4;sheet++) box(folder,[edge/3,height-0.028,0.372],[-thickness*0.4+thickness*0.2*sheet,(height-0.028)/2,0],fileBox);
-    const title=label(folder,file.title,0.35,thickness*0.8,[0,height-0.22,0.205],`#${color.toString(16).padStart(6,"0")}`,index%2?"#fff9e9":"#303b39",0.55);
-    title.rotation.z=-Math.PI/2;
-    rounded(folder,[thickness*0.8,0.05,0.04],[0,height+0.012,-0.12+index%3*0.08],cover,Math.min(0.004,edge));
-  });
   return { computerSurface, canvasSurface, screenGlow, tabletGlow };
 }

@@ -62,7 +62,11 @@ function init(shell: HTMLElement) {
     history.pushState({justinPage:'journal',from:model.page},'',path);
     if(model.page==='journal')journal.select(location.pathname+location.hash);else void applyRoute('journal');
   },()=>rebuildScene(false));
-  function prepareJournalTargets(){model.targets=studioTargetsForIntent(model.targets,"diary");}
+  function prepareJournalTargets(){
+    if(!model.targets.lampOn&&studioLighting(new Date()).daylight<.25){
+      model.targets={...model.targets,lampOn:true};scene?.setLampEnabled(true);
+    }
+  }
   function clearProjection() {
     for (const el of [desktop, personalCanvas]) {
       clearSurfaceProjection(el);

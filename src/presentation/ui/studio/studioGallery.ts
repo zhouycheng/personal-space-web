@@ -1,5 +1,5 @@
-import { canOpenFile, snapFileIndex, type FileGesture } from "../../interaction/studio/fileGesture";
-import { createDomInstances } from '../../../justin-kit/runtime/domInstances';
+import { canOpenFile, snapFileIndex, type FileGesture } from "../../interaction/studio/fileGesture.ts";
+import { createDomInstances } from '../../../justin-kit/runtime/domInstances.ts';
 
 const mounted = new WeakMap<HTMLElement, () => void>();
 
@@ -21,7 +21,7 @@ export function setupStudioGallery(root: HTMLElement) {
   let wheelTimer = 0;
   let wheelDisplacement = 0;
   let wheelStart = 0;
-  let cachedStride: number | null = null;
+  let cachedLayout: { stride: number; maximum: number } | null = null;
   let dragFrame = 0;
   let dragPoint: { x: number; y: number; pointerId: number } | null = null;
   let suspended = false;
@@ -29,14 +29,21 @@ export function setupStudioGallery(root: HTMLElement) {
   const active = () => !disposed && !suspended && page.classList.contains("is-active") && !document.hidden;
   const browsing = () => active() && !dialog.open;
   const fileAt = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLButtonElement>("[data-gallery-file]") : null;
-  const maximum = () => Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-  const stride = () => cachedStride ??= (cards[0]?.getBoundingClientRect().width ?? 0) + (parseFloat(getComputedStyle(track).gap) || 0);
+  // Measure the untransformed layout once, before changing card styles. The
+  // page's entrance scale must not become part of the cached scroll distance.
+  const layout = () => cachedLayout ??= {
+    stride: (cards[0]?.offsetWidth ?? 0) + (parseFloat(getComputedStyle(track).gap) || 0),
+    maximum: Math.max(0, viewport.scrollWidth - viewport.clientWidth),
+  };
+  const stride = () => layout().stride;
   function snap(index: number, immediate = false) {
+    const measured = layout();
     selectedIndex = Math.max(0, Math.min(cards.length - 1, index));
     cards.forEach((card, index) => {
-      card.dataset.filePosition = index < selectedIndex ? "left" : index > selectedIndex ? "right" : "current";
+      const position = index < selectedIndex ? "left" : index > selectedIndex ? "right" : "current";
+      if (card.dataset.filePosition !== position) card.dataset.filePosition = position;
     });
-    viewport.scrollTo({ left: Math.min(maximum(), selectedIndex * stride()), behavior: immediate || reduce.matches ? "instant" : "smooth" });
+    viewport.scrollTo({ left: Math.min(measured.maximum, selectedIndex * measured.stride), behavior: immediate || reduce.matches ? "instant" : "smooth" });
   }
   function settle(displacement: number) {
     snap(snapFileIndex(selectedIndex, displacement, stride(), cards.length));
@@ -156,15 +163,19 @@ export function setupStudioGallery(root: HTMLElement) {
   }, options);
   dialog.addEventListener("cancel", event => { event.preventDefault(); void close(); }, options);
   dialog.addEventListener("close", () => { if (active()) trigger?.focus({ preventScroll: true }); }, options);
+  let pageActive = active();
   const observer = new MutationObserver(() => {
-    if (!active()) { stop(); void close(true); }
-    else snap(selectedIndex, true);
+    const nextActive = active();
+    if (nextActive === pageActive) return;
+    pageActive = nextActive;
+    if (!nextActive) { stop(); void close(true); }
+    else { cachedLayout = null; snap(selectedIndex, true); }
   });
   observer.observe(page, { attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", () => { stop(); if (active()) snap(selectedIndex, true); if (dialog.classList.contains("is-closing")) void close(true); }, options);
   reduce.addEventListener("change", () => { stop(); snap(selectedIndex, true); if (dialog.classList.contains("is-closing")) void close(true); }, options);
   const layoutChanged = () => {
-    cachedStride = null;
+    cachedLayout = null;
     stop();
     if (active()) snap(selectedIndex, true);
   };
