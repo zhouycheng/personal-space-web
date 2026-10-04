@@ -18,6 +18,24 @@ test('entrance palette follows local night, dawn, day and dusk with soft transit
   assert.ok(before.every((channel,index)=>Math.abs(channel-after[index])<=2));
 });
 
+test('cloud lighting stays dark at night and near-neutral at dawn and dusk', () => {
+  const field = createFogField(), pixels = new Uint8ClampedArray(48 * 32 * 4);
+  const luminance = ([r, g, b]) => r * .2126 + g * .7152 + b * .0722;
+  const night = entranceTimePalette(new Date(2026, 9, 5, 1));
+  const day = entranceTimePalette(new Date(2026, 9, 5, 12));
+  assert.ok(luminance(night.cloud) < luminance(day.cloud) * .3);
+  assert.ok(luminance(night.cloud) - luminance(night.mist) < 15);
+  for (const hour of [6, 18]) {
+    const { cloud } = entranceTimePalette(new Date(2026, 9, 5, hour));
+    assert.ok(Math.max(...cloud) - Math.min(...cloud) < 15, 'ambient tint must remain subtle');
+  }
+  for (const p of [0, .15, .35, .6]) {
+    field.paint(48, 32, p, pixels, night.cloud);
+    assert.ok(pixels.every((v, i) => i % 4 === 3 || v < 80), 'night scattering must not create white highlights');
+  }
+  field.dispose();
+});
+
 test('entrance uses actual 60-degree pitch, holds the opening and lands exactly on the responsive overview',()=>{
   const focus=[0,.35,.2];
   for(const aspect of [390/844,1,1440/900]) {
@@ -62,4 +80,21 @@ test('procedural fog starts opaque, clears the center before its corners and ful
   assert.ok(alpha(40,30)<20);assert.ok(alpha(0,0)>180);assert.ok(alpha(79,59)>180);
   field.paint(width,height,1,pixels);
   assert.ok(pixels.every((value,index)=>index%4!==3||value===0));field.dispose();
+});
+
+test('fog sampling is deterministic, continuous in time and valid across aspect ratios', () => {
+  const field = createFogField();
+  for (const [width, height] of [[96, 60], [39, 84], [1, 1]]) {
+    const a = new Uint8ClampedArray(width * height * 4), b = new Uint8ClampedArray(a.length);
+    for (const progress of [0, .15, .35, .6, .85, 1]) {
+      field.paint(width, height, progress, a);
+      field.paint(width, height, progress, b);
+      assert.deepEqual(a, b);
+      if (progress === 0) assert.ok(a.every((v, i) => i % 4 !== 3 || v === 255));
+      if (progress === 1) assert.ok(a.every((v, i) => i % 4 !== 3 || v === 0));
+      field.paint(width, height, Math.min(1, progress + .0001), b);
+      assert.ok(a.every((v, i) => Math.abs(v - b[i]) <= 5), 'small time steps must not pop');
+    }
+  }
+  field.dispose();
 });
