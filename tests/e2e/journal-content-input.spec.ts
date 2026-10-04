@@ -1,4 +1,5 @@
-import { expect, test } from "playwright/test";
+import { expect } from "playwright/test";
+import { test } from './helpers/app';
 import { bookCanvas, manifest, phase, serveBook, visual } from "./helpers/journal";
 
 test("T20 image and link regions use real page hits and modal Escape is isolated", async ({ page }, info) => {
