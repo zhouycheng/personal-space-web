@@ -1,0 +1,34 @@
+name: Scene debug panel production policy
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  production-debug-panel:
+    name: Require persistent panel to be disabled
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check PUBLIC_SCENE_DEBUG_PANEL
+        env:
+          PUBLIC_SCENE_DEBUG_PANEL: ${{ vars.PUBLIC_SCENE_DEBUG_PANEL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          setting="$(printf '%s' "${PUBLIC_SCENE_DEBUG_PANEL:-false}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+          case "$setting" in
+            false)
+              echo 'Production debug panel persistence is disabled.'
+              ;;
+            true)
+              echo 'PUBLIC_SCENE_DEBUG_PANEL is true. Set the production Actions variable to false; production must use the shortcut and hot corner.' >&2
+              exit 1
+              ;;
+            *)
+              echo 'PUBLIC_SCENE_DEBUG_PANEL must be true or false.' >&2
+              exit 1
+              ;;
+          esac

@@ -28,8 +28,12 @@ jobs:
       - run: npm run test:unit
       - run: npm run build
 
+  scene-debug-panel-policy:
+    name: Check production scene debug panel setting
+    uses: ./.github/workflows/scene-debug-panel-policy.yml
+
   publish:
-    needs: verify
+    needs: [verify, scene-debug-panel-policy]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
@@ -38,6 +42,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      PUBLIC_SCENE_DEBUG_PANEL: ${{ vars.PUBLIC_SCENE_DEBUG_PANEL || 'false' }}
     outputs:
       image: ${{ steps.publish.outputs.image }}
     steps:
@@ -60,6 +66,7 @@ jobs:
             cache_from+=(--cache-from "type=registry,ref=$cache_ref")
           fi
           docker buildx build --pull --push \
+            --build-arg "PUBLIC_SCENE_DEBUG_PANEL=${PUBLIC_SCENE_DEBUG_PANEL}" \
             --tag "$image_tag" \
             "${cache_from[@]}" \
             --cache-to "type=registry,ref=$cache_ref,mode=min,ignore-error=true" \

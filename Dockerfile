@@ -9,7 +9,8 @@ RUN npx playwright install --with-deps chromium
 
 COPY . .
 
-RUN npm run build:release
+ARG PUBLIC_SCENE_DEBUG_PANEL=false
+RUN PUBLIC_SCENE_DEBUG_PANEL="$PUBLIC_SCENE_DEBUG_PANEL" npm run build:release
 
 # Stage 2: Production runtime
 FROM node:26.9.0-bookworm-slim AS runner
