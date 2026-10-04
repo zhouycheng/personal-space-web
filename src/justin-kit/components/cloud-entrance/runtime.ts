@@ -1,29 +1,43 @@
 import { createFogField } from './fogField';
+import { entranceTimePalette, paletteHex, paletteRgb } from './timePalette';
 export type CloudState = 'loading' | 'ready' | 'revealing' | 'dismissing' | 'error';
 
 /** Precomputed, deterministic opaque preparation surface. */
-function mistTexture(sample:(x:number,y:number)=>number) {
+function mistTexture(sample:(x:number,y:number)=>number, palette:ReturnType<typeof entranceTimePalette>) {
   const texture = document.createElement('canvas');
   texture.width = 480; texture.height = 300;
+  paintMist(texture, sample, palette);
+  return texture;
+}
+
+function paintMist(texture:HTMLCanvasElement, sample:(x:number,y:number)=>number, palette:ReturnType<typeof entranceTimePalette>) {
   const context = texture.getContext('2d')!;
-  context.fillStyle = '#c6d0d2'; context.fillRect(0, 0, 480, 300);
+  context.fillStyle = paletteRgb(palette.mist); context.fillRect(0, 0, texture.width, texture.height);
   let seed = 137;
   const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const noise=context.createImageData(480,300);
-  for(let y=0;y<300;y++)for(let x=0;x<480;x++) {
-    const shade=(sample(x/480,y/300)-.5)*38,index=(y*480+x)*4;
-    noise.data[index]=198+shade;noise.data[index+1]=208+shade;noise.data[index+2]=210+shade;noise.data[index+3]=255;
+  const noise=context.createImageData(texture.width,texture.height);
+  for(let y=0;y<texture.height;y++)for(let x=0;x<texture.width;x++) {
+    const shade=(sample(x/texture.width,y/texture.height)-.5)*38,index=(y*texture.width+x)*4;
+    noise.data[index]=palette.mist[0]+shade;noise.data[index+1]=palette.mist[1]+shade;noise.data[index+2]=palette.mist[2]+shade;noise.data[index+3]=255;
   }
   context.putImageData(noise,0,0);
   for (let i = 0; i < 180; i++) {
-    const x = random() * 600 - 60, y = random() * 420 - 60, radius = 18 + random() * 65;
+    const x = random() * texture.width * 1.25 - texture.width * .125, y = random() * texture.height * 1.4 - texture.height * .2, radius = 18 + random() * 65;
     const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
     const light = i % 3 !== 0;
-    gradient.addColorStop(0, light ? 'rgba(237,243,241,.15)' : 'rgba(111,141,150,.09)');
-    gradient.addColorStop(1, light ? 'rgba(237,243,241,0)' : 'rgba(111,141,150,0)');
+    const tone=light?palette.mistLight:palette.mistShadow,opacity=light?.15:.09;
+    gradient.addColorStop(0, `rgba(${tone.join(',')},${opacity})`);
+    gradient.addColorStop(1, `rgba(${tone.join(',')},0)`);
     context.fillStyle = gradient; context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
-  return texture;
+}
+
+function setPaletteStyles(root:HTMLElement, palette:ReturnType<typeof entranceTimePalette>) {
+  root.style.setProperty('--cloud-entrance-background', paletteHex(palette.background));
+  root.style.setProperty('--cloud-entrance-foreground', paletteHex(palette.foreground));
+  root.style.setProperty('--cloud-entrance-progress', paletteHex(palette.progress));
+  root.style.setProperty('--cloud-entrance-progress-pending', paletteHex(palette.progressPending));
+  root.style.setProperty('--cloud-entrance-focus', paletteHex(palette.focus));
 }
 
 export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRetry: () => void) {
@@ -33,7 +47,9 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   const error = root.querySelector<HTMLElement>('[data-cloud-error]')!;
   const events = new AbortController();
   const field=createFogField();
-  const texture = mistTexture(field.sample);
+  let palette=entranceTimePalette(new Date());
+  setPaletteStyles(root,palette);
+  const texture = mistTexture(field.sample,palette);
   const surface = document.createElement('canvas');
   const underneath = document.createElement('canvas');
   const patch = document.createElement('canvas');
@@ -53,12 +69,12 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     ctx.font = `600 ${fontSize}px Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     // A soft shadow under a thin veil, with no bright edge or embossed outline.
     ctx.filter = `blur(${Math.max(4, fontSize * .025)}px)`;
-    ctx.fillStyle = 'rgba(93,120,130,.18)'; ctx.fillText(root.dataset.title ?? 'Justin', width / 2, height * .5);
+    ctx.fillStyle = `rgba(${palette.titleShadow.join(',')},.18)`; ctx.fillText(root.dataset.title ?? 'Justin', width / 2, height * .5);
     underneath.width = patch.width = width; underneath.height = patch.height = height;
     const under = underneath.getContext('2d')!;
     under.drawImage(surface, 0, 0);
     under.filter = `blur(${Math.max(2,fontSize * .012)}px)`; under.font=ctx.font;under.textAlign='center';under.textBaseline='middle';
-    under.fillStyle='rgba(93,120,130,.055)';under.fillText(root.dataset.title ?? 'Justin',width/2,height*.5);
+    under.fillStyle=`rgba(${palette.titleShadow.join(',')},.055)`;under.fillText(root.dataset.title ?? 'Justin',width/2,height*.5);
     ctx.filter = 'none'; ctx.globalAlpha = .38;
     ctx.drawImage(texture, -width * .08, height * .03, width * 1.16, height * 1.08);
     ctx.globalAlpha = 1;
@@ -73,7 +89,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     const trailCtx=trail.getContext('2d')!;
     if(reveal!==lastReveal) {
       trailCtx.clearRect(0,0,trail.width,trail.height);trailCtx.drawImage(clouds,0,0);
-      field.paint(clouds.width,clouds.height,reveal,cloudPixels.data);ctx.putImageData(cloudPixels,0,0);
+      field.paint(clouds.width,clouds.height,reveal,cloudPixels.data,palette.cloud);ctx.putImageData(cloudPixels,0,0);
     }
     context!.save();
     const softness=(1.5-smooth((reveal-.2)/.5)*.8)*Math.max(width/clouds.width,height/clouds.height);
@@ -82,6 +98,11 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     context!.drawImage(trail,0,0,width,height);
     context!.globalAlpha=1;context!.drawImage(clouds,0,0,width,height);
     context!.restore();lastReveal=reveal;
+  }
+  function updatePalette() {
+    const next=entranceTimePalette(new Date());
+    if(JSON.stringify(next)===JSON.stringify(palette))return;
+    palette=next;setPaletteStyles(root,palette);paintMist(texture,field.sample,palette);bake();requestPaint();
   }
   function paint(now = performance.now()) {
     frame = 0;
@@ -123,6 +144,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     width = Math.max(1, Math.round(rect.width * scale)); height = Math.max(1, Math.round(rect.height * scale));
     canvas.width = width; canvas.height = height; bake(); requestPaint();
   }
+  const paletteTimer=window.setInterval(updatePalette,60_000);
   const observer = new ResizeObserver(resize); observer.observe(root); resize();
   function excluded(target: EventTarget | null) { return target instanceof Element && Boolean(target.closest('a,button,input,textarea,select,[contenteditable],[data-cloud-no-enter]')); }
   root.addEventListener('pointermove', event => {
@@ -144,10 +166,10 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   document.addEventListener('visibilitychange', () => {
     cancelAnimationFrame(frame); frame = 0; previous = 0;
     if (document.hidden) dismissal?.pause();
-    else { dismissal?.play(); requestPaint(); }
+    else { dismissal?.play(); updatePalette(); requestPaint(); }
   }, { signal: events.signal });
   window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; previous = 0; if (document.hidden) dismissal?.pause(); }, { signal: events.signal });
-  window.addEventListener('pageshow', requestPaint, { signal: events.signal });
+  window.addEventListener('pageshow', () => { updatePalette(); requestPaint(); }, { signal: events.signal });
   return {
     setState(value: CloudState, message?: string) {
       state = value; root.dataset.state = value; root.setAttribute('aria-busy', String(value === 'loading'));
@@ -175,7 +197,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       return dismissal.finished.then(() => undefined, () => undefined);
     },
     dispose() {
-      if (disposed) return; disposed = true; events.abort(); observer.disconnect(); cancelAnimationFrame(frame);
+      if (disposed) return; disposed = true; events.abort(); observer.disconnect(); cancelAnimationFrame(frame); window.clearInterval(paletteTimer);
       dismissal?.cancel();
       canvas.width = canvas.height = surface.width = surface.height = underneath.width = underneath.height = patch.width = patch.height = texture.width = texture.height = 0;
       clouds.width=clouds.height=trail.width=trail.height=0;

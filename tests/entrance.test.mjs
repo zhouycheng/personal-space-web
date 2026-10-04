@@ -5,6 +5,18 @@ import { islandEntranceDistance, islandViewDistance } from '../src/animation/stu
 import { DEFAULT_ROOM_VIEW } from '../src/contracts/studio.ts';
 import { completeEntrance, entranceCompleted } from '../src/infrastructure/client/entranceSession.ts';
 import { createFogField } from '../src/justin-kit/components/cloud-entrance/fogField.ts';
+import { entranceTimePalette } from '../src/justin-kit/components/cloud-entrance/timePalette.ts';
+
+test('entrance palette follows local night, dawn, day and dusk with soft transitions',()=>{
+  const at=(hour,minute=0)=>entranceTimePalette(new Date(2026,0,15,hour,minute));
+  assert.deepEqual(at(1).background,[22,30,46]);
+  assert.deepEqual(at(12).background,[198,208,210]);
+  assert.notDeepEqual(at(6).mist,at(12).mist);
+  assert.notDeepEqual(at(18).cloud,at(12).cloud);
+  assert.deepEqual(at(23).background,[22,30,46]);
+  const before=at(6,29).background,after=at(6,31).background;
+  assert.ok(before.every((channel,index)=>Math.abs(channel-after[index])<=2));
+});
 
 test('entrance uses actual 60-degree pitch, holds the opening and lands exactly on the responsive overview',()=>{
   const focus=[0,.35,.2];

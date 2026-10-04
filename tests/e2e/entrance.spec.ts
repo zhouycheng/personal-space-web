@@ -15,6 +15,8 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await page.goto('/home?source=entrance#start',{waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
   await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备小岛');
+  const initialPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
+  expect(initialPalette).toMatch(/^#[\da-f]{6}$/i);
   await overlay(page).click({position:{x:100,y:100}});
   expect(await page.evaluate(()=>sessionStorage.getItem('justin-entrance-completed'))).toBeNull();
   await page.screenshot({path:info.outputPath('loading.png')});
@@ -30,6 +32,8 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await page.reload({waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
   await expect(page.locator('[data-cloud-status]')).toHaveText('正在布置工作室…');
+  const refreshPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
+  expect(refreshPalette).toMatch(/^#[\da-f]{6}$/i);
   await expect(page.locator('[data-cloud-status]')).toHaveCSS('background-image',/linear-gradient/);
   await expect.poll(()=>overlay(page).evaluate(el=>Number.parseFloat(getComputedStyle(el).getPropertyValue('--cloud-progress')))).toBeGreaterThan(0);
   releaseRefresh();gate=undefined;await expect(overlay(page)).toHaveAttribute('data-state','dismissing',{timeout:35000});
@@ -106,17 +110,33 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   const body=await (await request.get('/home')).text();
   const html=await page.evaluate(body=>new DOMParser().parseFromString(body,'text/html').querySelector('[data-cloud-entrance]')!.outerHTML,body);
   const css=await readFile('src/justin-kit/components/cloud-entrance/cloud-entrance.css','utf8');
+  const timePalette=await readFile('src/justin-kit/components/cloud-entrance/timePalette.ts','utf8');
   const field=await readFile('src/justin-kit/components/cloud-entrance/fogField.ts','utf8');
-  const runtime=(await readFile('src/justin-kit/components/cloud-entrance/runtime.ts','utf8')).replace("import { createFogField } from './fogField';",'');
+  const runtime=(await readFile('src/justin-kit/components/cloud-entrance/runtime.ts','utf8'))
+    .replace("import { createFogField } from './fogField';",'')
+    .replace("import { entranceTimePalette, paletteHex, paletteRgb } from './timePalette';",'');
+  const paletteSource=ts.transpileModule(timePalette,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-  const demo=`${fieldSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
+  const demo=`${paletteSource}\n${fieldSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
     root.querySelector('.cloud-entrance__information').innerHTML='<button data-cloud-no-enter>个人信息</button>';
     window.enterCount=0;window.cloud=createCloudEntrance(root,()=>{window.enterCount++;},()=>{});
-    window.cloud.setProgress(.4);window.cloud.setState('ready');`;
-  const document=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style>${html}<script type="module">${demo}</script>`;
-  await mkdir('.workspace/entrance-validation',{recursive:true});await writeFile('.workspace/entrance-validation/standalone.html',document);
-  await page.setContent(document);await ready(page);
+    window.cloud.setProgress(.4);window.cloud.setState('loading');`;
+  const htmlDocument=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style>${html}<script type="module">${demo}</script>`;
+  await page.clock.setFixedTime(new Date(2026,9,5,1));
+  await mkdir('.workspace/entrance-validation',{recursive:true});await writeFile('.workspace/entrance-validation/standalone.html',htmlDocument);
+  await page.setContent(htmlDocument);
+  await expect(overlay(page)).toHaveAttribute('data-state','loading');
+  await expect(overlay(page)).toHaveAttribute('data-painted','true');
+  const entrance=overlay(page);
+  expect(await entrance.evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim())).toBe('#161e2e');
+  await page.screenshot({path:info.outputPath('standalone-night.png')});
+  await page.clock.setFixedTime(new Date(2026,9,5,12));
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  expect(await entrance.evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim())).toBe('#c6d0d2');
+  await page.screenshot({path:info.outputPath('standalone-day.png')});
+  await page.evaluate(()=>Reflect.get(window,'cloud').setState('ready'));
+  await ready(page);
   await page.getByRole('button',{name:'个人信息'}).click();
   expect(await page.evaluate(()=>Reflect.get(window,'enterCount'))).toBe(0);
   await overlay(page).focus();await page.keyboard.press('Space');

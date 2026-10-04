@@ -1,3 +1,4 @@
+import type { RGB } from './timePalette';
 const smooth = (value:number) => {const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
 
 /** Numerical density, not an image asset. Four advected volumes form one field. */
@@ -46,7 +47,7 @@ export function createFogField() {
   return {
     sample,
     dispose() { noise=normalsX=normalsY=new Float32Array(0); },
-    paint(width:number,height:number,progress:number,pixels:Uint8ClampedArray) {
+    paint(width:number,height:number,progress:number,pixels:Uint8ClampedArray,color:RGB=[188,193,196]) {
       const movement=smooth((progress-.1)/.72),center=.38+1.68*movement;
       const cover=1-smooth((progress-.13)/.21),fade=1-smooth((progress-.8)/.19);
       const envelopeX=new Float32Array(width),envelopeY=new Float32Array(height);
@@ -68,8 +69,8 @@ export function createFogField() {
         const density=envelopeX[x]*envelopeY[y]*(.25+n*1.1)+cover;
         const alpha=smooth((density-.12)*2.7)*fade;
         // Soft top/side illumination, dark interiors and light through thin edges.
-        const shade=188+light*58-Math.min(1,density)*8+(1-alpha)*15,index=(y*width+x)*4;
-        pixels[index]=shade;pixels[index+1]=shade+5;pixels[index+2]=shade+8;pixels[index+3]=Math.round(alpha*255);
+        const shade=light*58-Math.min(1,density)*8+(1-alpha)*15,index=(y*width+x)*4;
+        pixels[index]=color[0]+shade;pixels[index+1]=color[1]+shade;pixels[index+2]=color[2]+shade;pixels[index+3]=Math.round(alpha*255);
       }
     },
   };
