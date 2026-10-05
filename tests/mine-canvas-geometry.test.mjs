@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   inferHandlePair,
   resolveCubicControls,
-  toControlOffset,
 } from "../src/presentation/interaction/canvas/mineCanvasGeometry.ts";
 
 test("inferHandlePair chooses the nearest horizontal sides", () => {
@@ -41,12 +40,5 @@ test("resolveCubicControls keeps stored controls relative to moving endpoints", 
       sourceControl: { x: 240, y: 70 },
       targetControl: { x: 450, y: 280 },
     },
-  );
-});
-
-test("toControlOffset converts a dragged flow point to endpoint-relative data", () => {
-  assert.deepEqual(
-    toControlOffset({ x: 340, y: 180 }, { x: 415, y: 125 }),
-    { dx: 75, dy: -55 },
   );
 });

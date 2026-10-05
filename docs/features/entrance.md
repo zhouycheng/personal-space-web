@@ -10,7 +10,7 @@
 - `src/contracts/studioPorts.ts`：`prepareStartup()` 和 `playEntrance()` 只返回 `OperationResult` 并报告进度，不暴露相机或 renderer。
 - `src/contracts/startup.ts`：准备阶段及阶段完成进度；应用层负责文案，云雾组件不导入业务类型。
 - `src/presentation/scene/studio/prepareSceneGeometry.ts`：单个 Worker 与主线程回退；共享生成函数产出植被、LOD、岩石和海岸几何，传输时共享属性缓冲只转移一次。
-- `src/animation/studio/entranceMotion.ts`：时长 3000ms、真实向下俯角 60°、相对总览右偏 55°、取景占比 .3。`islandFraming.ts` 共用树冠、岛岸、码头和船的边界；普通浏览取景计算保持原结果。
+- `src/animation/studio/entranceMotion.ts`：时长 3000ms、真实向下俯角 60°、相对总览右偏 55°、取景占比 .3。`islandFraming.ts` 共用树冠、岛岸、码头和船的边界；普通浏览取景按视口适配这些边界。
 
 ## 就绪与时间
 
@@ -36,7 +36,7 @@
 
 `data-timings` 同时记录导航至准备/就绪、云雾 CPU 与各阶段累计时间。`data-startup-timings` 区分模块等待、Worker 总时间、各生成函数 CPU、家具与后续装配 CPU、纹理等待/上传、编译和试绘。Worker 与家具时间有重叠，不能直接相加；`data-normals-wait` 标识资源就绪或超时。
 
-几何合批保留索引、属性和三角形顺序；LOD 缓存网格拓扑与重心权重，不改变轮廓和误差阈值。海水只在贡献确定为零时跳过波浪频段或泡沫计算，屏幕导数与纹理采样保留在这些条件分支之前。远海天空混合维持原算法；提前分支在参考设备上的独立采样未显示稳定收益。阴影分辨率、风动更新、DPR 上限及相机交互参数保持原配置。
+几何合批保留索引、属性和三角形顺序；LOD 缓存网格拓扑与重心权重，细节选择遵循轮廓和误差阈值。海水只在贡献确定为零时跳过波浪频段或泡沫计算，屏幕导数与纹理采样在这些条件分支之前执行。远海颜色使用同一天空混合函数。阴影分辨率、风动更新、DPR 上限及相机交互参数由共享配置维护。
 
 `tests/startup-geometry.test.mjs` 检查原算法 LOD 结果、索引合并和共享缓冲传输；`tests/e2e/startup-preparation.spec.ts` 检查阶段可见性、网络分包、Worker 回退、纹理超时和准备期导航。`scripts/startup-performance-measure.mjs` 通过 `PERF_URL`、`PERF_LABEL` 对已有生产服务采样三轮，将原始数据和截图写到 `.workspace/startup-optimization/`。测量期间不要同时运行另一浏览器检查或构建。
 

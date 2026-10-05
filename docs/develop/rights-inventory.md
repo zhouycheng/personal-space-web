@@ -35,7 +35,7 @@
 | `src/content/site/resume.json` | 个人简历，保留权利 |
 | `src/content/site/studio-files.json` | 展示编排清单，保留权利 |
 | `src/content/site/site.json` | 个人站点名、署名和描述，保留权利 |
-| `public/journal/generated/current.json`、兼容 manifest、当前版本 manifest | 生成索引代码按 Zlib；所含个人元信息保留权利 |
+| `public/journal/generated/current.json`、运行时索引、当前包 manifest | 生成索引代码按 Zlib；所含个人元信息保留权利 |
 | `public/journal/generated/<renderHash>/pages/*.webp`、`thumbnails/*.webp` | 个人日记的派生图像，保留权利；第三方字体仍遵守 OFL |
 
 软件源码的 Zlib 许可见根目录 `LICENSE`；个人内容复用须参照 [legal/CONTENT-LICENSE.md](../../legal/CONTENT-LICENSE.md)。依赖和字体的第三方声明见 [legal/THIRD_PARTY_NOTICES.md](../../legal/THIRD_PARTY_NOTICES.md)。新增发布文件时同步更新本清单；来源不明的材料不能声明为可自由复用。

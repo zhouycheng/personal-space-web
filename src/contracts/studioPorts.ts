@@ -55,7 +55,6 @@ export interface ScenePort extends TransitionPort {
   journalReady(): Promise<OperationResult>;
   cancelJournalPrefetch(): void;
   resetJournal(): void;
-  setJournalPage(index: number): void;
   turnJournal(direction: 1 | -1): void;
   zoomJournal(value: number): void;
   dispose(): void;

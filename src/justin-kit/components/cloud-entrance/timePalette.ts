@@ -86,7 +86,3 @@ export function entranceTimePalette(date = new Date()): EntranceTimePalette {
 export function paletteHex(color: RGB): string {
   return `#${color.map(channel => Math.round(channel).toString(16).padStart(2, '0')).join('')}`;
 }
-
-export function paletteRgb(color: RGB): string {
-  return `rgb(${color.map(channel => Math.round(channel)).join(', ')})`;
-}

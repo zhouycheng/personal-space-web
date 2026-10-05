@@ -2,9 +2,9 @@
 
 分类：`JS Motion`
 
-状态：Astro 提取完成，已挂载到 Justin OS 桌面背景，替换原星星层。
+状态：挂载到 Justin OS 桌面背景。
 
-这是从 `terminal-symbol-dome-single-face-v3.html` 草图吸收的符号半球背景。它用 Canvas 绘制单面右转的半球：海洋由 `%` 和 `x` 组成，陆地由同尺寸 `#` 组成，并通过主题黄色、透明度和位置区分。
+它用 Canvas 绘制单面右转的符号半球：海洋由 `%` 和 `x` 组成，陆地由同尺寸 `#` 组成，并通过主题黄色、透明度和分散位置区分。可见面包含四块分散陆地，边缘柔和模糊并逐渐淡出。
 
 ## 文件
 
@@ -13,7 +13,6 @@
 - `domeModel.ts` 生成固定种子的采样点并计算陆地与噪声。
 - `domeRenderer.ts` 绘制每帧的符号、颜色与轻微朝向。
 - `symbol-dome-background.ts` 管理 Canvas 尺寸、指针、可见性和动画帧生命周期。
-- `source-notes.md` 记录吸收的草图来源。
 
 ## 用法
 

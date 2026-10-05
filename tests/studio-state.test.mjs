@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clockText, studioLighting } from '../src/config/studioTime.ts';
+import { clockText, environmentAt } from '../src/config/studioTime.ts';
 import { createChairRocking } from '../src/animation/studio/chairMotion.ts';
 import { surfaceDistance, surfaceOpacity, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/animation/studio/studioMotion.ts';
 import { ACTION_LABELS } from '../src/contracts/studio.ts';
@@ -102,7 +102,7 @@ test('astronomical lighting follows Shanghai daylight and remains continuous at 
   assert.equal(clockText(new Date(2026,0,2), true), '01.02');
   assert.equal(clockText(new Date(2026,11,31), true), '12.31');
   assert.equal(clockText(new Date(2028,1,29), true), '02.29');
-  const at = (hour, minute = 0, second = 0) => studioLighting(new Date(Date.UTC(2026, 8, 11, hour-8, minute, second)));
+  const at = (hour, minute = 0, second = 0) => environmentAt(new Date(Date.UTC(2026, 8, 11, hour-8, minute, second))).lighting;
   assert.equal(at(0).daylight, 0);
   assert.equal(at(12).daylight, 1);
   assert.deepEqual(
