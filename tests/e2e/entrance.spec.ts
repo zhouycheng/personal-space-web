@@ -1,6 +1,7 @@
 import { expect, test, type Page } from 'playwright/test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import ts from 'typescript';
+import { phase } from './helpers/journal';
 
 const overlay=(page:Page)=>page.locator('[data-cloud-entrance]');
 async function ready(page:Page) { await expect(overlay(page)).toHaveAttribute('data-state','ready',{timeout:35000}); }
@@ -51,7 +52,7 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
 });
 
 for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
-  test(`fresh ${path} preserves the requested route and refresh auto-fades`,async({page})=>{
+  test(`fresh ${path} preserves the requested route and refresh auto-fades`,async({page},info)=>{
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto(`${path}?source=test#entry`);await ready(page);
     await expect(page.locator('[data-studio]')).toHaveAttribute('inert','');
@@ -59,9 +60,19 @@ for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
     const expected=path==='/'?'/home':path;
     // /journal may select the default article; published slug links are tested below.
     if(path!=='/journal')await expect(page).toHaveURL(new RegExp(`${expected.replace('/','\\/')}\\?source=test#entry$`));
+    const returnFocus=page.locator('[data-studio-return]:focus,[data-canvas-return]:focus,[data-gallery-return]:focus,[data-journal-close]:focus');
+    await expect(returnFocus).toHaveCount(0);
+    if(path==='/journal')await phase(page,'reading');
     await page.reload();await expect(overlay(page)).toBeHidden();
     const state=path==='/os'?'desktop':path==='/canvas'?'canvas':path==='/journal'?'journal':'room';
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state',state);
+    await expect(returnFocus).toHaveCount(0);
+    if(path==='/journal')await phase(page,'reading');
+    await page.screenshot({path:info.outputPath('refreshed.png')});
+    if(['/works','/canvas','/os'].includes(path)) {
+      await page.keyboard.press('Tab');
+      await expect(page.locator('.alpha-shell :focus-visible')).toHaveCount(1);
+    }
   });
 }
 
@@ -96,6 +107,11 @@ test('a published journal slug and anchor survive entrance; history does not acq
   const length=await page.evaluate(()=>history.length);await enter(page);
   await expect(page.locator('[data-journal-root]')).toHaveAttribute('data-phase','reading',{timeout:35000});
   await expect(page).toHaveURL(new RegExp(encodeURIComponent(article.slug)));
+  expect(await page.evaluate(()=>location.search+location.hash)).toBe(`?source=deep#${encodeURIComponent(anchor)}`);
+  expect(await page.evaluate(()=>history.length)).toBe(length);
+  const readingPage=await page.locator('canvas[data-journal-phase]').getAttribute('data-journal-page');
+  await page.reload();await expect(overlay(page)).toBeHidden();await phase(page,'reading');
+  await expect(page.locator('canvas[data-journal-phase]')).toHaveAttribute('data-journal-page',readingPage!);
   expect(await page.evaluate(()=>location.search+location.hash)).toBe(`?source=deep#${encodeURIComponent(anchor)}`);
   expect(await page.evaluate(()=>history.length)).toBe(length);
 });
