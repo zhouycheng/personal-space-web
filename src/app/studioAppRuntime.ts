@@ -300,7 +300,7 @@ function init(shell: HTMLElement) {
   async function applyRoute(next: AppPage) {
     if(entrance?.covered){
       pendingPage=next;
-      if(entrance.blocking){transition++;scene?.cancelTransition();void entrance.start();}
+      transition++;scene?.cancelTransition();void entrance.start();
       return;
     }
     closeExplore(false,true);
@@ -344,11 +344,7 @@ function init(shell: HTMLElement) {
     focusRoute();
   }
   function focusRoute() {
-    if (model.page === "journal") shell.querySelector<HTMLAnchorElement>('[data-journal-close]')?.focus();
-    else if (model.page === "os") returnButton.focus();
-    else if (model.page === "canvas") shell.querySelector<HTMLButtonElement>("[data-canvas-return]")?.focus();
-    else if (model.page === "works") shell.querySelector<HTMLButtonElement>("[data-gallery-return]")?.focus();
-    else (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
+    if (model.page === "home") (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
   }
   async function act(action: StudioAction) {
     if (entrance?.covered || model.page !== "home" || model.state !== "room") return;
@@ -436,6 +432,10 @@ function init(shell: HTMLElement) {
         const result=await scene!.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress:progress});scenePrepared=result.status==='completed';
       })():loadScene(progress,true);
       await Promise.all([targetModule,startup]);
+      if(scenePrepared&&!sceneBlocked&&!entrance.blocking&&pendingPage==='journal') {
+        prepareJournalTargets();scene?.setActive(!document.hidden);
+        await journal.enter(location.pathname+location.hash,0);
+      }
       if(scenePrepared&&!sceneBlocked)onProgress({stage:'ready',progress:1});
       return scenePrepared&&!sceneBlocked?{status:'completed',value:undefined}:{status:'failed',code:'startup',retryable:true};
     },

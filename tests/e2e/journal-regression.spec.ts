@@ -9,11 +9,33 @@ test("T23–T26 article URLs, refresh, legacy redirects and invalid slugs", asyn
   await expect(page).toHaveTitle(new RegExp(book.articles[0].title));
   await visual(page, info, "article-reading");
   await page.reload(); await phase(page, "reading");
+  await expect(page.locator('[data-cloud-entrance]')).toBeHidden();
+  await visual(page, info, "article-refreshed");
   expect((await page.request.get(`/blog/${slug}`, { maxRedirects: 0 })).status()).toBe(301);
   expect((await page.request.get("/journal/does-not-exist")).status()).toBe(404);
   await page.evaluate(() => { history.pushState({}, "", "/journal/does-not-exist"); dispatchEvent(new PopStateEvent("popstate")); });
   await expect(page.locator("[data-journal-status]")).toContainText(/不存在/);
   await page.keyboard.press("Escape"); await expect(page).toHaveURL(/\/home$/);
+});
+
+test('navigation during journal refresh cancels the old reader',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('/journal');await phase(page,'reading');
+  let release!:()=>void;
+  const gate=new Promise<void>(resolve=>release=resolve);
+  await page.route('**/journal/generated/*/pages/*.webp*',async route=>{await gate;await route.continue().catch(()=>{});});
+  try {
+    await page.reload({waitUntil:'domcontentloaded'});
+    await phase(page,'preparing');
+    await page.evaluate(()=>{history.pushState({},'', '/os');dispatchEvent(new PopStateEvent('popstate'));});
+    release();
+    await expect(page.locator('[data-cloud-entrance]')).toBeHidden();
+    await expect(page).toHaveURL(/\/os$/);
+    await expect(page.locator('[data-studio]')).toHaveAttribute('data-state','desktop');
+    await phase(page,'stowed');
+    await expect(bookCanvas(page)).toHaveAttribute('data-journal-textures','0');
+    await expect(page.locator('[data-studio-scene] canvas')).toHaveCount(1);
+  }finally{release();}
 });
 
 test("T18–T22 odd final face, reading angles, zoom, responsive layout and keyboard", async ({ page }, info) => {
@@ -41,6 +63,8 @@ test("T18–T22 odd final face, reading angles, zoom, responsive layout and keyb
   await expect(canvas).toHaveAttribute("data-journal-page", "6");
   expect(await page.evaluate(() => window.history.length)).toBe(history);
   await visual(page, info, "odd-final-page");
+  await page.reload();await phase(page,'reading');
+  await expect(canvas).toHaveAttribute('data-journal-page','6');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("[data-journal-progress]")).toHaveText("7 / 7");
   await page.keyboard.press("ArrowLeft"); await phase(page, "reading");
@@ -95,6 +119,11 @@ test("T30 failed textures keep an independent exit and recover on explicit retry
   await expect(page.locator("[data-journal-status]")).toContainText("书页下载失败");
   await visual(page, info, "texture-error");
   expect(attempts).toBeLessThanOrEqual(book.pages.length * 2);
+  attempts=0;await page.reload();
+  await expect(page.locator('[data-cloud-entrance]')).toBeHidden({timeout:35_000});
+  await expect(page.locator('[data-journal-retry]')).toBeVisible();
+  await expect(page.locator('[data-journal-status]')).toContainText('书页下载失败');
+  expect(attempts).toBeLessThanOrEqual(book.pages.length * 2);
   await page.unroute("**/journal/generated/*/pages/*.webp*");
   await page.locator("[data-journal-retry]").click(); await phase(page, "reading");
   await visual(page, info, "retry-first-frame");
@@ -113,7 +142,10 @@ test("T27 latest route wins when navigation interrupts journal preparation", asy
   await page.waitForTimeout(1800);
   await expect(page).toHaveURL(/\/canvas$/);
   await expect(page.locator(".react-flow__node").first()).toBeVisible();
-  await expect(bookCanvas(page)).toHaveAttribute("data-journal-textures", "0");
+  await phase(page,'stowed');
+  const canvas=page.locator('[data-studio-scene] canvas');
+  await expect(canvas).toHaveCount(1);
+  await expect.poll(async()=>Number(await canvas.getAttribute('data-journal-textures')??0)).toBe(0);
 });
 
 test("T41 long book respects texture budgets and releases its working set", async ({ page }) => {
