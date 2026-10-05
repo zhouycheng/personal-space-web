@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { islandAppearance as island } from '../src/config/islandAppearance.ts';
 import { islandViewDistance } from '../src/animation/studio/islandFraming.ts';
 import { createIslandGeometry, createIslandEnvironment, islandHeight, shoreRadius } from '../src/presentation/scene/studio/islandEnvironment.ts';
-import { studioLighting } from '../src/config/studioTime.ts';
+import { environmentAt } from '../src/config/studioTime.ts';
 import { terrainHeight, islandRocks, rockBase } from '../src/config/islandTerrain.ts';
 import { createRockGeometry } from '../src/presentation/scene/studio/islandRocks.ts';
 import { createIslandVegetation } from '../src/presentation/scene/studio/islandVegetation.ts';
@@ -85,7 +85,7 @@ test('water pauses without catching up hidden time; environment resources belong
   assert.equal(water.material.uniforms.time.value,.02);
   environment.pause();environment.tick(400000,true);
   assert.equal(water.material.uniforms.time.value,.02);
-  environment.setLighting(studioLighting(new Date(Date.UTC(2026,9,3,15))));
+  environment.setLighting(environmentAt(new Date(Date.UTC(2026,9,3,15))).lighting);
   assert.equal(water.material.uniforms.daylight.value,0);
   const sky=environment.group.getObjectByName('island-sky');
   assert.equal(sky.material.uniforms.sunDirection,water.material.uniforms.sunDirection);

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { activeTimeout, withActiveDeadline } from '../src/infrastructure/client/activeDeadline.ts';
+import { waitForOptionalResource } from '../src/infrastructure/client/optionalResource.ts';
 
 function fakePage() {
   const originals = new Map(['window', 'document', 'performance', 'clearTimeout'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -80,4 +81,19 @@ test('an operation timeout cancels once and ignores a late successful result', a
     assert.equal((await result).status, 'failed'); assert.equal(cancelled, 1);
     assert.equal(page.tasks.size, 0);
   } finally { page.restore(); }
+});
+
+test('optional texture timeout counts foreground time, accepts late completion and clears cancellation timers',async()=>{
+  const page=fakePage();
+  try {
+    let complete;const resource=new Promise(resolve=>complete=resolve),abort=new AbortController();
+    const result=waitForOptionalResource(resource,abort.signal,15_000);
+    page.advance(5000);page.document.hidden=true;page.document.dispatchEvent(new Event('visibilitychange'));
+    page.advance(60_000);assert.equal(page.tasks.size,0);
+    page.document.hidden=false;page.document.dispatchEvent(new Event('visibilitychange'));page.advance(10_000);
+    assert.equal(await result,'timeout');complete();await Promise.resolve();assert.equal(page.tasks.size,0);
+    const cancellation=new AbortController(),cancelled=waitForOptionalResource(new Promise(()=>{}),cancellation.signal);
+    cancellation.abort();assert.equal(await cancelled,'cancelled');assert.equal(page.tasks.size,0);
+    assert.equal(await waitForOptionalResource(Promise.resolve(),new AbortController().signal),'ready');assert.equal(page.tasks.size,0);
+  }finally{page.restore();}
 });

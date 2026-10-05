@@ -5,24 +5,21 @@ import { createStudioPrimitives } from '../src/presentation/scene/studio/studioP
 import { createStudioFurniture } from '../src/presentation/scene/studio/studioFurniture.ts';
 import { createStudioDevices } from '../src/presentation/scene/studio/studioDevices.ts';
 import { createStudioFiles } from '../src/presentation/scene/studio/studioFiles.ts';
-import { canopyOpacity,fadeCanopyOpacity } from '../src/animation/studio/canopyVisibility.ts';
+import { canopyDistanceOpacity,fadeCanopyOpacity } from '../src/animation/studio/canopyVisibility.ts';
 import { workspaceAppearance as layout } from '../src/config/workspaceAppearance.ts';
 import { createWorkspaceMaterials } from '../src/presentation/scene/studio/workspaceMaterials.ts';
 import { canopySurface } from '../src/animation/studio/canopySurface.ts';
 import { createChairRocking,CHAIR_ROCKER_RADIUS } from '../src/animation/studio/chairMotion.ts';
 
-test('roof leaves frontal views open, clears crossing and close cameras, and restores after return',()=>{
-  assert.equal(canopyOpacity([0,2,8],[0,1.5,-1]),1);
-  assert.equal(canopyOpacity([0,7,5],[0,1.5,-1]),0);
-  assert.equal(canopyOpacity([0,3.6,0],[0,1.5,-1]),0);
-  assert.equal(canopyOpacity([8,7,0],[8,1,0]),1);
-  assert.equal(canopyOpacity([0,2,8],[0,1.5,-1]),1);
-  assert.equal(canopyOpacity([0,2,8],[0,2,-1]),1);
+test('roof clears close desktop and eye-level cameras and restores at island distance',()=>{
+  for(const camera of [[0,2,1],[0,7,0],[0,1.5,-4],[4,2,0]])
+    assert.equal(canopyDistanceOpacity(camera),0);
+  for(const camera of [[0,2,18],[18,2,0],[0,2,-18]])
+    assert.equal(canopyDistanceOpacity(camera),1);
 });
 
 test('canopy anticipates an approaching camera and opacity reverses continuously',()=>{
-  const roof=layout.canopy,y=roof.height;
-  const samples=Array.from({length:81},(_,i)=>canopyOpacity([roof.right+1-i*.0125,y,0],[roof.right+3,y,0]));
+  const samples=Array.from({length:81},(_,i)=>canopyDistanceOpacity([0,2,12-i*.075]));
   assert.ok(samples.some(value=>value>0&&value<1));
   for(let i=1;i<samples.length;i++)assert.ok(samples[i]<=samples[i-1]&&samples[i-1]-samples[i]<.04);
   let opacity=1;

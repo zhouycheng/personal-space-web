@@ -1,6 +1,7 @@
 import { expect, test, type Page } from 'playwright/test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import ts from 'typescript';
+import { phase } from './helpers/journal';
 
 const overlay=(page:Page)=>page.locator('[data-cloud-entrance]');
 async function ready(page:Page) { await expect(overlay(page)).toHaveAttribute('data-state','ready',{timeout:35000}); }
@@ -8,13 +9,16 @@ async function enter(page:Page) { await ready(page); await overlay(page).focus()
 
 test('loading reports real progress and a completed refresh auto-fades the cloud cover',async({page},info)=>{
   test.setTimeout(90_000);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  // Fix the cloud palette without mocking PerformanceNavigationTiming on reload.
+  await page.addInitScript(()=>{Date.prototype.getHours=()=>14;Date.prototype.getMinutes=()=>0;});
   let gate:Promise<void>|undefined;
   let releaseInitial!:()=>void;
   gate=new Promise<void>(resolve=>{releaseInitial=resolve;});
   await page.route('**/*waternormals*',async route=>{if(gate)await gate;await route.continue();});
   await page.goto('/home?source=entrance#start',{waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
-  await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备小岛');
+  await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
   const initialPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(initialPalette).toMatch(/^#[\da-f]{6}$/i);
   await overlay(page).click({position:{x:100,y:100}});
@@ -24,14 +28,17 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await expect(page.locator('[data-cloud-status]')).toHaveCount(1);
   await expect(page.locator('[data-cloud-status]')).toHaveText('点击拨开云雾');
   await expect(page.locator('[data-studio-scene]')).toHaveAttribute('data-render-active','false');
-  const before=await page.screenshot();await page.mouse.move(600,450);await page.waitForTimeout(250);
+  await page.locator('[data-cloud-entrance]').dispatchEvent('pointerleave');await page.waitForTimeout(1000);
+  const before=await page.screenshot();
+  const bounds=(await overlay(page).boundingBox())!;
+  await page.mouse.move(bounds.x+bounds.width*.42,bounds.y+bounds.height*.5);await page.waitForTimeout(500);
   expect(before.equals(await page.screenshot({path:info.outputPath('hover.png')}))).toBe(false);
   await enter(page);await expect(page).toHaveURL(/\/home\?source=entrance#start$/);
   let releaseRefresh!:()=>void;
   gate=new Promise<void>(resolve=>{releaseRefresh=resolve;});
   await page.reload({waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
-  await expect(page.locator('[data-cloud-status]')).toHaveText('正在布置工作室…');
+  await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
   const refreshPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(refreshPalette).toMatch(/^#[\da-f]{6}$/i);
   await expect(page.locator('[data-cloud-status]')).toHaveCSS('background-image',/linear-gradient/);
@@ -45,7 +52,7 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
 });
 
 for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
-  test(`fresh ${path} preserves the requested route and refresh auto-fades`,async({page})=>{
+  test(`fresh ${path} preserves the requested route and refresh auto-fades`,async({page},info)=>{
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto(`${path}?source=test#entry`);await ready(page);
     await expect(page.locator('[data-studio]')).toHaveAttribute('inert','');
@@ -53,9 +60,19 @@ for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
     const expected=path==='/'?'/home':path;
     // /journal may select the default article; published slug links are tested below.
     if(path!=='/journal')await expect(page).toHaveURL(new RegExp(`${expected.replace('/','\\/')}\\?source=test#entry$`));
+    const returnFocus=page.locator('[data-studio-return]:focus,[data-canvas-return]:focus,[data-gallery-return]:focus,[data-journal-close]:focus');
+    await expect(returnFocus).toHaveCount(0);
+    if(path==='/journal')await phase(page,'reading');
     await page.reload();await expect(overlay(page)).toBeHidden();
     const state=path==='/os'?'desktop':path==='/canvas'?'canvas':path==='/journal'?'journal':'room';
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state',state);
+    await expect(returnFocus).toHaveCount(0);
+    if(path==='/journal')await phase(page,'reading');
+    await page.screenshot({path:info.outputPath('refreshed.png')});
+    if(['/works','/canvas','/os'].includes(path)) {
+      await page.keyboard.press('Tab');
+      await expect(page.locator('.alpha-shell :focus-visible')).toHaveCount(1);
+    }
   });
 }
 
@@ -92,6 +109,11 @@ test('a published journal slug and anchor survive entrance; history does not acq
   await expect(page).toHaveURL(new RegExp(encodeURIComponent(article.slug)));
   expect(await page.evaluate(()=>location.search+location.hash)).toBe(`?source=deep#${encodeURIComponent(anchor)}`);
   expect(await page.evaluate(()=>history.length)).toBe(length);
+  const readingPage=await page.locator('canvas[data-journal-phase]').getAttribute('data-journal-page');
+  await page.reload();await expect(overlay(page)).toBeHidden();await phase(page,'reading');
+  await expect(page.locator('canvas[data-journal-phase]')).toHaveAttribute('data-journal-page',readingPage!);
+  expect(await page.evaluate(()=>location.search+location.hash)).toBe(`?source=deep#${encodeURIComponent(anchor)}`);
+  expect(await page.evaluate(()=>history.length)).toBe(length);
 });
 
 test('WebGL denial exposes independent retry and usable content exits',async({page})=>{
@@ -114,7 +136,7 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   const field=await readFile('src/justin-kit/components/cloud-entrance/fogField.ts','utf8');
   const runtime=(await readFile('src/justin-kit/components/cloud-entrance/runtime.ts','utf8'))
     .replace("import { createFogField } from './fogField';",'')
-    .replace("import { entranceTimePalette, paletteHex, paletteRgb } from './timePalette';",'');
+    .replace("import { entranceTimePalette, paletteHex } from './timePalette';",'');
   const paletteSource=ts.transpileModule(timePalette,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
@@ -142,6 +164,22 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   await overlay(page).focus();await page.keyboard.press('Space');
   expect(await page.evaluate(()=>Reflect.get(window,'enterCount'))).toBe(1);
   await page.screenshot({path:info.outputPath('standalone.png')});
+  await overlay(page).dispatchEvent('pointerleave');
+  await page.waitForTimeout(1200);
+  const initial = await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL());
+  await page.evaluate(() => {
+    Reflect.get(window, 'cloud').setState('revealing');
+    Reflect.get(window, 'cloud').setRevealProgress(0);
+  });
+  expect(await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL())).toBe(initial);
+  for (const [label, hour] of [['day', 12], ['night', 1], ['dawn', 6], ['dusk', 18]] as const) {
+    await page.clock.setFixedTime(new Date(2026, 9, 5, hour));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    for (const progress of [0, .15, .35, .6, .85]) {
+      await page.evaluate(progress => Reflect.get(window, 'cloud').setRevealProgress(progress), progress);
+      await page.screenshot({path:info.outputPath(`cloud-${label}-${progress}.png`)});
+    }
+  }
   await page.evaluate(()=>Reflect.get(window,'cloud').dispose());
   expect(await page.locator('[data-cloud-canvas]').evaluate(canvas=>(canvas as HTMLCanvasElement).width)).toBe(0);
 });

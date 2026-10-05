@@ -1,7 +1,7 @@
 ---
 import './cloud-entrance.css';
 type Props = { title?: string; loadingText?: string; readyText?: string };
-const { title = 'Justin', loadingText = '正在准备小岛', readyText = '点击拨开云雾' } = Astro.props;
+const { title = 'Justin', loadingText = '正在加载场景', readyText = '点击拨开云雾' } = Astro.props;
 ---
 <div class="cloud-entrance" data-cloud-entrance data-state="loading" data-title={title} data-loading-text={loadingText} data-ready-text={readyText} aria-label="网站准备页" aria-busy="true">
   <canvas data-cloud-canvas aria-hidden="true"></canvas>

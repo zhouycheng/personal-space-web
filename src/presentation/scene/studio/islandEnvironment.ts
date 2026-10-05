@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { islandAppearance as island } from "../../../config/islandAppearance.ts";
 import type { StudioLighting } from "../../../contracts/studioPorts";
 import { oceanWavesGLSL } from "./oceanShader.ts";
-import { coastRadius, smoothstep, shoreRadius, terrainHeight } from '../../../config/islandTerrain.ts';
+import { createIslandGeometry,createWaterGeometry } from './islandGeometry.ts';
+import type { PreparedSceneGeometry } from './sceneGeometryData.ts';
 import { createRockGeometry, createRockMaterial, rockCoastGLSL } from './islandRocks.ts';
 import { createIslandVegetation } from './islandVegetation.ts';
 import { islandPalms, islandUnderstory } from '../../../config/islandVegetation.ts';
@@ -10,35 +11,7 @@ import { dressingPlants,dressingProps } from '../../../config/islandDressing.ts'
 import { islandSkyGLSL, islandSkyVertex, islandSkyFragment } from './islandSky.ts';
 export { shoreRadius, islandHeight } from '../../../config/islandTerrain.ts';
 
-export function createIslandGeometry(segments = 192, rings = 64) {
-  const positions: number[] = [], colors: number[] = [], indices: number[] = [];
-  const dry = new THREE.Color(island.sand), wet = new THREE.Color(island.wetSand);
-  for (let ring = 0; ring <= rings; ring++) {
-    const radius = ring / rings * 1.4;
-    for (let segment = 0; segment <= segments; segment++) {
-      const angle = segment / segments * Math.PI * 2;
-      const outline = shoreRadius(angle) * radius;
-      const x = Math.cos(angle) * island.radiusX * outline;
-      const z = Math.sin(angle) * island.radiusZ * outline + island.centerZ;
-      const y = terrainHeight(x,z);
-      positions.push(x, y, z);
-      const color = dry.clone().lerp(wet, smoothstep(0.87, 1.045, radius+(Math.sin(x*2.3+z*.7)+Math.sin(z*3.1))*.008));
-      color.multiplyScalar(1 + 0.025 * Math.sin(x * 7 + Math.sin(z * 3)) * Math.sin(z * 9));
-      colors.push(color.r, color.g, color.b);
-      if (ring < rings && segment < segments) {
-        const a = ring * (segments + 1) + segment, b = a + segments + 1;
-        indices.push(a, a + 1, b, a + 1, b + 1, b);
-      }
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  return geometry;
-}
+export { createIslandGeometry } from './islandGeometry.ts';
 
 // Generated from the same coefficients as the mesh; water and sand share a coastline.
 const outlineGLSL = `1.0 ${island.shoreHarmonics.map(([f, a, p]) =>
@@ -77,11 +50,11 @@ const plantContactGLSL=[...islandPalms.map(p=>({x:p.x,z:p.z,radius:.65,strength:
   }`).join('\n');
 
 export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE.Material>,
-  geometries: Set<THREE.BufferGeometry>) {
+  geometries: Set<THREE.BufferGeometry>, prepared?:PreparedSceneGeometry) {
   const group = new THREE.Group();
   group.name = "island-environment";
   scene.add(group); // Deliberately outside the room's pickable object tree.
-  const sandGeometry = createIslandGeometry();
+  const sandGeometry = prepared?.sand ?? createIslandGeometry();
   const sandMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1,
     emissive: 0x203a54, emissiveIntensity: 0 });
   sandMaterial.onBeforeCompile = shader => {
@@ -112,11 +85,11 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   const sand = new THREE.Mesh(sandGeometry, sandMaterial);
   sand.receiveShadow = true;
   group.add(sand);
-  const rockGeometry=createRockGeometry(),rockMaterial=createRockMaterial();
+  const rockGeometry=prepared?.rocks??createRockGeometry(),rockMaterial=createRockMaterial();
   const rocks=new THREE.Mesh(rockGeometry,rockMaterial);
   rocks.name='island-rocks';rocks.castShadow=true;rocks.receiveShadow=true;
   group.add(rocks);geometries.add(rockGeometry);materials.add(rockMaterial);
-  const vegetation=createIslandVegetation(materials,geometries);group.add(vegetation);
+  const vegetation=createIslandVegetation(materials,geometries,prepared?.vegetation);group.add(vegetation);
 
   const uniforms = {
     boatInverse:{value:new THREE.Matrix4()},boatReady:{value:0},boatCenter:{value:new THREE.Vector3()},
@@ -251,24 +224,29 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         base *= 0.91+0.09*noise(p*1.4);
         vec3 color = mix(base*(0.08+daylight*0.55),reflectedSky,fresnel);
         float specular = pow(max(dot(reflect(-sunDirection,normal),view),0.0),360.0);
-        color += sunColor * specular * (0.01+daylight*(.18+sunset*.65));
+        color += sunColor * specular * (0.01+daylight*(.18+sunset*.65))*smoothstep(0.0,.07,sunDirection.y);
         if(radius<2.) {
         float rockEdge=rockDistance(p);
         float washPhase=time*.72+p.x*.17+p.y*.11;
         float waterline=1.-.021*sin(washPhase);
         float shoreMeters=(radius-waterline)*7.0;
+        float shoreBand=(1.-smoothstep(.15,1.25,shoreMeters))*smoothstep(-.10,.04,shoreMeters);
+        float rockBand=1.-smoothstep(.06,.48,abs(rockEdge-.1-.035*sin(washPhase)));
+        // Leading-edge noise shifts at most .035 m; outside .12 m its contribution is zero.
+        // Screen derivatives and implicit texture samples are evaluated above this branch.
+        if(shoreBand>0.||abs(shoreMeters-.035)<.12||(rockBand>0.&&radius>.93)) {
         vec2 drift=normalize(p-vec2(0.,${island.centerZ}))*sin(washPhase)*.13;
         vec2 foamP=(p+drift+vec2(noise(p*1.8+time*.06),noise(p*1.7-time*.04))*.28)*3.4;
         float lace=foamCells(foamP);
         float patches=smoothstep(.25,.65,noise(p*1.35+vec2(time*.035,0.)));
-        float shoreBand=(1.-smoothstep(.15,1.25,shoreMeters))*smoothstep(-.10,.04,shoreMeters);
         float leading=(1.-smoothstep(.018,.085,abs(shoreMeters-.035-(noise(p*6.)-.5)*.07)))*(.45+.45*patches);
         float foam=shoreBand*lace*(.3+.35*patches)+leading*.32;
-        float rockWash=(1.-smoothstep(.06,.48,abs(rockEdge-.1-.035*sin(washPhase))))
+        float rockWash=rockBand
           *(.18+lace*.7)*( .7+.3*sin(washPhase+noise(p)*4.));
         foam=max(foam,rockWash*smoothstep(.93,1.,radius));
         foam*=1.-smoothstep(1.65,2.,radius);
         color = mix(color, vec3(0.82,0.91,0.87)*(0.06+daylight*0.85), foam);
+        }
         }
         color = mix(color, skyRadiance(normalize(vec3(p-cameraPosition.xz,0.0).xzy),0.0),
           smoothstep(100.0,420.0,length(p-cameraPosition.xz)));
@@ -277,23 +255,7 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         #include <colorspace_fragment>
       }`,
   });
-  const waterGeometry = new THREE.PlaneGeometry(1, 1, 256, 256);
-  waterGeometry.rotateX(-Math.PI / 2);
-  // Concentrate vertices around the island; the outer sea reaches beyond every allowed view.
-  const vertices=waterGeometry.attributes.position;
-  const spread=(value:number)=>Math.sign(value)*600*Math.pow(Math.abs(value)*2,3);
-  for(let i=0;i<vertices.count;i++) vertices.setXYZ(i,spread(vertices.getX(i)),0,spread(vertices.getZ(i)));
-  const coastData=new Float32Array(vertices.count*4);
-  const weight=(x:number,z:number)=>smoothstep(1.05,1.65,coastRadius(x,z));
-  for(let i=0;i<vertices.count;i++){
-    const x=vertices.getX(i),z=vertices.getZ(i),o=i*4;
-    coastData[o]=weight(x,z);
-    coastData[o+1]=(weight(x+.01,z)-weight(x-.01,z))/.02;
-    coastData[o+2]=(weight(x,z+.01)-weight(x,z-.01))/.02;
-    coastData[o+3]=1-smoothstep(1.03,1.45,coastRadius(x,z));
-  }
-  waterGeometry.setAttribute('coastData',new THREE.BufferAttribute(coastData,4));
-  waterGeometry.computeBoundingSphere();
+  const waterGeometry = prepared?.water ?? createWaterGeometry();
   const water = new THREE.Mesh(waterGeometry, waterMaterial);
   water.name='island-water';
   water.position.y = island.seaLevel;

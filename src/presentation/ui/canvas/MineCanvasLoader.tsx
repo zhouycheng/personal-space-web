@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { CanvasActivityContext } from "./canvasActivityContext";
 import type { CanvasSession } from "./canvasSession";
 
-const MineCanvasEditor = lazy(() => import("./MineCanvasEditor"));
+const MineCanvasEditor = lazy(() => import('./canvasEditorModule').then(module => module.loadCanvasEditor()));
 
 function isCanvasRouteActive() {
   return window.document.getElementById("page-canvas")?.classList.contains("is-active") ?? false;
