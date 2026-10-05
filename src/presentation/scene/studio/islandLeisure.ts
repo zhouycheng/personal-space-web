@@ -3,7 +3,7 @@ import {createWoolMaterial,addWoolPile} from './woolRug.ts';
 import {createCampfireWood} from './campfireWood.ts';
 import {createCampfireFlame} from './campfireFlame.ts';
 import {createCampChair} from './campChair.ts';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeIndexed } from './indexedGeometry.ts';
 import type { StudioPrimitives } from './studioPrimitives.ts';
 import { createWorkspaceMaterials } from './workspaceMaterials.ts';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
@@ -178,8 +178,7 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
   }});
   for(const objects of batches.values()){
     const first=objects[0],material=first.material as THREE.Material;
-    const parts=objects.map(object=>(object.geometry.index?object.geometry.toNonIndexed():object.geometry.clone()).applyMatrix4(object.matrixWorld));
-    const merged=mergeGeometries(parts);parts.forEach(part=>part.dispose());
+    const merged=mergeIndexed(objects.map(object=>({geometry:object.geometry,matrix:object.matrixWorld})));
     if(merged){objects.forEach(object=>object.removeFromParent());const mesh=p.mesh(group,merged,material,0,0,0);mesh.castShadow=first.castShadow;mesh.receiveShadow=first.receiveShadow;}
   }
   let daylight=1;

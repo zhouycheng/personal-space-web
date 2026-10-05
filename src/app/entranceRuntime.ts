@@ -2,20 +2,29 @@ import { createCloudEntrance } from '../justin-kit/components/cloud-entrance/run
 import { completeEntrance, entranceCompleted, isReloadNavigation } from '../infrastructure/client/entranceSession';
 import type { OperationResult } from '../contracts/operation';
 import { ENTRANCE_DURATION } from '../animation/studio/entranceMotion';
+import type { StartupProgress,StartupStage } from '../contracts/startup';
+import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
+import type { EnvironmentPalette } from '../contracts/environment';
+
+const stageLabels:Record<StartupStage,string>={module:'正在加载场景',geometry:'正在布置小岛',texture:'正在准备海面与材质',shader:'正在预热光影','first-frame':'正在准备首帧',ready:'准备完成'};
 
 export function createEntranceRuntime(root: HTMLElement, options: {
-  prepare(progress: (value: number) => void): Promise<OperationResult>;
+  prepare(progress: (value: StartupProgress) => void): Promise<OperationResult>;
   play(duration: number, progress: (value: number) => void): Promise<OperationResult>;
   cancel(): void;
   sync(): void;
   complete(): void;
   reducedMotion: MediaQueryList;
+  palette: EnvironmentPalette;
 }) {
   const skipped = new URLSearchParams(location.search).get('entrance') === 'skip';
   let blocking = !entranceCompleted() && !skipped;
   let covered = !skipped && (blocking || isReloadNavigation());
   let playing = false, ready = false, disposed = false, version = 0;
-  const view = covered ? createCloudEntrance(root, enter, () => void start()) : undefined;
+  const cloudStart=performance.now();
+  const view = covered ? createCloudEntrance(root, enter, () => void start(), options.palette) : undefined;
+  const cloudCpu=performance.now()-cloudStart;
+  const lifetime=new AbortController();
   root.hidden = !covered;
   if (covered && !blocking) root.dataset.state = 'loading';
   function complete() {
@@ -31,21 +40,21 @@ export function createEntranceRuntime(root: HTMLElement, options: {
   async function start() {
     if (!covered || disposed) return;
     const token = ++version; playing = ready = false; options.cancel();
-    const started=performance.now();let measuredStep=0;
-    const timings:Record<string,number>={};
-    view?.setState('loading', blocking ? undefined : '正在布置工作室…'); view?.setProgress(0); options.sync();
+    const started=performance.now();
+    const timings:Record<string,number>={navigationToPrepare:started,cloudCpu};
+    let currentStage:StartupStage|undefined;
+    view?.setState('loading',stageLabels.module); view?.setProgress(0); options.sync();
     // Two frames give the SSR surface a paint before synchronous scene creation.
-    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    await paintOpportunity(lifetime.signal).catch(()=>{});
     if (token !== version || disposed) return;
     try {
       const result = await options.prepare(value => { if (token === version) {
-          view?.setProgress(value);
-          const step=Math.round(value*5);
-          if(step>measuredStep){measuredStep=step;timings[`step-${step}`]=Math.round(performance.now()-started);root.dataset.timings=JSON.stringify(timings);}
+          view?.setProgress(value.progress);
+          if(currentStage!==value.stage){currentStage=value.stage;view?.setState('loading',stageLabels[value.stage]);root.dataset.stage=value.stage;timings[value.stage]=Math.round(performance.now()-started);root.dataset.timings=JSON.stringify(timings);}
         } });
       if (token !== version || disposed) return;
       if (result.status !== 'completed') { failed(); return; }
-      timings.ready=Math.round(performance.now()-started);root.dataset.timings=JSON.stringify(timings);
+      timings.ready=Math.round(performance.now()-started);timings.navigationToReady=performance.now();root.dataset.timings=JSON.stringify(timings);
       view?.setProgress(1);
       if (blocking) {
         ready = true; view?.setState('ready'); options.sync();
@@ -75,6 +84,7 @@ export function createEntranceRuntime(root: HTMLElement, options: {
     get covered() { return covered; },
     get playing() { return playing; },
     start, failed,
-    dispose() { disposed = true; version++; options.cancel(); view?.dispose(); },
+    setPalette(palette:EnvironmentPalette) { view?.setPalette(palette); },
+    dispose() { disposed = true; version++; lifetime.abort(); options.cancel(); view?.dispose(); },
   };
 }

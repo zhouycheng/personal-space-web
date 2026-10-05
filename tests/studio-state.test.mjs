@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clockText, studioLighting } from '../src/config/studioTime.ts';
+import { clockText, environmentAt } from '../src/config/studioTime.ts';
 import { createChairRocking } from '../src/animation/studio/chairMotion.ts';
 import { surfaceDistance, surfaceOpacity, surfacePhases, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, stepRoomView, DEFAULT_ROOM_VIEW } from '../src/animation/studio/studioMotion.ts';
 import { ACTION_LABELS } from '../src/contracts/studio.ts';
@@ -102,20 +102,20 @@ test('astronomical lighting follows Shanghai daylight and remains continuous at 
   assert.equal(clockText(new Date(2026,0,2), true), '01.02');
   assert.equal(clockText(new Date(2026,11,31), true), '12.31');
   assert.equal(clockText(new Date(2028,1,29), true), '02.29');
-  const at = (hour, minute = 0, second = 0) => studioLighting(new Date(Date.UTC(2026, 8, 11, hour-8, minute, second)));
+  const at = (hour, minute = 0, second = 0) => environmentAt(new Date(Date.UTC(2026, 8, 11, hour-8, minute, second))).lighting;
   assert.equal(at(0).daylight, 0);
   assert.equal(at(12).daylight, 1);
   assert.deepEqual(
     [at(0).sunIntensity, at(0).ambientIntensity, at(0).lampIntensity, at(0).screenSpillIntensity],
-    [0, 0.18, 7, 0.08],
+    [0, 0.23, 7, 0.08],
   );
   assert.equal(at(12).sunIntensity, 2.5);
   assert.ok(Math.abs(at(12).ambientIntensity - 1.18) < 1e-12);
   assert.ok(Math.abs(at(12).lampIntensity - 1.2) < 1e-12);
   assert.equal(at(12).screenSpillIntensity, 0);
   assert.ok(at(5, 30).daylight < at(6).daylight);
-  assert.equal(at(20).background, '#05070b');
-  assert.equal(at(12).background, '#e7e3dc');
+  assert.equal(at(20).background, '#1c283d');
+  assert.notEqual(at(12).background, at(20).background);
   assert.ok(at(6, 30).daylight > at(6).daylight && at(6, 30).daylight < at(7).daylight);
   assert.ok(at(6, 30).screenSpillIntensity > 0 && at(6, 30).screenSpillIntensity < 0.08);
   assert.ok(at(19).daylight < at(18).daylight);

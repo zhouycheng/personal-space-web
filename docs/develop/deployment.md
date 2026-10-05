@@ -201,7 +201,9 @@ curl -fsS http://127.0.0.1:4321/api/health
 
 在仓库 **Settings → Branches** 为 `main` 配置 branch protection rule。要求变更通过 PR 合并并通过 `verify` 检查；审批数设为 0。启用管理员规则执行，不添加绕过者，并禁止强推和删除。`develop` 保持可直接提交。此保护规则保存在 GitHub 仓库设置中，不由本地 workflow 文件控制。
 
-workflow 使用作业级短期 `GITHUB_TOKEN` 发布并拉取 GHCR 镜像。当前 `ghcr.io/zhouycheng/personal-space-web` 镜像公开可拉取。镜像只包含应用构建产物；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。
+workflow 使用作业级短期 `GITHUB_TOKEN` 发布并拉取 `ghcr.io/zhouycheng/personal-space-web` 镜像。镜像只包含应用构建产物；`.dockerignore` 排除 `.env*`、数据、备份和临时目录。
+
+仓库 Actions variable `PUBLIC_SCENE_DEBUG_PANEL` 默认按 `false` 处理。发布前的 `scene-debug-panel-policy.yml` 要求它为 `false`；`true` 或其他值会使发布检查失败。生产仍可通过快捷键和热角临时打开面板，设置与操作见[工作室环境](../features/studio-environment.md)。
 
 ## 日常发布、检查与回滚
 

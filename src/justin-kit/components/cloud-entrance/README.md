@@ -1,6 +1,6 @@
 # Cloud Entrance
 
-原生 Canvas 2D 准备页：云雾、底色和文字颜色随访客本地时间在夜色、晨光、白昼和暮色间平滑变化；保留陷入云中的模糊文字、单行文字进度、局部悬停散雾和揭幕。不依赖 Three.js、站点数据或路由。没有云雾图片素材或下载、解码步骤。
+原生 Canvas 2D 准备页：云雾、底色和文字颜色随访客本地时间在夜色、晨光、白昼和暮色间平滑变化，显示陷入云中的模糊文字、单行文字进度、局部悬停散雾和揭幕。组件使用确定性噪声生成雾面，文字采用设备的 Georgia / serif 字体；站点加载、会话、路由和相机由宿主管理。
 
 ```astro
 ---
@@ -13,14 +13,16 @@ import CloudEntrance from './CloudEntrance.astro';
 </CloudEntrance>
 ```
 
-由宿主创建 `createCloudEntrance(root, onEnter, onRetry)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
+由宿主创建 `createCloudEntrance(root, onEnter, onRetry, initialPalette?)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`setPalette(palette)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
+
+默认加载文字为「正在加载场景」。宿主可通过 `setState('loading', message)` 替换当前阶段文字；阶段定义、耗时记录和错误重试由宿主持有。`setProgress` 表示宿主任务的完成节点，不自动推算下载字节或剩余时间。
 
 `loading` 和 `ready` 使用同一个底部文本节点。加载文字的颜色从左向右填充；就绪文字原位替换。首次进入使用 `ready` 等待用户点击，再由场景时钟驱动 `revealing`。已完成标签页刷新时，宿主继续传入真实准备进度，准备完成后调用 `dismiss(duration)` 自动淡出云雾，不启动相机开场动画。错误状态显示重试和注入的 `fallback` 插槽。按钮、链接、表单、`contenteditable`、`data-cloud-no-enter`、文字选区和移动超过 6px 的拖动均不会触发进入；就绪根节点支持 Enter / Space。
 
-`fogField.ts` 缓存多尺度数值噪声与圆润云瓣的高度/法线，准备雾面与揭幕共用同一数值场。字形与薄雾在尺寸改变时烘焙。悬停只揭开另一层不透明雾面；点击前不会暴露底层内容。
+`fogField.ts` 将多尺度平滑噪声和坐标扭曲预计算为数值密度缓冲；横向拉伸的三层云纱以不同尺度与速度采样，不计算凸起表面法线。准备页使用揭幕进度为零的同一画面，字形在尺寸改变时烘焙。悬停只揭开另一层不透明雾面；点击前不会暴露底层内容。
 
-`timePalette.ts` 根据浏览器本地时钟在夜间、清晨、白天和傍晚调色板间平滑插值。组件每分钟检查时钟，并在页面恢复可见时立即更新；重绘准备雾面、文字和揭幕云体时复用同一组颜色。
+独立使用时，`timePalette.ts` 根据浏览器本地时钟在夜间、清晨、白天和傍晚调色板间平滑插值，每分钟检查时钟并在恢复可见时更新。传入 `initialPalette` 时关闭组件内时钟，由宿主调用 `setPalette`，同一配色用于准备雾面、文字和揭幕云体；相同配色不重绘。站点用这一接口注入真实时间和观测经纬度计算的颜色，因此加载与场景共用天色。CSS 首屏可从 `--environment-background`、`--environment-foreground` 继承宿主提前设置的颜色。
 
-揭幕时每帧计算连续的云层密度：四个云体从中心向四角输运，内部噪声缓慢流动，按厚薄计算透明度和柔和光照。没有独立云图片的边界、拼接、旋转或圆孔遮罩。大云瓣为主，细云瓣只提供少量絮状变化；边缘透光与内部阴影保持柔和。低分辨率密度画布按视口比例生成，经过动态高斯柔化和轻微上一帧残影后合成。采样由宿主的相机进度驱动，静置无持续 RAF。隐藏页面暂停，BFCache 保留；`dispose()` 解除观察器/监听器、取消帧、清空 Canvas、像素与数值场缓冲并隐藏组件。
+揭幕时三层云纱缓慢错位漂移，中央先变薄，扰动后的柔软边缘逐渐向外围退散。透明度由叠加光学厚度计算，明暗采用低对比透射光。低分辨率计算画布按视口比例生成，最大 384×288，复用像素缓冲并平滑缩放；不叠加上一帧残影。采样由宿主的相机进度驱动，静置无持续 RAF。隐藏页面暂停，BFCache 保留；`dispose()` 解除观察器/监听器、取消帧、清空 Canvas、像素与数值场缓冲并隐藏组件。
 
 独立预览由 `tests/e2e/entrance.spec.ts` 的 standalone 检查生成在 `.workspace/entrance-validation/standalone.html`，可直接打开，无需海岛。该预览的模拟状态只用于组件验证；站点由 `src/app/entranceRuntime.ts` 接入真实准备流程。

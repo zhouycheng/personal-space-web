@@ -31,9 +31,8 @@ export function createRockGeometry() {
     geometry.deleteAttribute('normal');geometry.deleteAttribute('uv');
     const welded=mergeVertices(geometry);
     welded.computeVertexNormals();
-    const worn=welded.toNonIndexed();
-    geometry.dispose();welded.dispose();
-    return worn;
+    geometry.dispose();
+    return welded;
   });
   const geometry=mergeGeometries(pieces)!;
   pieces.forEach(piece=>piece.dispose());

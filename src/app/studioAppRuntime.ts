@@ -3,7 +3,9 @@ import { ACTION_LABELS, type StudioAction } from "../contracts/studio";
 import type { ScenePort } from "../contracts/studioPorts";
 import { canRetryStudio } from "../application/studio/studioFailure";
 import { studioFailure, type StudioFailure } from "../contracts/studioFailure";
-import { studioLighting } from "../config/studioTime";
+import { environmentAt } from "../config/studioTime";
+import { readObservation } from '../infrastructure/client/observation';
+import type { EnvironmentSnapshot } from '../contracts/environment';
 import { beginSurfaceProjection, updateSurfaceProjection, clearSurfaceProjection } from "../animation/studio/surfaceProjection";
 import { createJournalReader } from "./journalReader";
 import { createExplorePanel } from "../presentation/ui/studio/explorePanel";
@@ -16,6 +18,8 @@ import { createDomInstances } from "../justin-kit/runtime/domInstances";
 import { activeTimeout } from "../infrastructure/client/activeDeadline";
 import { createEntranceRuntime } from './entranceRuntime';
 import { entranceCompleted } from '../infrastructure/client/entranceSession';
+import type { StartupProgress } from '../contracts/startup';
+import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -37,6 +41,7 @@ function init(shell: HTMLElement) {
   let historyPending = false;
   let scene: ScenePort | undefined;
   let sceneLoading: Promise<void> | undefined;
+  let preparationAbort:AbortController|undefined;
   let scenePrepared = false;
   let sceneBlocked=false,lightweight=false,recoveryAttempted=false;
   let stopRecovery = () => {};
@@ -64,12 +69,21 @@ function init(shell: HTMLElement) {
   let disposed = false;
   let transition = 0;
   let clock = 0;
+  let previewHour:number|null=null;
+  mount.addEventListener('studio-time-preview',event=>{
+    previewHour=(event as CustomEvent<number|null>).detail;updateLighting();
+  },{signal:events.signal});
+  function environmentNow() {
+    const date=new Date();
+    if(previewHour!==null){const minutes=Math.round(previewHour*60);date.setHours(Math.floor(minutes/60),minutes%60,0,0);}
+    return environmentAt(date,readObservation());
+  }
   const journal = createJournalReader(shell.querySelector<HTMLElement>('[data-journal-root]')!,()=>scene,path=>{
     history.pushState({justinPage:'journal',from:model.page},'',path);
     if(model.page==='journal')journal.select(location.pathname+location.hash);else void applyRoute('journal');
   },()=>rebuildScene(false));
   function prepareJournalTargets(){
-    if(!model.targets.lampOn&&studioLighting(new Date()).daylight<.25){
+    if(!model.targets.lampOn&&environmentNow().lighting.daylight<.25){
       model.targets={...model.targets,lampOn:true};scene?.setLampEnabled(true);
     }
   }
@@ -81,8 +95,13 @@ function init(shell: HTMLElement) {
 
   let appliedBackground = "", appliedForeground = "";
   function updateLighting() {
-    const now = new Date();
-    const light = studioLighting(now);
+    applyEnvironment(environmentNow());
+  }
+  function applyEnvironment(environment:EnvironmentSnapshot) {
+    const now = new Date(environment.timestamp);
+    const light = environment.lighting;
+    shell.dataset.skyPhase=environment.phase;
+    entrance?.setPalette(environment.palette);
     if (appliedBackground !== light.background) {
       appliedBackground = light.background; studio.style.backgroundColor = light.background;
     }
@@ -116,7 +135,12 @@ function init(shell: HTMLElement) {
     if(disposed)return;
     report(error);sceneBlocked=true;
     if(model.page==='journal')journal.fallback();
-    if(isMoving()) {transition++;model.state=studioStateForPage(model.page);clearProjection();scene?.cancelTransition();sync();}
+    if(isMoving()) {
+      // Journal entry still has to activate its independent error/retry UI after loadScene settles.
+      // Its controller owns animation cancellation; other surface flights end here.
+      if(model.state!=='entering-journal')transition++;
+      model.state=studioStateForPage(model.page);clearProjection();scene?.cancelTransition();sync();
+    }
     studio.classList.add("is-fallback");
     status.hidden = false;
     const retrying=canRetryStudio(error,recoveryAttempted,disposed);
@@ -152,6 +176,7 @@ function init(shell: HTMLElement) {
     if(entrance?.blocking) {
       shell.dataset.entrance=entrance.playing?'playing':'preparing';
       closeExplore(false,true);clearInterval(clock);scene?.setPointerEnabled(false);
+      if(!document.hidden){updateLighting();clock=window.setInterval(updateLighting,1000);}
       studio.inert=true;studio.style.visibility='';
       shell.querySelectorAll<HTMLElement>('.app-page').forEach(el=>{
         el.classList.toggle('is-active',el.id==='page-home'||(pendingPage==='canvas'&&el===personalCanvas)||(entrance.playing&&pendingPage==='works'&&el.id==='page-works'));el.inert=true;
@@ -209,28 +234,43 @@ function init(shell: HTMLElement) {
     scene?.setActive((home || journalVisible || isMoving()) && !document.hidden);
     if (!entrance?.covered && (home || journalVisible || isMoving() || model.page === "works")) void loadScene();
     clearInterval(clock);
-    if ((home || isMoving() || osOpen) && !document.hidden) {
+    if ((home || isMoving() || osOpen || entrance?.covered) && !document.hidden) {
       const tick = () => {
-        if (!osOpen) updateLighting();
-        else shell.querySelector("[data-os-time]")!.textContent = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date());
+        if (!osOpen||entrance?.covered) updateLighting();
+        if (osOpen) shell.querySelector("[data-os-time]")!.textContent = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date());
       };
       tick(); clock = window.setInterval(tick, 1000);
     }
   }
-  function loadScene(onProgress: (value:number)=>void = ()=>{}, prepareForEntrance = false) {
+  function loadScene(onProgress: (value:StartupProgress)=>void = ()=>{}, prepareForEntrance = false) {
     if (sceneLoading) return sceneLoading;
     if(scene||sceneBlocked||disposed)return Promise.resolve();
-    sceneLoading = import("../presentation/scene/studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(async ({ createStudioScene }) => {
-      if (disposed) return;
-      onProgress(1/5);
+    const abort=preparationAbort=new AbortController(),timings:Record<string,number>={};
+    onProgress({stage:'module',progress:0});
+    const moduleStarted=performance.now();
+    sceneLoading = import("../presentation/scene/studio/studioScene").catch(error=>{throw studioFailure(error,"module");}).then(async ({ createStudioScene,prepareSceneGeometry,disposePreparedGeometry }) => {
+      if (disposed||abort.signal.aborted) return;
+      timings.moduleWait=performance.now()-moduleStarted;
+      onProgress({stage:'geometry',progress:1/5});
+      await paintOpportunity(abort.signal);
+      let started!:()=>void;
+      const workerStarted=new Promise<void>(resolve=>{started=resolve;});
+      const geometry=prepareSceneGeometry(abort.signal,timings,started);
+      // Observe early worker failure even if renderer/furniture construction fails first.
+      void geometry.catch(()=>{});
+      // Let the worker finish module loading before synchronous furniture work blocks its launch.
+      await workerStarted;
+      if(disposed||abort.signal.aborted){void geometry.then(disposePreparedGeometry,()=>{});return;}
       scenePrepared=false;
-      scene = createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand);
+      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
+      catch(error){void geometry.then(disposePreparedGeometry,()=>{});throw error;}
+      if(disposed||abort.signal.aborted){scene.dispose();scene=undefined;return;}
+      mount.dataset.startupTimings=JSON.stringify(timings);
       scene.restore(savedScene??model.targets);
       scene.setPointerEnabled(!entrance?.covered&&!panel.open);
       updateLighting();
       const current=scene;
       if(prepareForEntrance) {
-        onProgress(2/5);
         const result=await current.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress});
         if(disposed||scene!==current)return;
         scenePrepared=result.status==='completed';
@@ -242,7 +282,7 @@ function init(shell: HTMLElement) {
         if(model.page==='home'||model.page==='journal'||isMoving())current.setActive(!document.hidden);
         else sceneReady();
       }
-    }).catch(error=>sceneFailed(studioFailure(error,"initialization"))).finally(()=>{sceneLoading=undefined;});
+    }).catch(error=>{if(!disposed&&!abort.signal.aborted)sceneFailed(studioFailure(error,"initialization"));abort.abort();}).finally(()=>{sceneLoading=undefined;if(preparationAbort===abort)preparationAbort=undefined;});
     return sceneLoading;
   }
   function navigate(next: AppPage) {
@@ -260,7 +300,7 @@ function init(shell: HTMLElement) {
   async function applyRoute(next: AppPage) {
     if(entrance?.covered){
       pendingPage=next;
-      if(entrance.blocking){transition++;scene?.cancelTransition();void entrance.start();}
+      transition++;scene?.cancelTransition();void entrance.start();
       return;
     }
     closeExplore(false,true);
@@ -304,11 +344,7 @@ function init(shell: HTMLElement) {
     focusRoute();
   }
   function focusRoute() {
-    if (model.page === "journal") shell.querySelector<HTMLAnchorElement>('[data-journal-close]')?.focus();
-    else if (model.page === "os") returnButton.focus();
-    else if (model.page === "canvas") shell.querySelector<HTMLButtonElement>("[data-canvas-return]")?.focus();
-    else if (model.page === "works") shell.querySelector<HTMLButtonElement>("[data-gallery-return]")?.focus();
-    else (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
+    if (model.page === "home") (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
   }
   async function act(action: StudioAction) {
     if (entrance?.covered || model.page !== "home" || model.state !== "room") return;
@@ -376,24 +412,31 @@ function init(shell: HTMLElement) {
   }, { signal: events.signal });
   entrance=createEntranceRuntime(shell.querySelector<HTMLElement>('[data-cloud-entrance]')!,{
     reducedMotion:reduce,
+    palette:environmentNow().palette,
     cancel:()=>{
+      preparationAbort?.abort();
       mount.style.removeProperty('--entrance-blur');shell.style.removeProperty('--entrance-content-opacity');
       delete shell.dataset.entranceTarget;clearProjection();scene?.cancelTransition();
     },
     sync,
     async prepare(onProgress) {
       await sceneLoading;
+      if(disposed)return {status:'cancelled',reason:'disposed'};
       journal.deactivate();clearProjection();model.state='room';delete shell.dataset.entranceTarget;
       if(sceneBlocked){scene?.dispose();scene=undefined;scenePrepared=false;sceneBlocked=false;}
       // Preload only the requested content; documents and journal pages stay lazy.
-      const targetModule=pendingPage==='canvas'?import('../presentation/ui/canvas/MineCanvasEditor'):Promise.resolve();
-      const progress=(value:number)=>onProgress(Math.min(value,4/5));
+      const targetModule=pendingPage==='canvas'?import('../presentation/ui/canvas/canvasEditorModule').then(module=>module.loadCanvasEditor()):Promise.resolve();
+      const progress=(value:StartupProgress)=>{if(value.stage!=='ready')onProgress({...value,progress:Math.min(value.progress,4/5)});};
       const startup=scenePrepared?Promise.resolve():scene?(async()=>{
-        progress(2/5);updateLighting();
+        updateLighting();
         const result=await scene!.prepareStartup({entrance:Boolean(entrance?.blocking),onProgress:progress});scenePrepared=result.status==='completed';
       })():loadScene(progress,true);
       await Promise.all([targetModule,startup]);
-      if(scenePrepared&&!sceneBlocked)onProgress(1);
+      if(scenePrepared&&!sceneBlocked&&!entrance.blocking&&pendingPage==='journal') {
+        prepareJournalTargets();scene?.setActive(!document.hidden);
+        await journal.enter(location.pathname+location.hash,0);
+      }
+      if(scenePrepared&&!sceneBlocked)onProgress({stage:'ready',progress:1});
       return scenePrepared&&!sceneBlocked?{status:'completed',value:undefined}:{status:'failed',code:'startup',retryable:true};
     },
     async play(duration,onProgress) {
@@ -437,7 +480,7 @@ function init(shell: HTMLElement) {
   else if(model.page==='journal'){prepareJournalTargets();void loadScene().then(()=>{if(!disposed&&model.page==='journal')return journal.enter(location.pathname+location.hash,0);});}
   function dispose() {
     if(disposed)return;
-    disposed=true;transition++;clearInterval(clock);stopRecovery();events.abort();
+    disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
     for(const cleanup of [()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}

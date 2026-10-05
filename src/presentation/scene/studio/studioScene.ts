@@ -5,7 +5,7 @@ import { createChairRocking } from "../../../animation/studio/chairMotion";
 import { breezeAt } from '../../../animation/studio/breeze.ts';
 import { ACTION_LABELS, type StudioAction } from "../../../contracts/studio";
 import { smooth, surfaceDistance, surfacePhases, surfaceFlight, wheelZoom, clampRoomZoom, clampRoomAngle, clampRoomElevation, roomCameraStep, DEFAULT_ROOM_VIEW, ROOM_ZOOM_MAX, CAMERA_ZOOM_OMEGA } from "../../../animation/studio/studioMotion";
-import { clockText, studioLighting } from "../../../config/studioTime";
+import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
@@ -25,10 +25,16 @@ import { entrancePose, entranceBlend, entranceContentProgress, ENTRANCE_AZIMUTH,
 import { islandAppearance } from "../../../config/islandAppearance";
 import { acceptsIslandFocus,clampIslandFocus } from '../../../animation/studio/islandNavigation.ts';
 import { createScenePerformanceOverlay, type SceneDebugGroup } from './scenePerformanceOverlay.ts';
+import type { StartupProgress } from '../../../contracts/startup.ts';
+import type { PreparedSceneGeometry } from './sceneGeometryData.ts';
+import { paintOpportunity } from '../../../infrastructure/client/paintOpportunity.ts';
+import { waitForOptionalResource } from '../../../infrastructure/client/optionalResource.ts';
+export { prepareSceneGeometry } from './prepareSceneGeometry.ts';
+export { disposePreparedGeometry } from './sceneGeometryData.ts';
 
-export type StudioScene = ReturnType<typeof createStudioScene>;
+export type StudioScene = Awaited<ReturnType<typeof createStudioScene>>;
 
-export function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "") {
+export async function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "", preparation?:{geometry:Promise<PreparedSceneGeometry>;signal:AbortSignal;timings:Record<string,number>}) {
   const cleanup: (()=>void)[] = [];
   const canvas = document.createElement("canvas");
   let creationError="";
@@ -112,28 +118,36 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   let entranceUpdate:((progress:number)=>void)|undefined;
   const entranceCamera=camera.clone(),contentCamera=camera.clone();
   let startupVersion = 0;
+  let startupAbort:AbortController|undefined;
+  cleanup.push(()=>startupAbort?.abort());
   const chairRocking = createChairRocking();
   let chairFrameTime: number | undefined;
   const currentLook = focus.clone();
-  const environment = createIslandEnvironment(scene, materials, geometries);
-  cleanup.push(()=>scene.remove(environment.group));
-  let settleNormals: () => void;
-  const normalsReady = new Promise<void>(resolve => { settleNormals = resolve; });
-  const oceanNormals = new THREE.TextureLoader().load(
-    new URL("../../../content/scene/waternormals.jpg", import.meta.url).href,
-    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}settleNormals();},
-    undefined,()=>{settleNormals(); /* Analytic swells are the existing detail-texture fallback. */ },
-  );
-  oceanNormals.wrapS=oceanNormals.wrapT=THREE.RepeatWrapping;
-  oceanNormals.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
-  textures.add(oceanNormals);
-
+  const furnitureStarted=performance.now();
   const {
     canopy,dressing,leisure,fileLibrary,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
   } = createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup });
+  if(preparation)preparation.timings.furnitureCpu=performance.now()-furnitureStarted;
+  const prepared=await preparation?.geometry;
+  if(prepared)for(const geometry of [prepared.sand,prepared.water,prepared.rocks,prepared.vegetation.trunkGeometry,prepared.vegetation.stemGeometry,...prepared.vegetation.details.flatMap(levels=>levels.map(l=>l.geometry))])geometries.add(geometry);
+  if(preparation?.signal.aborted)throw new DOMException('Preparation cancelled','AbortError');
+  const assemblyStarted=performance.now();
+  const environment = createIslandEnvironment(scene, materials, geometries, prepared);
+  cleanup.push(()=>scene.remove(environment.group));
+  let settleNormals: () => void;
+  const normalsReady = new Promise<void>(resolve => { settleNormals = resolve; });
+  const oceanNormals = new THREE.TextureLoader().load(
+    new URL("../../../content/scene/waternormals.jpg", import.meta.url).href,
+    texture=>{if(!destroyed){environment.setNormals(texture);requestDraw();}else texture.dispose();settleNormals();},
+    undefined,()=>{settleNormals(); /* Analytic swells are the existing detail-texture fallback. */ },
+  );
+  oceanNormals.wrapS=oceanNormals.wrapT=THREE.RepeatWrapping;
+  oceanNormals.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  textures.add(oceanNormals);
+
   let steamElapsed=0,steamFrameTime:number|undefined;
   let breezeTime=0,breezeFrameTime:number|undefined;
   sun.shadow.autoUpdate=false;lamp.shadow.autoUpdate=false;
@@ -347,12 +361,16 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
   function applyLighting(light:StudioLighting) {
     dressing.setLighting(light.daylight);leisure.setLighting(light.daylight);
     if(lastLighting&&JSON.stringify(lastLighting)===JSON.stringify(light))return;
-    const sunMoved=!lastLighting||lastLighting.sunDirection.some((v,i)=>v!==light.sunDirection[i])||lastLighting.moonDirection.some((v,i)=>v!==light.moonDirection[i]);
-    lastLighting=light;environment.setLighting(light);
+    const previousMoon=lastLighting&&lastLighting.sunIntensity<lastLighting.moonIntensity;
     const moonlight=light.sunIntensity<light.moonIntensity;
+    const direction=moonlight?light.moonDirection:light.sunDirection;
+    const previousDirection=previousMoon?lastLighting?.moonDirection:lastLighting?.sunDirection;
+    const previousIntensity=previousMoon?lastLighting?.moonIntensity:lastLighting?.sunIntensity;
+    const sunMoved=!previousDirection||direction.some((v,i)=>Math.abs(v-previousDirection[i])>1e-7)||previousMoon!==moonlight||!previousIntensity;
+    lastLighting=light;environment.setLighting(light);
     sun.intensity=moonlight?light.moonIntensity:light.sunIntensity;sun.color.setHex(moonlight?0xa6bbeb:light.sun);
     sun.position.fromArray(moonlight?light.moonDirection:light.sunDirection).multiplyScalar(35).add(sun.target.position);
-    if(sunMoved)invalidateShadows(true);
+    if(sunMoved&&sun.intensity>0)invalidateShadows(true);
     ambient.intensity=light.ambientIntensity;ambient.color.setHex(light.sky);
     lampPower=light.lampIntensity;lamp.intensity=lampOn?lampPower:0;
     screenGlow.intensity=tabletGlow.intensity=light.screenSpillIntensity;requestDraw();
@@ -361,7 +379,8 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     debugTimeHour=hour===null?null:Math.max(0,Math.min(23.75,hour));
     const date=debugTimeHour===null?new Date():debugClockDate(debugTimeHour);
     clockDate=date;updateClock();
-    const light=debugTimeHour===null?actualLighting:studioLighting(date);
+    mount.dispatchEvent(new CustomEvent('studio-time-preview',{detail:debugTimeHour}));
+    const light=actualLighting;
     if(light)applyLighting(light);
   }
   function setDebugGroupVisible(group:SceneDebugGroup,visible:boolean) {
@@ -471,28 +490,34 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     setShadows:setDebugShadows,setRenderRatio:setDebugRenderRatio,resetRenderRatio:()=>setDebugRenderRatio(initialRenderRatio),setDebugTime,
   }});
   cleanup.push(()=>performanceOverlay?.dispose());
+  if(preparation)preparation.timings.assemblyCpu=performance.now()-assemblyStarted;
   return {
-    async prepareStartup({ entrance, onProgress }: { entrance: boolean; onProgress: (progress: number) => void }): Promise<OperationResult> {
+    async prepareStartup({ entrance, onProgress }: { entrance: boolean; onProgress: (progress: StartupProgress) => void }): Promise<OperationResult> {
       const token = ++startupVersion;
+      startupAbort?.abort();const abort=startupAbort=new AbortController();
       const valid = () => token === startupVersion && !destroyed && !failed;
       this.setActive(false);stopCamera();
       if(entrance)poseEntrance(0);
-      const timings:Record<string,number>={};
+      const timings:Record<string,number>=JSON.parse(mount.dataset.startupTimings??'{}');
       const measure=(name:string,start:number)=>{timings[name]=Math.round(performance.now()-start);mount.dataset.startupTimings=JSON.stringify(timings);};
-      const normalsStarted=performance.now();
-      await normalsReady;
-      measure('textureWait',normalsStarted);
-      if(!valid())return {status:'cancelled',reason:'startup-replaced'};
       try {
+        onProgress({stage:'texture',progress:2/5});
+        await paintOpportunity(abort.signal);
+        const normalsStarted=performance.now();
+        const normalsResult=await waitForOptionalResource(normalsReady,abort.signal);
+        measure('textureWait',normalsStarted);mount.dataset.normalsWait=normalsResult;
+        if(!valid())return {status:'cancelled',reason:'startup-replaced'};
         const uploadStarted=performance.now();
         for(const texture of textures) { if(texture.image)renderer.initTexture(texture); }
         measure('textureUpload',uploadStarted);
-        onProgress(3/5);
+        onProgress({stage:'shader',progress:3/5});
+        await paintOpportunity(abort.signal);
         const compileStarted=performance.now();
         await renderer.compileAsync(scene,camera);
         measure('shaderWarmup',compileStarted);
         if(!valid())return {status:'cancelled',reason:'startup-replaced'};
-        onProgress(4/5);
+        onProgress({stage:'first-frame',progress:4/5});
+        await paintOpportunity(abort.signal);
         const drawStarted=performance.now();
         // Warm actual draws, including shadows and both canopy/LOD viewpoints.
         setRoomCamera();canopy.update(performance.now(),camera.position,currentLook,true,breezeTime,false,false);
@@ -502,9 +527,9 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
         if(!render())return {status:'failed',code:'startup-render',retryable:true};
         if(!valid())return {status:'cancelled',reason:'startup-replaced'};
         measure('firstDraws',drawStarted);
-        onProgress(1);
+        onProgress({stage:'ready',progress:1});
         return {status:'completed',value:undefined};
-      } catch(error) {fail(studioFailure(error,'render'));return {status:'failed',code:'startup',retryable:true};}
+      } catch(error) {if(!valid()||abort.signal.aborted)return {status:'cancelled',reason:'startup-replaced'};fail(studioFailure(error,'render'));return {status:'failed',code:'startup',retryable:true};}
     },
     async playEntrance({duration,onProgress,target,onSurfaceProgress}: EntranceTransition & {target?:'computer'|'canvas'|'works';onSurfaceProgress?:(progress:number,rect:SurfaceRect)=>void}): Promise<OperationResult> {
       if(failed||destroyed)return {status:'failed',code:'entrance-unavailable',retryable:true};
@@ -567,7 +592,6 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     journalReady():Promise<OperationResult>{return journalBook?.ready()??Promise.resolve({status:"failed",code:"三维书本尚未准备",retryable:true});},
     cancelJournalPrefetch(){journalBook?.cancelPrefetch();},
     resetJournal(){journalBook?.resetView();},
-    setJournalPage(index:number){journalBook?.setPage(index);},
     turnJournal(direction:1|-1){journalBook?.turn(direction,reducedMotion.matches);},
     zoomJournal(value:number){journalBook?.setZoom(value);poseJournal();},
     snapshot() {return {view:viewSnapshot(),lampOn,showDate,drawers:drawers.map(drawer=>drawer.open)};},
@@ -639,7 +663,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
     },
     setLighting(light:StudioLighting) {
       actualLighting=light;
-      applyLighting(debugTimeHour===null?light:studioLighting(debugClockDate(debugTimeHour)));
+      applyLighting(light);
     },
     setTime(date:Date) {
       clockDate=debugTimeHour===null?date:debugClockDate(debugTimeHour);updateClock();
@@ -672,7 +696,7 @@ export function createStudioScene(mount: HTMLElement, onAction: (action: StudioA
       if(failed||destroyed)return Promise.resolve<OperationResult>({status:"failed",code:"三维场景不可用",retryable:true});
       const task=motion.start(duration,progress=>sample(enter?progress:1-progress));requestDraw();return task;
     },
-    cancelTransition() {startupVersion++;entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
+    cancelTransition() {startupVersion++;startupAbort?.abort();entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
     dispose() {if(destroyed)return;destroyed=true;startupVersion++;settleNormals();mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
   };
   } catch(error) {

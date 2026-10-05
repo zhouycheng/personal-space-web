@@ -17,17 +17,17 @@
   <a href="https://github.com/zhouycheng/personal-space-web/issues">问题反馈</a>
 </p>
 
-JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件。项目名为 JustinSpace，GitHub 仓库和 GHCR 镜像使用 `personal-space-web`。
+JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件。海岛工作室中的电脑、iPad、文件木箱和日记分别连接桌面、画布、作品与阅读页面。GitHub 仓库和 GHCR 镜像使用 `personal-space-web`。
 
 ## 页面
 
-- `/home`：海岛上的 Three.js 工作室；默认展示沙岛全景，缩放可靠近现有桌椅与设备。
+- `/home`：海岛上的 Three.js 工作室；默认展示完整岛岸，可缩放靠近桌面、连续环绕并点击物件。
 - `/works`：项目作品和简历。
 - `/canvas`：可拖动浏览的个人画布。
 - `/os`：文件驱动的桌面与窗口。
-- `/journal`：实体翻页效果的 3D 日记。
+- `/journal`：实体翻页效果的 3D 日记，文章可通过 `/journal/[slug]` 直接访问。
 
-首次访问先显示独立云雾准备页，资源就绪后点击拨云，相机落定再开放海岛或继续进入原地址。成功完成后，同标签页刷新和站内返回跳过开场；组件、会话与启动预热见[网站开场说明](docs/features/entrance.md)。
+首次访问先显示云雾准备页，资源就绪后点击拨云，再开放海岛或进入原地址。成功完成后，同标签页刷新会在准备完成后自动淡出云雾；站内返回直接恢复页面。组件、会话与启动预热见[网站开场说明](docs/features/entrance.md)。
 
 ## 本地开发
 

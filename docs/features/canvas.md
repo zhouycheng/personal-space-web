@@ -18,7 +18,7 @@
 
 画布没有数据库、服务端会话、修订保存 API 或备份服务。健康接口检查静态画布结构及桌面内容。
 
-动态状态通过同源 `/api/activity/stream` 接收事件，区分加载、在线、离线和请求失败；到期的快照不再显示为在线。画布卡片与 Kit 状态组件共享按消费者计数的连接，最后一个活动消费者退出时关闭连接。`/api/activity/current` 仍供其他调用方读取快照。
+动态状态通过同源 `/api/activity/stream` 接收事件，区分加载、在线、离线和请求失败；到期快照显示为离线。画布卡片通过 Kit 订阅源共享按消费者计数的连接，最后一个活动消费者退出时关闭连接。`/api/activity/current` 提供有效快照或 null。
 
 ## 模块生命周期与渲染
 
@@ -27,4 +27,4 @@
 - `MineCanvasEditor.tsx` 每次挂载只读取一次保存的位置。`derivedEdges.ts` 维护节点索引和邻接关系，只重算位置或尺寸变化节点关联的端点；未改变的连线复用对象。`CanvasViewControls.tsx` 单独订阅缩放值，缩放标签更新不重新派生卡片与边。
 - 卡片拖动结束后才写入位置。坏数据单项回退，写入失败仍保留当前页面会话中的位置。恢复默认布局清除位置覆盖并重新适配内容。
 
-`tests/e2e/ui-lifecycle.spec.ts` 检查离页连接关闭、闲置卸载、视角恢复和位置存储边界。定量对比使用 `scripts/ui-performance-measure.mjs`；原始测量与冻结预算保存在 `.workspace/remediation/ui-probes/`。
+`tests/e2e/ui-lifecycle.spec.ts` 检查离页连接关闭、闲置卸载、视角恢复和位置存储边界。定量对比使用 `scripts/ui-performance-measure.mjs`；脚本将本次原始测量写入 `.workspace/remediation/ui-probes/`，预算由 `scripts/ui-performance-budgets.mjs` 定义。

@@ -16,14 +16,14 @@ export type EntranceTimePalette = {
 const presets: Record<'night' | 'dawn' | 'day' | 'dusk', EntranceTimePalette> = {
   night: {
     background: [22, 30, 46], foreground: [194, 203, 217],
-    mist: [35, 47, 67], mistLight: [127, 148, 178], mistShadow: [9, 18, 34],
-    cloud: [112, 132, 160], titleShadow: [8, 17, 32],
+    mist: [32, 38, 48], mistLight: [127, 148, 178], mistShadow: [9, 18, 34],
+    cloud: [44, 49, 57], titleShadow: [8, 17, 32],
     progress: [168, 192, 226], progressPending: [133, 150, 177], focus: [150, 177, 216],
   },
   dawn: {
     background: [112, 91, 105], foreground: [250, 226, 211],
-    mist: [151, 128, 139], mistLight: [255, 222, 196], mistShadow: [92, 67, 82],
-    cloud: [183, 151, 157], titleShadow: [77, 55, 70],
+    mist: [150, 151, 154], mistLight: [255, 222, 196], mistShadow: [92, 67, 82],
+    cloud: [178, 177, 174], titleShadow: [77, 55, 70],
     progress: [255, 220, 190], progressPending: [187, 151, 160], focus: [246, 208, 183],
   },
   day: {
@@ -34,8 +34,8 @@ const presets: Record<'night' | 'dawn' | 'day' | 'dusk', EntranceTimePalette> = 
   },
   dusk: {
     background: [105, 75, 78], foreground: [255, 226, 207],
-    mist: [151, 108, 102], mistLight: [255, 214, 174], mistShadow: [88, 48, 55],
-    cloud: [190, 143, 128], titleShadow: [81, 45, 51],
+    mist: [130, 125, 122], mistLight: [255, 214, 174], mistShadow: [88, 48, 55],
+    cloud: [154, 148, 142], titleShadow: [81, 45, 51],
     progress: [255, 215, 180], progressPending: [169, 123, 120], focus: [244, 195, 165],
   },
 };
@@ -85,8 +85,4 @@ export function entranceTimePalette(date = new Date()): EntranceTimePalette {
 
 export function paletteHex(color: RGB): string {
   return `#${color.map(channel => Math.round(channel).toString(16).padStart(2, '0')).join('')}`;
-}
-
-export function paletteRgb(color: RGB): string {
-  return `rgb(${color.map(channel => Math.round(channel)).join(', ')})`;
 }
