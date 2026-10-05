@@ -65,6 +65,3 @@ export function environmentAt(date = new Date(), observer: Observer = studioObse
       progress:rgb(foreground),progressPending:rgb(blend(mist,foreground,.65)),focus:rgb(foreground) },
   };
 }
-export function studioLighting(date = new Date(), observer: Observer = studioObservatory) {
-  return environmentAt(date,observer).lighting;
-}

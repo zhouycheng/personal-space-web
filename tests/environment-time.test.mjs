@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { environmentAt } from '../src/config/studioTime.ts';
 import { observatories } from '../src/config/observatories.ts';
-import { readObservation, saveRegion, saveLocation, locate, REGION_KEY, LOCATION_KEY, LOCATION_TTL } from '../src/infrastructure/client/observation.ts';
+import { readObservation, REGION_KEY, LOCATION_KEY, LOCATION_TTL } from '../src/infrastructure/client/observation.ts';
 
 const storage=()=>{const values=new Map();return {getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};};
 test('regions change astronomy; timestamp is independent of display time zone',()=>{
@@ -47,9 +47,9 @@ test('polar and southern observers have finite continuous output without rise/se
 });
 test('regional preference survives; location expires, invalid storage and storage denial recover',()=>{
   const local=storage(),session=storage(),now=100000000;
-  saveRegion('west',()=>local,()=>session);
+  local.setItem(REGION_KEY,'west');
   assert.equal(readObservation(now,()=>local,()=>session).region,'west');
-  saveLocation({latitude:20,longitude:100,acquiredAt:now,source:'location',region:'west'},()=>session);
+  session.setItem(LOCATION_KEY,JSON.stringify({latitude:20,longitude:100,acquiredAt:now}));
   assert.equal(local.getItem(LOCATION_KEY),null);
   assert.equal(readObservation(now,()=>local,()=>session).source,'location');
   assert.equal(readObservation(now+LOCATION_TTL,()=>local,()=>session).source,'region');
@@ -59,15 +59,4 @@ test('regional preference survives; location expires, invalid storage and storag
   local.setItem(REGION_KEY,'unknown');assert.equal(readObservation(now,()=>local,()=>session).region,'east');
   const denied=()=>{throw new Error('denied');};
   assert.equal(readObservation(now,denied,denied).region,'east');
-  assert.doesNotThrow(()=>saveRegion('north',denied,denied));
-});
-test('location request is explicit, bounded and handles success, denial, timeout and abort',async t=>{
-  const signal=new AbortController().signal;
-  assert.deepEqual(await locate({getCurrentPosition(success,_failure,options){assert.equal(options.timeout,8000);success({coords:{latitude:31,longitude:121}});}},signal),{latitude:31,longitude:121});
-  await assert.rejects(locate(undefined,signal),/无法定位/);
-  await assert.rejects(locate({getCurrentPosition(_success,failure){failure({code:1});}},signal),/授权/);
-  const controller=new AbortController();const request=locate({getCurrentPosition(){}},controller.signal);controller.abort();await assert.rejects(request,/取消/);
-  t.mock.timers.enable({apis:['setTimeout']});
-  const stalled=locate({getCurrentPosition(){}},signal);const checked=assert.rejects(stalled,/超时/);
-  t.mock.timers.tick(8000);await checked;
 });

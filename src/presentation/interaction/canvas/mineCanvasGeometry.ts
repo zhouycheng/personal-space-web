@@ -35,13 +35,6 @@ function defaultControlOffset(side: MineCanvasHandleSide, distance: number): Can
   };
 }
 
-export function toControlOffset(endpoint: CanvasPoint, control: CanvasPoint): CanvasControlOffset {
-  return {
-    dx: Math.round(control.x - endpoint.x),
-    dy: Math.round(control.y - endpoint.y),
-  };
-}
-
 export function resolveCubicControls(options: ResolveCubicControlsOptions) {
   const distance = Math.hypot(options.target.x - options.source.x, options.target.y - options.source.y);
   const sourceOffset = options.sourceControl || defaultControlOffset(options.sourceHandle, distance);

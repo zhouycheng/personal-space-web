@@ -592,7 +592,6 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     journalReady():Promise<OperationResult>{return journalBook?.ready()??Promise.resolve({status:"failed",code:"三维书本尚未准备",retryable:true});},
     cancelJournalPrefetch(){journalBook?.cancelPrefetch();},
     resetJournal(){journalBook?.resetView();},
-    setJournalPage(index:number){journalBook?.setPage(index);},
     turnJournal(direction:1|-1){journalBook?.turn(direction,reducedMotion.matches);},
     zoomJournal(value:number){journalBook?.setZoom(value);poseJournal();},
     snapshot() {return {view:viewSnapshot(),lampOn,showDate,drawers:drawers.map(drawer=>drawer.open)};},
