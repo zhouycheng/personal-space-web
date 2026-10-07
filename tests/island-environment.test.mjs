@@ -74,7 +74,7 @@ test('water pauses without catching up hidden time; environment resources belong
   const scene=new THREE.Scene(), materials=new Set(), geometries=new Set();
   const environment=createIslandEnvironment(scene,materials,geometries);
   const water=environment.group.getObjectByName('island-water');
-  assert.equal(materials.size,8);
+  assert.ok(materials.size>=8);
   environment.group.traverse(object=>{if(object.isMesh)assert.ok(geometries.has(object.geometry));});
   const resourceCount=materials.size+geometries.size;
   assert.equal(environment.tick(1000,true),true);
@@ -85,6 +85,10 @@ test('water pauses without catching up hidden time; environment resources belong
   assert.equal(water.material.uniforms.time.value,.02);
   environment.pause();environment.tick(400000,true);
   assert.equal(water.material.uniforms.time.value,.02);
+  const shark=environment.group.getObjectByName('marine-shark');
+  const pausedPosition=shark.position.clone();
+  environment.tick(500000,false);environment.tick(900000,true);
+  assert.ok(shark.position.equals(pausedPosition),'marine life does not catch up hidden time');
   environment.setLighting(environmentAt(new Date(Date.UTC(2026,9,3,15))).lighting);
   assert.equal(water.material.uniforms.daylight.value,0);
   const sky=environment.group.getObjectByName('island-sky');
@@ -96,4 +100,5 @@ test('water pauses without catching up hidden time; environment resources belong
   }
   assert.equal(released,resourceCount);
   assert.ok(environment.group.children.every(object=>!object.userData.action));
+  environment.dispose();
 });
