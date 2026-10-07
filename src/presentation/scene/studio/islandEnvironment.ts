@@ -9,6 +9,7 @@ import { createIslandVegetation } from './islandVegetation.ts';
 import { islandPalms, islandUnderstory } from '../../../config/islandVegetation.ts';
 import { dressingPlants,dressingProps } from '../../../config/islandDressing.ts';
 import { islandSkyGLSL, islandSkyVertex, islandSkyFragment } from './islandSky.ts';
+import { createMarineEnvironment, marineWaterGLSL } from './marineEnvironment.ts';
 export { shoreRadius, islandHeight } from '../../../config/islandTerrain.ts';
 
 export { createIslandGeometry } from './islandGeometry.ts';
@@ -54,6 +55,8 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   const group = new THREE.Group();
   group.name = "island-environment";
   scene.add(group); // Deliberately outside the room's pickable object tree.
+  const marine = createMarineEnvironment(materials, geometries);
+  group.add(marine.group);
   const sandGeometry = prepared?.sand ?? createIslandGeometry();
   const sandMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1,
     emissive: 0x203a54, emissiveIntensity: 0 });
@@ -92,6 +95,7 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   const vegetation=createIslandVegetation(materials,geometries,prepared?.vegetation);group.add(vegetation);
 
   const uniforms = {
+    ...marine.uniforms,
     boatInverse:{value:new THREE.Matrix4()},boatReady:{value:0},boatCenter:{value:new THREE.Vector3()},
     time: { value: 0 }, daylight: { value: 1 },
     normalMap: { value: null as THREE.Texture | null }, normalReady: { value: 0 },
@@ -114,6 +118,7 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   const waterMaterial = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: `varying vec3 vWorld;
+      varying float vWaterDepth;
       attribute vec4 coastData;
       varying vec2 vRest, vCoastGradient;
       varying float vCoastWeight;
@@ -127,7 +132,9 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         vCoastGradient=coastData.yz;
         vWorld += oceanParticle(vRest,time,0.0).offset * vCoastWeight;
         vWorld.y+=.026*sin(time*.72+vRest.x*.17+vRest.y*.11)*coastData.w;
-        gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
+        vec4 viewPosition=viewMatrix*vec4(vWorld,1.0);
+        vWaterDepth=-viewPosition.z;
+        gl_Position = projectionMatrix * viewPosition;
       }`,
     fragmentShader: `
       uniform float time;
@@ -155,6 +162,7 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
           mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
       }
       ${rockCoastGLSL}
+      ${marineWaterGLSL}
       float foamCells(vec2 p) {
         p+=vec2(noise(p*1.9+time*.06),noise(p*2.1+17.-time*.045))*.56;
         vec2 cell=floor(p),f=fract(p);float first=8.,second=8.;
@@ -222,11 +230,13 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         base=mix(base,vec3(.095,.15,.14),submergedRock*.7);
         base+=vec3(0.055,0.065,0.04)*caustic*shallows*daylight;
         base *= 0.91+0.09*noise(p*1.4);
-        vec3 color = mix(base*(0.08+daylight*0.55),reflectedSky,fresnel);
+        vec3 waterBody=marineWater(base*(0.08+daylight*0.55),windSlopes,
+          length(cameraPosition-vWorld)/max(.01,vWaterDepth));
+        vec3 color = mix(waterBody,reflectedSky,fresnel);
         float specular = pow(max(dot(reflect(-sunDirection,normal),view),0.0),360.0);
         color += sunColor * specular * (0.01+daylight*(.18+sunset*.65))*smoothstep(0.0,.07,sunDirection.y);
         if(radius<2.) {
-        float rockEdge=rockDistance(p);
+        float rockEdge=min(rockDistance(p),marineReefDistance(p));
         float washPhase=time*.72+p.x*.17+p.y*.11;
         float waterline=1.-.021*sin(washPhase);
         float shoreMeters=(radius-waterline)*7.0;
@@ -266,6 +276,8 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   const boatWorld=new THREE.Matrix4();
   return {
     group,
+    renderMarine:marine.render,
+    dispose:marine.dispose,
     get time(){return uniforms.time.value;},
     setBoatInverse(matrix:THREE.Matrix4){uniforms.boatInverse.value.copy(matrix);uniforms.boatCenter.value.setFromMatrixPosition(boatWorld.copy(matrix).invert());uniforms.boatReady.value=1;},
     setWind(seconds:number){vegetation.setWind(seconds);},
@@ -274,11 +286,13 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
     tick(now: number, moving: boolean) {
       if (!moving) { previous = undefined; return false; }
       uniforms.time.value += previous === undefined ? 0 : Math.min(50, Math.max(0, now - previous)) / 1000;
+      marine.update(uniforms.time.value);
       previous = now;
       return true;
     },
     pause() { previous = undefined; },
     setLighting(light: StudioLighting) {
+      marine.setLighting(light.daylight, light.horizon);
       sandMaterial.emissiveIntensity = (1-light.daylight)*0.35;
       rockMaterial.emissiveIntensity = (1-light.daylight)*0.2;
       uniforms.daylight.value = light.daylight;
