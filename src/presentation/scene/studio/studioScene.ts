@@ -57,6 +57,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   renderer.setClearColor(0xeee9de, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.3;
+  renderer.info.autoReset = false;
   canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口");
   canvas.tabIndex = -1;
   mount.append(canvas);
@@ -136,6 +137,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   if(preparation?.signal.aborted)throw new DOMException('Preparation cancelled','AbortError');
   const assemblyStarted=performance.now();
   const environment = createIslandEnvironment(scene, materials, geometries, prepared);
+  cleanup.push(()=>environment.dispose());
   cleanup.push(()=>scene.remove(environment.group));
   let settleNormals: () => void;
   const normalsReady = new Promise<void>(resolve => { settleNormals = resolve; });
@@ -332,6 +334,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       if(environment.updateDetail(camera,canvas.height))invalidateShadows();
       shadowRefresh=renderer.shadowMap.enabled&&renderer.shadowMap.needsUpdate;
       const renderStart=performance.now();
+      renderer.info.reset();
+      environment.renderMarine(renderer,scene,camera);
       renderer.render(scene,camera);
       renderSubmissionMs=performance.now()-renderStart;
       if(diary.visible){
@@ -436,7 +440,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   const zoomRay=new THREE.Raycaster(),zoomPointer=new THREE.Vector2();
   const zoomCandidates:THREE.Object3D[]=[];
   for(const root of [room,dressing.group,leisure.group,environment.group])root.traverse(object=>{
-    if(object instanceof THREE.Mesh&&!object.userData.hitProxy&&object.name!=='island-water'&&object.name!=='island-sky'&&!(object.material instanceof THREE.ShaderMaterial))zoomCandidates.push(object);
+    if(object instanceof THREE.Mesh&&!object.userData.hitProxy&&!object.userData.excludeZoom&&object.name!=='island-water'&&object.name!=='island-sky'&&!(object.material instanceof THREE.ShaderMaterial))zoomCandidates.push(object);
   });
   const zoomPicker=createZoomPicker(zoomCandidates);
   cleanup.push(()=>zoomPicker.dispose());
