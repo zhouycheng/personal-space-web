@@ -16,6 +16,7 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
+      sessionStorage.setItem('justin-entrance-completed','1');
       const RealDate = Date;
       globalThis.Date = class extends RealDate {
         constructor(...args) { super(...(args.length ? args : ['2026-10-04T06:00:00.000Z'])); }
@@ -26,19 +27,31 @@ try {
         if (event.isTrusted && event.target.closest?.('[data-studio-scene]')) probe.pending = performance.now();
       }, { capture: true, passive: true });
       window.__THREE_DEVTOOLS__ = new EventTarget();
+      const observed = new WeakSet();
       window.__THREE_DEVTOOLS__.addEventListener('observe', event => {
         const object = event.detail;
+        if (observed.has(object)) return;
+        observed.add(object);
         if (object.isScene) probe.scene = object;
         if (!object.isWebGLRenderer) return;
         probe.renderer = object;
         const render = object.render;
+        let auxiliaryCPU = 0;
         object.render = function (scene, camera) {
+          // Count one sample per displayed frame; renderer.info includes auxiliary passes.
+          if (this.getRenderTarget()) {
+            const start = performance.now();
+            const result = render.call(this, scene, camera);
+            auxiliaryCPU += performance.now() - start;
+            return result;
+          }
           const start = performance.now(), input = probe.pending;
           probe.pending = undefined;
           const result = render.call(this, scene, camera);
-          probe.samples.push({ time: start, cpu: performance.now() - start,
+          probe.samples.push({ time: start, cpu: performance.now() - start + auxiliaryCPU,
             input: input === undefined ? undefined : start - input,
             calls: object.info.render.calls, triangles: object.info.render.triangles });
+          auxiliaryCPU = 0;
           return result;
         };
       });

@@ -4,12 +4,12 @@ import { islandRocks,rockBase } from '../../../config/islandTerrain.ts';
 import { islandAppearance } from '../../../config/islandAppearance.ts';
 
 /** Baked world-space vertices let all rocks share one material and draw call. */
-export function createRockGeometry() {
-  const pieces=islandRocks.map(rock=>{
-    const geometry=new THREE.IcosahedronGeometry(1,rock.height>.5?9:4);
+export function createRockGeometry(rocks: readonly (typeof islandRocks[number] & {base?:number})[] = islandRocks, detail?:number) {
+  const pieces=rocks.map(rock=>{
+    const geometry=new THREE.IcosahedronGeometry(1,detail??(rock.height>.5?9:4));
     const positions=geometry.attributes.position;
     const colors=[];
-    const cos=Math.cos(rock.rotation),sin=Math.sin(rock.rotation),base=rockBase(rock);
+    const cos=Math.cos(rock.rotation),sin=Math.sin(rock.rotation),base=rock.base??rockBase(rock);
     for(let i=0;i<positions.count;i++) {
       const px=positions.getX(i),py=positions.getY(i),pz=positions.getZ(i);
       const weather=1+.12*Math.sin(px*3.1+py*2.3+rock.seed)
