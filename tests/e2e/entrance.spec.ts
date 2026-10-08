@@ -161,6 +161,10 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const demo=`${paletteSource}\n${fieldSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
+    // Exercise the same renderer even when Canvas filters are unavailable.
+    Object.defineProperty(CanvasRenderingContext2D.prototype,'filter',{configurable:true,get(){return undefined;},set(){throw new Error('Canvas filter is unavailable');}});
+    const NativeResizeObserver=window.ResizeObserver;
+    window.ResizeObserver=class extends NativeResizeObserver {constructor(callback){super(callback);window.cloudResize=()=>callback([],this);}};
     window.cloudCanvasText=[];const originalFillText=CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.cloudCanvasText.push(String(text));return Reflect.apply(originalFillText,this,[text,...args]);};
     root.querySelector('.cloud-entrance__information').innerHTML='<button data-cloud-no-enter>个人信息</button>';
@@ -240,6 +244,19 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   await overlay(page).dispatchEvent('pointerleave');
   await page.waitForTimeout(1200);
   const initial = await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL());
+  // Observer notifications with unchanged dimensions must not clear the cover.
+  expect(await page.evaluate(()=>{
+    Reflect.get(window,'cloudResize')();
+    return document.querySelector<HTMLCanvasElement>('[data-cloud-canvas]')!.toDataURL();
+  })).toBe(initial);
+  // A real resize must also finish painting before returning from the observer.
+  expect(await page.evaluate(()=>{
+    const root=document.querySelector<HTMLElement>('[data-cloud-entrance]')!;
+    root.style.width='80%';Reflect.get(window,'cloudResize')();
+    const canvas=root.querySelector<HTMLCanvasElement>('canvas')!;
+    return canvas.getContext('2d')!.getImageData(0,0,1,1).data[3];
+  })).toBe(255);
+  await page.evaluate(()=>{document.querySelector<HTMLElement>('[data-cloud-entrance]')!.style.width='';Reflect.get(window,'cloudResize')();});
   await page.evaluate(() => {
     Reflect.get(window, 'cloud').setState('revealing');
     Reflect.get(window, 'cloud').setRevealProgress(0);

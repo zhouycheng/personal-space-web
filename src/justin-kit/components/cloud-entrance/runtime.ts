@@ -41,16 +41,21 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     clouds.getContext('2d')!.putImageData(cloudPixels, 0, 0);
     ctx.drawImage(clouds, 0, 0, width, height);
     const fontSize = Math.max(80 * pixelRatio, Math.min(width * .17, 250 * pixelRatio));
-    ctx.font = `600 ${fontSize}px Georgia, serif`; ctx.letterSpacing = `${fontSize * -.045}px`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // Match the original soft title treatment while keeping it in the cloud canvas.
-    ctx.filter = `blur(${9 * pixelRatio}px)`;
-    ctx.fillStyle = `rgba(${palette.titleShadow.join(',')},.13)`; ctx.fillText(root.dataset.title ?? 'Justin', width / 2, height * .5);
+    function drawTitle(target: CanvasRenderingContext2D, blur: number, alpha: number) {
+      target.save();
+      target.font = `600 ${fontSize}px Georgia, serif`; target.letterSpacing = `${fontSize * -.045}px`; target.textAlign = 'center'; target.textBaseline = 'middle';
+      // Draw only the soft shadow: Canvas filters are unavailable in Safari.
+      target.shadowColor = `rgba(${palette.titleShadow.join(',')},${alpha})`;
+      target.shadowBlur = blur * 2; target.shadowOffsetX = width * 2;
+      target.fillStyle = '#000';
+      target.fillText(root.dataset.title ?? 'Justin', width / 2 - width * 2, height * .5);
+      target.restore();
+    }
+    drawTitle(ctx, 9 * pixelRatio, .13);
     underneath.width = patch.width = width; underneath.height = patch.height = height;
     const under = underneath.getContext('2d')!;
     under.drawImage(surface, 0, 0);
-    under.filter = `blur(${Math.max(2,fontSize * .012)}px)`; under.font=ctx.font;under.letterSpacing=ctx.letterSpacing;under.textAlign='center';under.textBaseline='middle';
-    under.fillStyle=`rgba(${palette.titleShadow.join(',')},.055)`;under.fillText(root.dataset.title ?? 'Justin',width/2,height*.5);
-    ctx.filter = 'none'; ctx.letterSpacing = '0px';
+    drawTitle(under, Math.max(2,fontSize * .012), .055);
     lastReveal = -1;
   }
   const smooth = (value:number) => {const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
@@ -140,9 +145,13 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   }
   function requestPaint() { if (!frame && !disposed && !document.hidden) frame = requestAnimationFrame(paint); }
   function resize() {
-    const rect = root.getBoundingClientRect(); pixelRatio = Math.min(devicePixelRatio, 1.25);
-    width = Math.max(1, Math.round(rect.width * pixelRatio)); height = Math.max(1, Math.round(rect.height * pixelRatio));
-    canvas.width = width; canvas.height = height; bake(); requestPaint();
+    const rect = root.getBoundingClientRect(), nextRatio = Math.min(devicePixelRatio, 1.25);
+    const nextWidth = Math.max(1, Math.round(rect.width * nextRatio)), nextHeight = Math.max(1, Math.round(rect.height * nextRatio));
+    if (cloudPixels && canvas.width === nextWidth && canvas.height === nextHeight && pixelRatio === nextRatio) return;
+    pixelRatio = nextRatio; width = nextWidth; height = nextHeight;
+    canvas.width = width; canvas.height = height; bake();
+    // ResizeObserver runs after RAF; never leave its cleared canvas until the next frame.
+    cancelAnimationFrame(frame); frame = 0; paint();
   }
   const paletteTimer=initialPalette?undefined:window.setInterval(updatePalette,60_000);
   const observer = new ResizeObserver(resize); observer.observe(root); resize();
