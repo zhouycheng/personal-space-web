@@ -1,5 +1,5 @@
 import { expect } from 'playwright/test';
-import { test } from './helpers/app';
+import { test, studioDestination } from './helpers/app';
 
 test('device entry and return keep finite camera poses throughout both flights', async ({ page }) => {
   await page.addInitScript(() => {
@@ -18,9 +18,8 @@ test('device entry and return keep finite camera poses throughout both flights',
   await page.goto('/home');
   const mount=page.locator('[data-studio-scene]');
   await expect(mount).toHaveAttribute('data-render-active','true');
-  for(const action of ['computer','canvas']) {
-    await page.locator('[data-studio-explore]').focus();await page.keyboard.press('Enter');
-    await page.locator(`[data-studio-action="${action}"]`).click();
+  for(const action of ['computer','canvas'] as const) {
+    await (await studioDestination(page, action)).click();
     await page.waitForTimeout(200);
     await expect(mount).toHaveAttribute('data-render-active','false');
     await page.goBack();await page.waitForTimeout(200);

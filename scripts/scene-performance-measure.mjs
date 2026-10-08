@@ -96,10 +96,8 @@ try {
       await mkdir(dirname(output), { recursive: true });
       await page.screenshot({ path: `${output.replace(/\.json$/, '')}-${repeat}.png` });
       await page.emulateMedia({ reducedMotion: 'no-preference' });
-      await page.locator('[data-studio-explore]').focus();
-      await page.keyboard.press('Enter');
       const surfaceTransition = await sample(page, cdp, async () => {
-        await page.locator('[data-studio-action="computer"]').click();
+        await page.locator('.studio-direct-links [data-studio-action="computer"]').click();
         await page.waitForFunction(() => document.querySelector('[data-studio]')?.dataset.state === 'desktop');
       });
       surfaceTransition.reducedMotion = 'no-preference';
