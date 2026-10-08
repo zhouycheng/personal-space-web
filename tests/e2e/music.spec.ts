@@ -1,0 +1,48 @@
+import { expect } from 'playwright/test';
+import { test, studioDestination } from './helpers/app';
+
+test('explore music controls keep one audio across navigation, pause and recover', async ({ page }) => {
+  const data=Buffer.alloc(44+8000*2*60);
+  data.write('RIFF');data.writeUInt32LE(data.length-8,4);data.write('WAVEfmt ',8);data.writeUInt32LE(16,16);
+  data.writeUInt16LE(1,20);data.writeUInt16LE(1,22);data.writeUInt32LE(8000,24);data.writeUInt32LE(16000,28);
+  data.writeUInt16LE(2,32);data.writeUInt16LE(16,34);data.write('data',36);data.writeUInt32LE(data.length-44,40);
+  const tracks=[{id:'test',name:'测试音频',src:'/music/test.wav'},{id:'broken',name:'失败音频',src:'/music/broken.wav'}];
+  await page.route('**/music/test.wav',route=>route.fulfill({contentType:'audio/wav',body:data}));
+  await page.route('**/music/broken.wav',route=>route.fulfill({status:404,body:''}));
+  await page.route('**/home',async route=>{
+    const response=await route.fetch();
+    await route.fulfill({response,body:(await response.text()).replace(/data-tracks="[^"]*"/,`data-tracks="${JSON.stringify(tracks).replaceAll('"','&quot;')}"`)});
+  });
+  await page.goto('/home');
+  const music=page.locator('[data-bgm]'),play=page.locator('.bgm-settings [data-bgm-play]');
+  await page.locator('[data-studio-explore]').click();
+  await page.getByRole('tab',{name:'音乐',exact:true}).click();
+  await expect(play).toBeVisible();
+  await expect(music).toHaveAttribute('data-playing','false');
+  const original=await page.locator('audio').elementHandle();
+  await play.click();
+  await expect(music).toHaveAttribute('data-playing','true');
+  await page.getByRole('button',{name:'关闭面板',exact:true}).click();
+  await (await studioDestination(page,'canvas')).click();
+  await expect(page.locator('[data-canvas-return]')).toBeVisible();
+  await expect(page.locator('.bgm-settings')).toBeHidden();
+  expect(await original!.evaluate(el=>el===document.querySelector('audio'))).toBe(true);
+  await expect(music).toHaveAttribute('data-playing','true');
+  await page.locator('[data-canvas-return]').click();
+  await expect(page.locator('[data-studio]')).toHaveAttribute('data-state','room');
+  await page.locator('[data-studio-explore]').click();
+  await page.getByRole('tab',{name:'音乐',exact:true}).click();
+  await play.click();
+  await expect(music).toHaveAttribute('data-playing','false');
+  const stopped=await page.locator('audio').evaluate(el=>(el as HTMLAudioElement).currentTime);
+  await play.click();
+  await expect.poll(()=>page.locator('audio').evaluate(el=>(el as HTMLAudioElement).currentTime)).toBeGreaterThan(stopped);
+  await page.getByRole('button',{name:'下一首',exact:true}).click();
+  await expect(page.locator('[data-bgm-status]')).toContainText('加载失败');
+  await expect(music).toHaveAttribute('data-playing','false');
+  await page.getByRole('button',{name:'上一首',exact:true}).click();
+  await expect(music).toHaveAttribute('data-playing','true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-studio-explore]')).toBeFocused();
+  await page.reload();await expect(music).toHaveAttribute('data-playing','false');
+});

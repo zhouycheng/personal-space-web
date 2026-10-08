@@ -28,7 +28,7 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
   const leisure=createIslandLeisure(primitives,materials,textures);
   scene.add(leisure.group);cleanup.push(()=>scene.remove(leisure.group));
   cleanup.push(()=>scene.remove(canopy.group));
-  const { drawerActions, drawers, diary, chair, chairSeat } =
+  const { drawerActions, drawers, diary, chair, chairSeat, recordPlayer } =
     createStudioFurniture(room, primitives, materials, textures);
   const { computerSurface, canvasSurface, screenGlow, tabletGlow } =
     createStudioDevices(primitives, renderer, materials, textures, computerLabel);
@@ -39,7 +39,7 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
   primitives.releaseConstructionGeometry(scene);
 
   return {
-    canopy,dressing,leisure,fileLibrary,
+    canopy,dressing,leisure,fileLibrary,recordPlayer,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chair, chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,

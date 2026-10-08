@@ -126,7 +126,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   const currentLook = focus.clone();
   const furnitureStarted=performance.now();
   const {
-    canopy,dressing,leisure,fileLibrary,
+    canopy,dressing,leisure,fileLibrary,recordPlayer,
     drawerActions, drawers, diary, computerSurface, canvasSurface,
     chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
@@ -310,10 +310,14 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     leisure.setWaterTime(environment.time);
     environment.setBoatInverse(leisure.boatInverse);
     mount.dataset.oceanActive=String(oceanMoving);
-    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving||canopyState.changed;
+    const recordVisible=!zoomed||motion.running;
+    if(!recordVisible)recordPlayer.pause();
+    const recordMotion=recordVisible?recordPlayer.tick(now,reducedMotion.matches||lightweight):{changed:false,shadowChanged:false,moving:false};
+    if(recordMotion.shadowChanged)invalidateShadows();
+    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving||canopyState.changed||recordMotion.changed;
     drawRequested=false;
     if(paint&&!render(now,performance.now()-updateStart))return;
-    if(active&&!frame&&(motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||canopyState.moving||chairRocking.moving||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
+    if(active&&!frame&&(recordMotion.moving||motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||canopyState.moving||chairRocking.moving||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
   function requestInputFrame() {if(!processingInput&&active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
   function requestDraw() {drawRequested=true;requestInputFrame();}
@@ -608,6 +612,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       drawers.forEach((drawer,index)=>{this.setDrawerOpen(drawer.action,Boolean(snapshot.drawers[index]));drawer.moving=false;drawer.group.position.z=workspaceAppearance.drawerFront+drawer.to;});
       setRoomCamera();onViewChange(snapshot.view);requestDraw();
     },
+    setMusicPlaying(value:boolean) {recordPlayer.setPlaying(value);requestDraw();},
     setPointerEnabled(value:boolean) {
       gestures.setPointerEnabled(value);
       if(!value) {
@@ -624,6 +629,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       // Preserve destinations while the page is hidden; only frame clocks pause.
       cameraFrameTime=undefined;
       previousDrawTime=undefined;
+      recordPlayer.pause();
       steamFrameTime=undefined;
       environment.pause();mount.dataset.oceanActive="false";
       steam.visible=false;

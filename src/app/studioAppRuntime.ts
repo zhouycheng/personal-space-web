@@ -20,6 +20,8 @@ import { createEntranceRuntime } from './entranceRuntime';
 import { entranceCompleted } from '../infrastructure/client/entranceSession';
 import type { StartupProgress } from '../contracts/startup';
 import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
+import { createBgmPlayer } from '../presentation/ui/music/bgmRuntime';
+import { createHomeProfile } from '../presentation/ui/music/homeProfile';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -52,6 +54,8 @@ function init(shell: HTMLElement) {
     isRoom: () => !entrance?.covered && model.page === "home" && model.state === "room",
   });
   const panel = panelController.element;
+  const music = createBgmPlayer(shell, playing => scene?.setMusicPlaying(playing));
+  const stopHomeProfile=createHomeProfile(shell.querySelector<HTMLElement>('[data-bgm-desktop]')!);
   const explore = panelController.explore;
   const openExplore = panelController.open;
   const closeExplore = panelController.close;
@@ -173,6 +177,9 @@ function init(shell: HTMLElement) {
   try {osHintShown=localStorage.getItem('justin-os-return-hint')==='seen';}catch {}
   shell.querySelector('[data-os-hint-close]')!.addEventListener('click',()=>{osHint.hidden=true;},{signal:events.signal});
   function sync() {
+    const musicHome=model.page==='home'&&!isMoving();
+    shell.dataset.musicHome=String(musicHome);
+    shell.querySelector<HTMLElement>('[data-bgm-desktop]')!.inert=!musicHome||Boolean(entrance?.covered);
     if(entrance?.blocking) {
       shell.dataset.entrance=entrance.playing?'playing':'preparing';
       closeExplore(false,true);clearInterval(clock);scene?.setPointerEnabled(false);
@@ -268,6 +275,7 @@ function init(shell: HTMLElement) {
       mount.dataset.startupTimings=JSON.stringify(timings);
       scene.restore(savedScene??model.targets);
       scene.setPointerEnabled(!entrance?.covered&&!panel.open);
+      scene.setMusicPlaying(music.playing);
       updateLighting();
       const current=scene;
       if(prepareForEntrance) {
@@ -481,7 +489,7 @@ function init(shell: HTMLElement) {
   function dispose() {
     if(disposed)return;
     disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
-    for(const cleanup of [()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
+    for(const cleanup of [stopHomeProfile,()=>music.dispose(),()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}
     }

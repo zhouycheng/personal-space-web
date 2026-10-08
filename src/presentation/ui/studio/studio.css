@@ -1,3 +1,6 @@
+.alpha-shell {--home-edge:24px;--home-hit:44px;--home-ink:#f5f6ed;--home-text-shadow:0 1px 3px #102330,0 0 1px #102330;--home-focus:#577ded}
+.alpha-shell:has(.studio.is-fallback) {--home-ink:#303b39;--home-text-shadow:none}
+@media(max-width:640px) {.alpha-shell {--home-edge:12px}}
 .studio {position:relative;height:100%;background:#eee9de;color:#45453e}
 .studio-eyebrow {font:11px var(--mono);letter-spacing:2px;color:#696b62;margin:0 0 12px}
 .studio button {cursor:pointer;font-family:inherit}
@@ -6,11 +9,11 @@
 .studio-scene canvas[hidden] {display:none}
 .studio-loading {position:absolute;top:48%;width:100%;text-align:center;color:inherit;font-size:14px}
 .studio-tooltip {position:absolute;pointer-events:none;z-index:3;padding:4px 0;color:#fff;font:500 14px var(--sans);letter-spacing:.04em;white-space:nowrap}
-.studio-signature {position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:0;right:0;margin:0;text-align:center;transform:none;rotate:0deg;white-space:nowrap;font:16px var(--mono);font-style:normal;letter-spacing:3px;pointer-events:none}
+.studio-signature {position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);left:0;right:0;margin:0;text-align:center;transform:none;rotate:0deg;white-space:nowrap;font:16px var(--mono);font-style:normal;letter-spacing:3px;pointer-events:none}
 .studio:not([data-state="room"]) .studio-signature {visibility:hidden}
-.studio:not(.is-fallback) .studio-signature {color:#f5f6ed;text-shadow:0 1px 5px #102f46b3}
+.studio-signature {color:var(--home-ink);text-shadow:var(--home-text-shadow)}
 .alpha-shell .app-dock[hidden] {display:none}
-.studio button:focus-visible,.alpha-shell button:focus-visible {outline:3px solid #577ded;outline-offset:4px}
+.studio button:focus-visible,.alpha-shell button:focus-visible {outline:2px solid var(--home-focus);outline-offset:4px}
 .alpha-shell [data-os-fullscreen].is-settled {--projection-opacity:1}
 .alpha-shell #page-home {overflow:hidden;transform:none;filter:none;background:transparent}
 .alpha-shell.is-gallery-active {background:#171f23}
