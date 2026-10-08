@@ -36,7 +36,7 @@ function init(shell: HTMLElement) {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const events = new AbortController();
   const initialPage = pageForPath(location.pathname);
-  const needsEntrance = !entranceCompleted() && new URLSearchParams(location.search).get('entrance') !== 'skip';
+  const needsEntrance = !entranceCompleted();
   let pendingPage = initialPage;
   let entrance: ReturnType<typeof createEntranceRuntime>;
   const model = createStudioClientStore(needsEntrance ? 'home' : initialPage, needsEntrance ? 'room' : studioStateForPage(initialPage));
@@ -204,7 +204,7 @@ function init(shell: HTMLElement) {
       const status=panel.querySelector<HTMLElement>(`[data-drawer-status="${name}"]`);if(status)status.textContent=open?'已打开':'已关闭';
     });
     const home = model.page === "home";
-    if(!home||model.state!=="room")closeExplore(false,true);
+    if(entrance?.covered||!home||model.state!=="room")closeExplore(false,true);
     const osOpen = model.state === "desktop";
     if(osOpen&&!osHintShown){
       osHint.hidden=false;osHintShown=true;
@@ -215,7 +215,7 @@ function init(shell: HTMLElement) {
     const canvasVisible = canvasOpen || model.state.endsWith("-canvas");
     const journalVisible = model.page==='journal'||model.state.endsWith('-journal');
     studio.dataset.state = model.state;
-    studio.inert = !journalVisible&&(!home || model.state !== "room");
+    studio.inert = Boolean(entrance?.covered) || (!journalVisible&&(!home || model.state !== "room"));
     studio.style.visibility = isOpen() ? "hidden" : "";
     shell.classList.toggle("is-home-active", home || isMoving());
     shell.classList.toggle("is-home-suspended", model.page === "works");
@@ -224,11 +224,11 @@ function init(shell: HTMLElement) {
     shell.querySelector<HTMLElement>(".app-dock")!.hidden = true;
     desktop.classList.toggle("is-settled", osOpen);
     desktop.setAttribute("aria-hidden", String(!osOpen));
-    desktop.inert = !osOpen;
+    desktop.inert = Boolean(entrance?.covered) || !osOpen;
     shell.querySelectorAll<HTMLElement>(".app-page").forEach(el => {
       const active = el.id === `page-${model.page}` || (el.id === "page-home" && (model.page === "works" || journalVisible || isMoving())) || (el === personalCanvas && canvasVisible);
       el.classList.toggle("is-active", active);
-      el.inert = !active || (el === personalCanvas && canvasVisible && !canvasOpen) || (el.id === "page-home" && model.page === "works");
+      el.inert = Boolean(entrance?.covered) || !active || (el === personalCanvas && canvasVisible && !canvasOpen) || (el.id === "page-home" && model.page === "works");
     });
     personalCanvas.classList.toggle("studio-canvas-open", canvasVisible);
     shell.querySelector<HTMLElement>("[data-canvas-return]")!.hidden = !canvasOpen;
@@ -383,6 +383,14 @@ function init(shell: HTMLElement) {
     if (!(event.target instanceof Element)) return;
     const target = event.target.closest<HTMLElement>("button,a");
     if (!target) return;
+    if (target instanceof HTMLAnchorElement && target.hasAttribute('data-entrance-exit')) {
+      if (event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return;
+      event.preventDefault();
+      pendingPage = pageForPath(target.pathname);
+      history.pushState({justinPage:pendingPage,from:null}, '', target.pathname);
+      entrance.exit();
+      return;
+    }
     if (target.matches(".app-dock a")) {
       if (event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return;
       event.preventDefault(); navigate(pageForPath((target as HTMLAnchorElement).pathname));
@@ -476,16 +484,18 @@ function init(shell: HTMLElement) {
       return scene.playEntrance({duration,onProgress:reveal});
     },
     complete(){
-      sceneAvailability(true);scene?.setPointerEnabled(!panel.open);delete shell.dataset.entrance;delete shell.dataset.entranceTarget;
+      sceneAvailability(scenePrepared&&!sceneBlocked);scene?.setPointerEnabled(!sceneBlocked&&!panel.open);delete shell.dataset.entrance;delete shell.dataset.entranceTarget;
       model.page=pendingPage;model.state=studioStateForPage(pendingPage);clearProjection();sync();focusRoute();
       shell.style.removeProperty('--entrance-content-opacity');
       mount.style.removeProperty('--entrance-blur');
     },
   });
-  history.replaceState({ ...history.state, justinPage: initialPage }, "", (initialPage==='journal'?location.pathname:pathForPage(initialPage)) + location.search + location.hash);
+  const initialUrl = new URL(location.href);
+  initialUrl.searchParams.delete('entrance');
+  initialUrl.pathname = initialPage==='journal' ? location.pathname : pathForPage(initialPage);
+  history.replaceState({ ...history.state, justinPage: initialPage }, "", initialUrl);
   sync();
-  if(entrance.covered)void entrance.start();
-  else if(model.page==='journal'){prepareJournalTargets();void loadScene().then(()=>{if(!disposed&&model.page==='journal')return journal.enter(location.pathname+location.hash,0);});}
+  void entrance.start();
   function dispose() {
     if(disposed)return;
     disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();

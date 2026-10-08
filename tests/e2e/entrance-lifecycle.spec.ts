@@ -2,7 +2,7 @@ import { expect } from 'playwright/test';
 import { test } from './helpers/nativePage';
 test.use({freshEntrance:true});
 
-test('real backgrounding pauses entrance progress; BFCache resumes a completed tab without replay',async({nativePage:page,baseURL})=>{
+test('real backgrounding pauses entrance progress; BFCache resumes a completed tab without replay',async({nativePage:page,baseURL},info)=>{
   const overlay=page.locator('[data-cloud-entrance]'),mount=page.locator('[data-studio-scene]');
   await expect(overlay).toHaveAttribute('data-state','ready',{timeout:35000});
   await page.keyboard.press('Enter');
@@ -16,6 +16,13 @@ test('real backgrounding pauses entrance progress; BFCache resumes a completed t
   await expect(overlay).toBeHidden({timeout:15000});await other.close();
   await page.evaluate(()=>{window.addEventListener('pageshow',event=>document.documentElement.dataset.persisted=String(event.persisted));});
   await page.goto(`${baseURL}/rss.xml`);await page.goBack({waitUntil:'commit'});
+  await info.attach('restored-home.json',{contentType:'application/json',body:JSON.stringify(await page.evaluate(()=>({
+    hidden:document.hidden,persisted:document.documentElement.dataset.persisted,
+    entrance:document.querySelector<HTMLElement>('.alpha-shell')?.dataset.entrance,
+    sceneState:document.querySelector<HTMLElement>('[data-studio]')?.dataset.state,
+    fallback:document.querySelector('[data-studio]')?.classList.contains('is-fallback'),
+    status:document.querySelector('[data-studio-status]')?.textContent,
+  })))});
   await expect(overlay).toBeHidden();await expect(mount).toHaveAttribute('data-render-active','true');
   await expect(page.locator('html')).toHaveAttribute('data-persisted','true');
 });

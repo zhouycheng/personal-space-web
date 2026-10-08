@@ -21,24 +21,15 @@ const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journ
 <BaseLayout title={article?articleTitle(siteIdentity, article.title):PAGE_TITLES[activePage]} description={article?.description}>
   <main class:list={["app-shell", "alpha-shell", activePage === "home" && "is-home-active",activePage==='journal'&&'is-journal-active']} data-initial-page={activePage} data-entrance="preparing" aria-label={siteIdentity.brand}>
     <CloudEntrance>
-      <Fragment slot="fallback"><a href="/works?entrance=skip">作品</a><a href="/canvas?entrance=skip">画布</a><a href="/os?entrance=skip">OS</a></Fragment>
+      <Fragment slot="fallback"><a href="/works" data-entrance-exit>作品</a><a href="/canvas" data-entrance-exit>画布</a><a href="/os" data-entrance-exit>OS</a></Fragment>
     </CloudEntrance>
     <script is:inline>
-      // A completed tab only uses the automatic cloud cover on a browser refresh.
-      const shell = document.currentScript.closest('main');
+      // Keep every full document load cloud-covered; only a fresh tab needs a click.
       try {
-        const navigation = performance.getEntriesByType('navigation')[0];
-        const cloud = shell.querySelector('[data-cloud-entrance]');
-        if (sessionStorage.getItem('justin-entrance-completed') === '1' && navigation?.type === 'reload') {
-          cloud.dataset.loadingText = '正在加载场景';
-          cloud.querySelector('[data-cloud-status]').textContent = '正在加载场景';
-          shell.dataset.entrance = 'refresh';
-        } else if (sessionStorage.getItem('justin-entrance-completed') === '1') {
-          cloud.hidden = true;
-          shell.removeAttribute('data-entrance');
+        if (sessionStorage.getItem('justin-entrance-completed') === '1') {
+          document.currentScript.closest('main').dataset.entrance = 'refresh';
         }
       } catch {}
-      if (new URLSearchParams(location.search).get('entrance') === 'skip') shell.removeAttribute('data-entrance');
     </script>
     <BgmPlayer />
     <div class="app-content">
