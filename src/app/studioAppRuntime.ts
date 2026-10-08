@@ -22,6 +22,7 @@ import type { StartupProgress } from '../contracts/startup';
 import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
 import { createBgmPlayer } from '../presentation/ui/music/bgmRuntime';
 import { createHomeProfile } from '../presentation/ui/music/homeProfile';
+import { createHomeMenu } from '../presentation/ui/studio/homeMenu';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -54,6 +55,7 @@ function init(shell: HTMLElement) {
     isRoom: () => !entrance?.covered && model.page === "home" && model.state === "room",
   });
   const panel = panelController.element;
+  const homeMenu = createHomeMenu(studio, events.signal);
   const music = createBgmPlayer(shell, playing => scene?.setMusicPlaying(playing));
   const stopHomeProfile=createHomeProfile(shell.querySelector<HTMLElement>('[data-bgm-desktop]')!);
   const explore = panelController.explore;
@@ -179,7 +181,7 @@ function init(shell: HTMLElement) {
   function sync() {
     const musicHome=model.page==='home'&&!isMoving();
     shell.dataset.musicHome=String(musicHome);
-    shell.querySelector<HTMLElement>('[data-bgm-desktop]')!.inert=!musicHome||Boolean(entrance?.covered);
+    homeMenu.setAvailable(musicHome&&!entrance?.covered);
     if(entrance?.blocking) {
       shell.dataset.entrance=entrance.playing?'playing':'preparing';
       closeExplore(false,true);clearInterval(clock);scene?.setPointerEnabled(false);

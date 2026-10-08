@@ -8,6 +8,9 @@ import { siteIdentity } from '../../../data/repositories/siteIdentity';
     <p class="studio-loading" data-studio-status role="status" hidden></p>
     <span class="studio-tooltip" data-studio-tooltip hidden></span>
   </div>
-  <p class="studio-signature">{siteIdentity.signature}</p>
+  <p class="studio-signature">
+    <button type="button" data-studio-menu-toggle aria-controls="studio-home-menu" aria-expanded="true" aria-label="隐藏顶部菜单栏">{siteIdentity.signature}</button>
+    <span class="studio-mobile-signature">{siteIdentity.signature}</span>
+  </p>
   <StudioNavigation />
 </div>

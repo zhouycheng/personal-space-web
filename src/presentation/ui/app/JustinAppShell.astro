@@ -68,5 +68,5 @@ const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journ
   .alpha-shell[data-entrance-target="canvas"] #page-canvas.studio-projecting { visibility: visible; opacity: unset; z-index: 58; }
   .alpha-shell[data-entrance-target="works"] #page-works { visibility: visible; opacity: var(--entrance-content-opacity,0); z-index: 58; }
   .alpha-shell[data-entrance="playing"] [data-studio-scene] canvas { filter: blur(var(--entrance-blur,0px)); }
-  .alpha-shell[data-entrance] :is(.studio-signature,.studio-loading,.studio-navigation) { visibility: hidden; }
+  .alpha-shell[data-entrance] :is(.studio-signature,.studio-loading,.studio-topbar) { visibility: hidden; }
 </style>

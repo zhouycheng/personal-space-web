@@ -1,0 +1,17 @@
+---
+import avatar from '../../../content/assets/profile-avatar.png';
+import { Image } from 'astro:assets';
+---
+<div class="home-profile" data-bgm-desktop>
+  <Image class="profile-avatar" src={avatar} alt="个人头像" width={48} height={48} format="webp" quality={85} loading="eager" />
+  <span class="profile-status" data-profile-status role="status" hidden></span>
+  <div class="bgm-menu" role="group" aria-label="音乐播放控制" hidden>
+    <span class="bgm-menu-name" data-bgm-name>暂无音乐</span>
+    <button data-bgm-prev aria-label="上一首" title="上一首" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6v12M18 6l-9 6 9 6Z"/></svg></button>
+    <button data-bgm-play aria-label="播放音乐" aria-pressed="false" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="bgm-play-icon" d="m9 6 9 6-9 6Z"/><path class="bgm-pause-icon" d="M8 6v12M16 6v12"/><path class="bgm-retry-icon" d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg>
+    </button>
+    <button data-bgm-next aria-label="下一首" title="下一首" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6v12M6 6l9 6-9 6Z"/></svg></button>
+    <span class="bgm-menu-status" data-bgm-status role="status"></span>
+  </div>
+</div>

@@ -4,7 +4,6 @@ import { activityCopy } from '../../../application/activity/canvasActivity';
 
 /** Reuse the canvas stream; only subscribe while the desktop profile is visible. */
 export function createHomeProfile(root: HTMLElement) {
-  const bubble = root.querySelector<HTMLElement>('.profile-bubble')!;
   const label = root.querySelector<HTMLElement>('[data-profile-status]')!;
   const mobile = matchMedia('(max-width: 640px)');
   let visible = false, stop: (() => void) | undefined;
@@ -17,7 +16,7 @@ export function createHomeProfile(root: HTMLElement) {
       const copy = available ? activityCopy(state, now) : null;
       label.textContent = copy ? copy.detail || copy.title : '';
       label.title = label.textContent;
-      bubble.hidden = !available;
+      label.hidden = !available;
     });
     if (!active && stop) { stop(); stop = undefined; }
   }
