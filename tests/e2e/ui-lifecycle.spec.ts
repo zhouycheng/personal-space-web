@@ -45,11 +45,13 @@ test('canvas stops its activity subscription immediately and restores memory-onl
   await expect(page.locator('.react-flow')).toHaveCount(1);
   await page.clock.fastForward(60_100);
   await expect(page.locator('.react-flow')).toHaveCount(0);
-  expect(await page.evaluate(() => (window as any).lifecycleStreams.opened)).toBe(1);
+  const homeStreams = page.viewportSize()!.width > 640 ? 1 : 0;
+  await expect.poll(() => page.evaluate(() => (window as any).lifecycleStreams.opened)).toBe(1 + homeStreams);
   await (await studioDestination(page, 'canvas')).click();
   await page.clock.runFor(100);
   await expect(page.locator('.react-flow__node').first()).toBeVisible();
-  await expect.poll(() => page.evaluate(() => (window as any).lifecycleStreams.opened)).toBe(2);
+  await expect.poll(() => page.evaluate(() => (window as any).lifecycleStreams.opened)).toBe(2 + homeStreams);
+  await expect.poll(() => page.evaluate(() => (window as any).lifecycleStreams.closed)).toBe(1 + homeStreams);
   await expect(page.locator('.canvas-view-controls output')).toHaveText(zoom!);
   await expect.poll(() => page.locator('.react-flow__viewport').evaluate(el => (el as HTMLElement).style.transform)).toBe(transform);
   expect(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => /canvas|viewport/i.test(key))))).toEqual(storage);

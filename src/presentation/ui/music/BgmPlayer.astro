@@ -1,0 +1,17 @@
+---
+import tracks from '../../../content/site/music.json';
+import avatar from '../../../content/assets/profile-avatar.png';
+import { Image } from 'astro:assets';
+import './bgm.css';
+---
+<div hidden data-bgm data-tracks={JSON.stringify(tracks)}>
+  <audio preload="none"></audio>
+</div>
+<div class="home-profile" data-bgm-desktop inert>
+  <span class="profile-notes" aria-hidden="true"><i>♪</i><i>♫</i><i>♩</i></span>
+  <button class="profile-avatar" data-profile-play data-bgm-play aria-label="播放音乐" aria-pressed="false">
+    <Image src={avatar} alt="" width={88} height={88} format="webp" quality={85} loading="eager" />
+    <span class="profile-music-control" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="profile-play-icon" d="m9 6 9 6-9 6Z"/><path class="profile-pause-icon" d="M8 6v12M16 6v12"/></svg></span>
+  </button>
+  <div class="profile-bubble" role="status" hidden><span data-profile-status></span></div>
+</div>

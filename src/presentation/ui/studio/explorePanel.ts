@@ -30,7 +30,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     tablist.hidden = !mobile.matches && directory;
     panel.querySelector<HTMLElement>('#studio-pane-places')!.hidden = !directory;
     for (const tab of tabs) {
-      tab.hidden = tab.dataset.studioTab === 'places' ? !mobile.matches : !ready;
+      tab.hidden = tab.dataset.studioTab === 'places' ? !mobile.matches : tab.dataset.studioTab === 'music' ? false : !ready;
       const selected = tab.dataset.studioTab === id;
       tab.setAttribute("aria-selected", String(selected));
       tab.tabIndex = selected ? 0 : -1;
@@ -82,8 +82,8 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
 
   function sceneAvailability(value: boolean) {
     ready = value;
-    settings.hidden = !ready || mobile.matches;
-    tabs.filter(tab => tab.dataset.studioTab !== 'places').forEach(tab => { tab.hidden = !ready; });
+    settings.hidden = mobile.matches;
+    tabs.filter(tab => !['places','music'].includes(tab.dataset.studioTab!)).forEach(tab => { tab.hidden = !ready; });
     status.hidden = ready;
     if (!ready) selectTab("places");
   }
@@ -94,10 +94,10 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   }
 
   explore.addEventListener("click", open, { signal });
-  settings.addEventListener('click', () => { selectTab('view'); title.focus(); }, { signal });
+  settings.addEventListener('click', () => { selectTab(ready?'view':'music'); title.focus(); }, { signal });
   function syncBreakpoint() {
     explore.setAttribute('aria-label', mobile.matches ? '探索' : '场景设置');
-    settings.hidden = !ready || mobile.matches;
+    settings.hidden = mobile.matches;
     if (panel.open) close(true, true);
   }
   mobile.addEventListener('change', syncBreakpoint, { signal });
@@ -106,7 +106,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   panel.addEventListener("cancel", event => { event.preventDefault(); close(); }, { signal });
   panel.addEventListener("keydown", event => {
     if (event.key !== "Tab") return;
-    const items = [...panel.querySelectorAll<HTMLElement>("button,a,summary,[tabindex]")]
+    const items = [...panel.querySelectorAll<HTMLElement>("button,a,input,select,textarea,summary,[tabindex]")]
       .filter(item => item.tabIndex >= 0 && !item.matches(":disabled") && item.checkVisibility());
     const first = items[0], last = items.at(-1);
     if (event.shiftKey && (document.activeElement === first || document.activeElement === title)) {

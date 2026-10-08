@@ -4,6 +4,7 @@ import { createWorkspaceMaterials } from "./workspaceMaterials.ts";
 import { journalAppearance } from "../../../config/journalAppearance.ts";
 import type { StudioPrimitives } from "./studioPrimitives";
 import { createWorkspaceChair } from './workspaceChair.ts';
+import { createRecordPlayer } from './recordPlayer.ts';
 
 export function createStudioFurniture(room: THREE.Group, primitives: StudioPrimitives, materials: Set<THREE.Material>, textures: Set<THREE.Texture>) {
   const { material, mesh, box, rounded, hotspot, label,
@@ -61,5 +62,6 @@ export function createStudioFurniture(room: THREE.Group, primitives: StudioPrimi
   diaryHit.castShadow=false;diaryHit.receiveShadow=false;diaryHit.userData.hitProxy=true;
 
   const {chair,chairSeat}=createWorkspaceChair(primitives,materials,textures);
-  return { drawerActions, drawers, diary, chair, chairSeat };
+  const recordPlayer=createRecordPlayer(room,primitives,wood);
+  return { drawerActions, drawers, diary, chair, chairSeat, recordPlayer };
 }

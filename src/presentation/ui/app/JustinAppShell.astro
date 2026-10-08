@@ -11,6 +11,7 @@ import { journal } from "../../../infrastructure/server/journal";
 import { siteIdentity } from '../../../data/repositories/siteIdentity';
 import { articleTitle } from '../../../data/selectors/siteIdentity';
 import CloudEntrance from '../../../justin-kit/components/cloud-entrance/CloudEntrance.astro';
+import BgmPlayer from '../music/BgmPlayer.astro';
 type Props = { initialPage?: AppPage; journalSlug?: string };
 const { initialPage = "home", journalSlug } = Astro.props;
 const activePage = isAppPage(initialPage) ? initialPage : "home";
@@ -39,6 +40,7 @@ const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journ
       } catch {}
       if (new URLSearchParams(location.search).get('entrance') === 'skip') shell.removeAttribute('data-entrance');
     </script>
+    <BgmPlayer />
     <div class="app-content">
       <section id="page-home" class:list={["app-page", activePage === "home" && "is-active"]} aria-label="工作室"><InteractiveStudio /></section>
       <section id="page-works" class:list={["app-page", activePage === "works" && "is-active"]} aria-label="文件夹"><StudioPortfolio /></section>
