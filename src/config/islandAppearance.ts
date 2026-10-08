@@ -10,6 +10,6 @@ export const islandAppearance = {
   shoreExtensions: [[Math.PI / 2, 0.38, 0.72], [0, 0.08, 0.62]],
   sand: 0xe7d4aa,
   wetSand: 0x9a8967,
-  shallowWater: 0x299c9b,
+  shallowWater: 0x24aaa5,
   deepWater: 0x104b69,
 } as const;
