@@ -12,8 +12,10 @@ for (const [path, state] of [
   test(`${path} remains stable after a direct load and refresh`, async ({ page }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(200);
+    await expect(page.locator('[data-cloud-entrance]')).toBeHidden({timeout:35000});
     await expect(page.locator("[data-studio]")).toHaveAttribute("data-state", state);
     await page.reload();
+    await expect(page.locator('[data-cloud-entrance]')).toBeHidden({timeout:35000});
     await expect(page.locator("[data-studio]")).toHaveAttribute("data-state", state);
   });
 }

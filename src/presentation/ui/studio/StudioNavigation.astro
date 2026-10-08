@@ -30,7 +30,7 @@ const destinations = [
     <div class="studio-panel-content">
       <section id="studio-pane-music" role="tabpanel" aria-labelledby="studio-tab-music" hidden><BgmControls /></section>
       <section id="studio-pane-places" role="tabpanel" aria-labelledby="studio-tab-places">
-        <p class="studio-panel-status" data-studio-panel-status role="status">正在布置工作室…</p>
+        <p class="studio-panel-status" data-studio-panel-status role="status"></p>
         <button type="button" data-studio-retry hidden>重试三维场景</button>
         <nav class="studio-destinations" aria-label="内容入口">
           {destinations.map(item => <a href={item.href} data-studio-action={item.action}>
