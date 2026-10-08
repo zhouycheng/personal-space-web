@@ -1,5 +1,5 @@
 import { expect, type Page } from "playwright/test";
-import { test } from './helpers/app';
+import { test, studioDestination } from './helpers/app';
 import { phase, visual } from "./helpers/journal";
 
 test("T19/T32 cover midpoint draws and Escape during opening exits", async ({ page }, info) => {
@@ -87,8 +87,8 @@ test("T14/T19 transport clears the drawer before expanding in both directions", 
   await page.goto("/home");
   await expect(page.locator("[data-studio-scene]")).toHaveAttribute("data-render-active", "true");
   await page.clock.install();
-  await page.locator("[data-studio-explore]").focus(); await page.keyboard.press("Enter");
-  await record(page, () => page.locator('[data-studio-action="diary"]').click(), "journal");
+  const diary = await studioDestination(page, 'diary');
+  await record(page, () => diary.click(), "journal");
   await record(page, () => page.locator("[data-journal-close]").click(), "room");
 });
 

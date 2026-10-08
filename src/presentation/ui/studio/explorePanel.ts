@@ -1,30 +1,36 @@
 import { stepRoomView, DEFAULT_ROOM_VIEW, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
-import type { ScenePort } from "../../../contracts/studioPorts";
 
 type ExplorePanelOptions = {
   studio: HTMLElement;
-  mount: HTMLElement;
   reducedMotion: MediaQueryList;
   signal: AbortSignal;
-  scene: () => ScenePort | undefined;
+  setSceneInputEnabled: (enabled: boolean) => void;
   isRoom: () => boolean;
 };
 
-export function createExplorePanel({ studio, mount, reducedMotion, signal, scene, isRoom }: ExplorePanelOptions) {
+export function createExplorePanel({ studio, reducedMotion, signal, setSceneInputEnabled, isRoom }: ExplorePanelOptions) {
   const explore = studio.querySelector<HTMLButtonElement>("[data-studio-explore]")!;
   const panel = studio.querySelector<HTMLDialogElement>(".studio-panel")!;
   const title = panel.querySelector<HTMLElement>("#studio-panel-title")!;
   const status = panel.querySelector<HTMLElement>("[data-studio-panel-status]")!;
-  const hint = studio.querySelector<HTMLElement>("[data-studio-hint]")!;
+  const mobile = matchMedia('(max-width: 640px)');
+  const settings = panel.querySelector<HTMLButtonElement>('[data-studio-settings]')!;
+  const tablist = panel.querySelector<HTMLElement>('.studio-panel-tabs')!;
   const tabs = [...panel.querySelectorAll<HTMLButtonElement>("[data-studio-tab]")];
   const viewButtons = [...panel.querySelectorAll<HTMLButtonElement>(
     '[data-studio-action^="zoom-"],[data-studio-action^="view-"],[data-studio-action="reset-view"]',
   )];
   let closeTimer = 0;
   let backdropDown = false;
+  let ready = false;
 
   function selectTab(id: string) {
+    const directory = id === 'places';
+    title.textContent = mobile.matches ? '探索工作室' : directory ? '目录' : '场景设置';
+    tablist.hidden = !mobile.matches && directory;
+    panel.querySelector<HTMLElement>('#studio-pane-places')!.hidden = !directory;
     for (const tab of tabs) {
+      tab.hidden = tab.dataset.studioTab === 'places' ? !mobile.matches : !ready;
       const selected = tab.dataset.studioTab === id;
       tab.setAttribute("aria-selected", String(selected));
       tab.tabIndex = selected ? 0 : -1;
@@ -37,10 +43,9 @@ export function createExplorePanel({ studio, mount, reducedMotion, signal, scene
     if (!isRoom()) return;
     window.clearTimeout(closeTimer);
     panel.classList.remove("is-closing");
-    hint.hidden = true;
-    selectTab("places");
+    selectTab(mobile.matches || !ready ? 'places' : 'view');
     panel.querySelectorAll("details").forEach(detail => { detail.open = false; });
-    scene()?.setPointerEnabled(false);
+    setSceneInputEnabled(false);
     if (!panel.open) panel.showModal();
     explore.setAttribute("aria-expanded", "true");
     title.focus();
@@ -53,7 +58,7 @@ export function createExplorePanel({ studio, mount, reducedMotion, signal, scene
       panel.classList.remove("is-closing");
       panel.close();
       explore.setAttribute("aria-expanded", "false");
-      scene()?.setPointerEnabled(true);
+      setSceneInputEnabled(isRoom());
       if (restoreFocus && isRoom()) explore.focus();
     };
     if (immediate || reducedMotion.matches) finish();
@@ -75,8 +80,10 @@ export function createExplorePanel({ studio, mount, reducedMotion, signal, scene
     }
   }
 
-  function sceneAvailability(ready: boolean) {
-    tabs.filter(tab => tab.dataset.studioTab !== "places").forEach(tab => { tab.hidden = !ready; });
+  function sceneAvailability(value: boolean) {
+    ready = value;
+    settings.hidden = !ready || mobile.matches;
+    tabs.filter(tab => tab.dataset.studioTab !== 'places').forEach(tab => { tab.hidden = !ready; });
     status.hidden = ready;
     if (!ready) selectTab("places");
   }
@@ -87,6 +94,14 @@ export function createExplorePanel({ studio, mount, reducedMotion, signal, scene
   }
 
   explore.addEventListener("click", open, { signal });
+  settings.addEventListener('click', () => { selectTab('view'); title.focus(); }, { signal });
+  function syncBreakpoint() {
+    explore.setAttribute('aria-label', mobile.matches ? '探索' : '场景设置');
+    settings.hidden = !ready || mobile.matches;
+    if (panel.open) close(true, true);
+  }
+  mobile.addEventListener('change', syncBreakpoint, { signal });
+  syncBreakpoint();
   panel.querySelector("[data-studio-close]")!.addEventListener("click", () => close(), { signal });
   panel.addEventListener("cancel", event => { event.preventDefault(); close(); }, { signal });
   panel.addEventListener("keydown", event => {
@@ -118,8 +133,6 @@ export function createExplorePanel({ studio, mount, reducedMotion, signal, scene
       next.focus();
     }, { signal });
   }
-  mount.addEventListener("pointerup", () => { hint.hidden = true; }, { signal });
-  mount.addEventListener("wheel", () => { hint.hidden = true; }, { signal });
   syncView(DEFAULT_ROOM_VIEW);
 
   return {

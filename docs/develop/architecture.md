@@ -45,6 +45,8 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 
 ## 状态和资源所有权
 
+首页导航由 `StudioNavigation.astro`、`studio-navigation.css` 和 `explorePanel.ts` 独立维护。`InteractiveStudio.astro` 只组合场景挂载区、签名与导航组件；UI 面板通过应用层注入的输入开关回调暂停或恢复场景，不持有 Three.js 对象或 `ScenePort`。内容链接继续发出同一 `StudioIntent`，由应用层决定导航和过场。
+
 工作室实例 Store 持有灯、时钟、抽屉和稳定视角目标。scene 接受幂等设置并持有实际 Mesh/插值。日记 application 控制器负责文章、书签和进入退出；交互层解释 pointerId 与手势；动画层只采样活动时间；场景负责纹理工作集和有效绘制报告。取消返回独立结果，不能触发完成后的导航或书签写入。
 
 海岛环境由 scene 内独立组持有，不进入家具拾取树。程序化沙岛承接原有家具坐标与阴影；水色与沙岛共享岸线参数。海面使用拉格朗日形式的多组 Gerstner 波：从静止质点坐标同时计算水平、垂直位移与切向导数，近岸衰减同时作用于位移和法线；总陡峭度限制在翻折阈值以下。算法参考 [NVIDIA GPU Gems 第一章](https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models)。细浪使用本地打包的 Three.js 示例法线贴图，反光来自程序化天空，不创建额外反射渲染通道。外观参数位于 `src/config/islandAppearance.ts`，取景计算归动画层。海水与现有动效共用一次 RAF 调度，仅在首页和可见过场推进时间；全屏内容、日记稳定阅读、后台时暂停。减少动态效果及轻量恢复模式保留静态海面。环境网格、材质和纹理加入 scene 的统一资源释放集合。

@@ -1,10 +1,9 @@
 import { expect, type Page } from "playwright/test";
-import { test } from './helpers/app';
+import { test, studioSettings } from './helpers/app';
 import { bookCanvas, longBook, phase, visual } from "./helpers/journal";
 
 async function drawerPanel(page: Page) {
-  await page.locator('[data-studio-explore]').focus();
-  await page.keyboard.press('Enter');
+  await studioSettings(page);
   await page.locator('[data-studio-tab="objects"]').click();
   const details = page.locator('.studio-drawers');
   if (!(await details.evaluate(element => (element as HTMLDetailsElement).open))) await details.locator('summary').click();

@@ -1,12 +1,10 @@
 import { expect } from "playwright/test";
-import { test } from './helpers/app';
+import { test, studioDestination } from './helpers/app';
 
 test("studio intent navigates through OS and browser history without a stale transition", async ({ page, isMobile }) => {
   test.skip(isMobile, "Desktop pointer transition is covered here");
   await page.goto("/home");
-  await page.locator("[data-studio-explore]").focus();
-  await page.keyboard.press("Enter");
-  await page.locator('[data-studio-action="computer"]').click();
+  await (await studioDestination(page, 'computer')).click();
   await expect(page).toHaveURL(/\/os$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/home$/);
@@ -95,10 +93,9 @@ test("WebGL failure exposes a journal error with an independent exit", async ({ 
     });
   });
   await page.goto("/home");
-  await page.locator("[data-studio-explore]").focus();
-  await page.keyboard.press("Enter");
+  await expect(page.locator('[data-studio]')).toHaveClass(/is-fallback/, { timeout: 35000 });
   await expect(page.locator(".studio-panel")).toBeVisible();
-  await page.locator('[data-studio-action="diary"]').focus();
+  await (await studioDestination(page, 'diary')).focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/journal$/);
   await expect(page.locator("[data-journal-status]")).toBeVisible();
