@@ -26,10 +26,11 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   let cloudPixels:ImageData;
   let lastReveal=-1;
   let state: CloudState = 'loading', reveal = 0, disposed = false, frame = 0;
-  let width = 1, height = 1, hover = 0, hoverTarget = 0, previous = 0;
+  let width = 1, height = 1, pixelRatio = 1, progress = 0, hover = 0, hoverTarget = 0, previous = 0;
   let pointer = { x: -1, y: -1 }, down: { x: number; y: number } | undefined;
   let dismissal: Animation | undefined;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  root.toggleAttribute('data-suspended', document.hidden);
   function bake() {
     surface.width = width; surface.height = height;
     const ctx = surface.getContext('2d')!;
@@ -39,17 +40,17 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     field.paint(clouds.width, clouds.height, 0, cloudPixels.data, palette.mist);
     clouds.getContext('2d')!.putImageData(cloudPixels, 0, 0);
     ctx.drawImage(clouds, 0, 0, width, height);
-    const fontSize = Math.min(width * .22, height * .29);
-    ctx.font = `600 ${fontSize}px Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // A soft shadow under a thin veil, with no bright edge or embossed outline.
-    ctx.filter = `blur(${Math.max(4, fontSize * .025)}px)`;
-    ctx.fillStyle = `rgba(${palette.titleShadow.join(',')},.18)`; ctx.fillText(root.dataset.title ?? 'Justin', width / 2, height * .5);
+    const fontSize = Math.max(80 * pixelRatio, Math.min(width * .17, 250 * pixelRatio));
+    ctx.font = `600 ${fontSize}px Georgia, serif`; ctx.letterSpacing = `${fontSize * -.045}px`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // Match the original soft title treatment while keeping it in the cloud canvas.
+    ctx.filter = `blur(${9 * pixelRatio}px)`;
+    ctx.fillStyle = `rgba(${palette.titleShadow.join(',')},.13)`; ctx.fillText(root.dataset.title ?? 'Justin', width / 2, height * .5);
     underneath.width = patch.width = width; underneath.height = patch.height = height;
     const under = underneath.getContext('2d')!;
     under.drawImage(surface, 0, 0);
-    under.filter = `blur(${Math.max(2,fontSize * .012)}px)`; under.font=ctx.font;under.textAlign='center';under.textBaseline='middle';
+    under.filter = `blur(${Math.max(2,fontSize * .012)}px)`; under.font=ctx.font;under.letterSpacing=ctx.letterSpacing;under.textAlign='center';under.textBaseline='middle';
     under.fillStyle=`rgba(${palette.titleShadow.join(',')},.055)`;under.fillText(root.dataset.title ?? 'Justin',width/2,height*.5);
-    ctx.filter = 'none';
+    ctx.filter = 'none'; ctx.letterSpacing = '0px';
     lastReveal = -1;
   }
   const smooth = (value:number) => {const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
@@ -64,6 +65,37 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     }
     context!.drawImage(clouds, 0, 0, width, height);
     lastReveal = reveal;
+  }
+  function drawStatus(alpha = 1, blur = 0) {
+    const text = status.textContent ?? '';
+    if (!text) return;
+    const statusRect = status.getBoundingClientRect(), rootRect = root.getBoundingClientRect();
+    const style = getComputedStyle(status);
+    const x = (statusRect.left - rootRect.left + statusRect.width / 2) * pixelRatio;
+    const y = (statusRect.top - rootRect.top + statusRect.height / 2) * pixelRatio;
+    context!.save();
+    context!.globalAlpha = alpha;
+    const statusFontSize = Number.parseFloat(style.fontSize) * pixelRatio;
+    context!.font = `${style.fontWeight} ${statusFontSize}px ${style.fontFamily}`;
+    context!.letterSpacing = `${Number.parseFloat(style.letterSpacing) * pixelRatio}px`;
+    context!.textAlign = 'center'; context!.textBaseline = 'middle';
+    context!.fillStyle = paletteHex(palette.foreground);
+    if (blur > 0) {
+      // Small Gaussian taps also soften text on browsers without Canvas filter support.
+      const weights = [1, 2, 1];
+      for (let row = 0; row < 3; row++) for (let column = 0; column < 3; column++) {
+        context!.globalAlpha = alpha * weights[row] * weights[column] / 16;
+        context!.fillText(text, x + (column - 1) * blur, y + (row - 1) * blur);
+      }
+    } else context!.fillText(text, x, y);
+    context!.restore();
+  }
+  function syncProgressSemantics() {
+    const progressBar = root.querySelector<HTMLElement>('[data-cloud-progress]');
+    if (!progressBar) return;
+    const value = Math.round(progress * 100);
+    progressBar.setAttribute('aria-valuenow', String(value));
+    progressBar.setAttribute('aria-valuetext', `${status.textContent ?? ''}，${value}%`);
   }
   function updatePalette() {
     if(initialPalette||disposed||document.hidden||root.hidden)return;
@@ -101,13 +133,15 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       }
       context.globalCompositeOperation = 'source-over';
     }
+    const statusAlpha = state === 'revealing' ? (reduce.matches ? 0 : 1 - smooth(reveal / .14)) : 1;
+    if (statusAlpha > 0) drawStatus(statusAlpha, state === 'revealing' ? (1 - statusAlpha) * 4 * pixelRatio : 0);
     root.dataset.painted = 'true';
     if (hover !== hoverTarget) requestPaint();
   }
   function requestPaint() { if (!frame && !disposed && !document.hidden) frame = requestAnimationFrame(paint); }
   function resize() {
-    const rect = root.getBoundingClientRect(), scale = Math.min(devicePixelRatio, 1.25);
-    width = Math.max(1, Math.round(rect.width * scale)); height = Math.max(1, Math.round(rect.height * scale));
+    const rect = root.getBoundingClientRect(); pixelRatio = Math.min(devicePixelRatio, 1.25);
+    width = Math.max(1, Math.round(rect.width * pixelRatio)); height = Math.max(1, Math.round(rect.height * pixelRatio));
     canvas.width = width; canvas.height = height; bake(); requestPaint();
   }
   const paletteTimer=initialPalette?undefined:window.setInterval(updatePalette,60_000);
@@ -130,12 +164,13 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   }, { signal: events.signal });
   root.querySelector('[data-cloud-retry]')!.addEventListener('click', onRetry, { signal: events.signal });
   document.addEventListener('visibilitychange', () => {
+    root.toggleAttribute('data-suspended', document.hidden);
     cancelAnimationFrame(frame); frame = 0; previous = 0;
     if (document.hidden) dismissal?.pause();
     else { dismissal?.play(); updatePalette(); requestPaint(); }
   }, { signal: events.signal });
-  window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); frame = 0; previous = 0; if (document.hidden) dismissal?.pause(); }, { signal: events.signal });
-  window.addEventListener('pageshow', () => { updatePalette(); requestPaint(); }, { signal: events.signal });
+  window.addEventListener('pagehide', () => { root.setAttribute('data-suspended', ''); cancelAnimationFrame(frame); frame = 0; previous = 0; dismissal?.pause(); }, { signal: events.signal });
+  window.addEventListener('pageshow', () => { root.toggleAttribute('data-suspended', document.hidden); if (!document.hidden) dismissal?.play(); updatePalette(); requestPaint(); }, { signal: events.signal });
   return {
     setPalette(next:ReturnType<typeof entranceTimePalette>) {
       if(disposed||root.hidden||JSON.stringify(next)===JSON.stringify(palette))return;
@@ -146,16 +181,24 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       root.inert = value === 'revealing' || value === 'dismissing';
       root.tabIndex = value === 'ready' ? 0 : -1;
       root.setAttribute('role', 'region');
-      root.setAttribute('aria-label', value === 'ready' ? `${root.dataset.title}，${root.dataset.readyText}` : value === 'dismissing' ? '工作室已准备' : '网站准备页');
+      root.setAttribute('aria-label', value === 'ready' ? `${root.dataset.title}，${root.dataset.readyText}` : value === 'dismissing' ? '工作室已准备' : `${root.dataset.title}，网站准备页`);
       if(value==='ready')root.setAttribute('aria-keyshortcuts','Enter Space');else root.removeAttribute('aria-keyshortcuts');
       if(value!=='revealing'&&value!=='dismissing')status.textContent = message ?? (value === 'ready' ? root.dataset.readyText! : root.dataset.loadingText!);
+      if (value === 'ready') { progress = 1; root.style.setProperty('--cloud-progress', '1'); }
+      syncProgressSemantics();
       error.hidden = value !== 'error';
       if (value === 'revealing' || value === 'dismissing') { hover = hoverTarget = 0; down = undefined; }
       else { reveal = 0;lastReveal=-1;clouds.getContext('2d')!.clearRect(0,0,clouds.width,clouds.height); }
       if (value === 'ready' && document.activeElement === document.body) root.focus({ preventScroll: true });
       requestPaint();
     },
-    setProgress(value: number) { root.style.setProperty('--cloud-progress', `${Math.max(0, Math.min(1, value)) * 100}%`); },
+    setProgress(value: number) {
+      if (disposed || !Number.isFinite(value)) return;
+      progress = Math.max(0, Math.min(1, value));
+      root.style.setProperty('--cloud-progress', String(progress));
+      syncProgressSemantics();
+      requestPaint();
+    },
     // Called by the scene's active clock, never an independent animation timer.
     setRevealProgress(value: number) { cancelAnimationFrame(frame); frame=0; reveal = value; paint(); },
     dismiss(duration: number) {

@@ -5,10 +5,12 @@ const { title = 'Justin', loadingText = '正在加载场景', readyText = '点�
 ---
 <div class="cloud-entrance" data-cloud-entrance data-state="loading" data-title={title} data-loading-text={loadingText} data-ready-text={readyText} aria-label="网站准备页" aria-busy="true">
   <canvas data-cloud-canvas aria-hidden="true"></canvas>
-  <span class="cloud-entrance__fallback" aria-hidden="true">{title}</span>
   <div class="cloud-entrance__information"><slot /></div>
   <div class="cloud-entrance__footer">
     <span class="cloud-entrance__status" data-cloud-status role="status" aria-live="polite">{loadingText}</span>
+    <div class="cloud-entrance__progress" data-cloud-progress role="progressbar" aria-label="加载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext={`${loadingText}，0%`}>
+      <span class="cloud-entrance__progress-fill"></span>
+    </div>
     <div class="cloud-entrance__error" data-cloud-error hidden>
       <button type="button" data-cloud-retry>重新准备</button>
       <slot name="fallback" />

@@ -19,6 +19,18 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await page.goto('/home?source=entrance#start',{waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
   await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
+  const progressBar=overlay(page).locator('[data-cloud-progress]');
+  await expect(progressBar).toHaveAttribute('role','progressbar');
+  await expect(progressBar).toHaveAttribute('aria-valuenow','40');
+  await expect(progressBar).toHaveAttribute('aria-valuetext','正在准备海面与材质，40%');
+  await expect(progressBar).toBeVisible();
+  await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('transition-property','transform');
+  await expect.poll(()=>progressBar.evaluate(el=>getComputedStyle(el,'::after').animationName)).toBe('cloud-progress-stream');
+  const streamTransform=await progressBar.evaluate(el=>getComputedStyle(el,'::after').transform);
+  await expect.poll(()=>progressBar.evaluate(el=>getComputedStyle(el,'::after').transform)).not.toBe(streamTransform);
+  await expect(overlay(page).locator('.cloud-entrance__fallback')).toHaveCount(0);
+  await expect(page.locator('[data-cloud-status]')).toHaveAttribute('aria-live','polite');
+  await expect(page.locator('[data-cloud-status]')).toHaveCSS('color','rgba(0, 0, 0, 0)');
   const initialPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(initialPalette).toMatch(/^#[\da-f]{6}$/i);
   await overlay(page).click({position:{x:100,y:100}});
@@ -27,6 +39,8 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   releaseInitial();gate=undefined;await ready(page);
   await expect(page.locator('[data-cloud-status]')).toHaveCount(1);
   await expect(page.locator('[data-cloud-status]')).toHaveText('点击拨开云雾');
+  await expect(progressBar).toBeHidden();
+  await expect(progressBar).toHaveAttribute('aria-valuenow','100');
   await expect(page.locator('[data-studio-scene]')).toHaveAttribute('data-render-active','false');
   await page.locator('[data-cloud-entrance]').dispatchEvent('pointerleave');await page.waitForTimeout(1000);
   const before=await page.screenshot();
@@ -41,7 +55,6 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
   const refreshPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(refreshPalette).toMatch(/^#[\da-f]{6}$/i);
-  await expect(page.locator('[data-cloud-status]')).toHaveCSS('background-image',/linear-gradient/);
   await expect.poll(()=>overlay(page).evaluate(el=>Number.parseFloat(getComputedStyle(el).getPropertyValue('--cloud-progress')))).toBeGreaterThan(0);
   releaseRefresh();gate=undefined;await expect(overlay(page)).toHaveAttribute('data-state','dismissing',{timeout:35000});
   await page.waitForTimeout(100);
@@ -77,10 +90,16 @@ for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
 }
 
 test('camera and clouds share progress, survive resize, land without bounce and allow ordinary controls',async({page},info)=>{
+  test.setTimeout(90_000);
   await page.clock.setFixedTime(new Date(2026,9,4,14));await page.goto('/home');await ready(page);
-  await page.clock.install();await page.clock.pauseAt(new Date());
+  await page.clock.install({time:new Date(2026,9,4,14)});await page.clock.pauseAt(new Date(2026,9,4,14,0,1));
   await page.keyboard.press('Enter');await page.keyboard.press('Enter');
-  await page.clock.runFor(350);
+  await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
+  await page.clock.runFor(150);
+  await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
+  await page.screenshot({path:info.outputPath('prompt-dissolving.png')});
+  await page.clock.runFor(200);
+  await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
   await page.screenshot({path:info.outputPath('far-B.png')});
   await page.clock.runFor(700);
   await page.screenshot({path:info.outputPath('mid-reveal.png')});
@@ -122,6 +141,7 @@ test('WebGL denial exposes independent retry and usable content exits',async({pa
     HTMLCanvasElement.prototype.getContext=function(this:HTMLCanvasElement,type:string,...args:unknown[]){return /webgl/.test(type)?null:Reflect.apply(original,this,[type,...args]);} as typeof original;
   });
   await page.goto('/home');await expect(overlay(page)).toHaveAttribute('data-state','error');
+  await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
   await expect(page.locator('[data-cloud-retry]')).toBeVisible();
   expect(await page.evaluate(()=>sessionStorage.getItem('justin-entrance-completed'))).toBeNull();
   await page.locator('[data-cloud-error] a[href*="/os"]').click();
@@ -141,6 +161,8 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const demo=`${paletteSource}\n${fieldSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
+    window.cloudCanvasText=[];const originalFillText=CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.cloudCanvasText.push(String(text));return Reflect.apply(originalFillText,this,[text,...args]);};
     root.querySelector('.cloud-entrance__information').innerHTML='<button data-cloud-no-enter>个人信息</button>';
     window.enterCount=0;window.cloud=createCloudEntrance(root,()=>{window.enterCount++;},()=>{});
     window.cloud.setProgress(.4);window.cloud.setState('loading');`;
@@ -150,15 +172,66 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   await page.setContent(htmlDocument);
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
   await expect(overlay(page)).toHaveAttribute('data-painted','true');
+  await expect(overlay(page).locator('.cloud-entrance__fallback')).toHaveCount(0);
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasText').includes('Justin'))).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasText').includes('正在加载场景'))).toBe(true);
   const entrance=overlay(page);
+  const progressBar=entrance.locator('[data-cloud-progress]');
+  await expect(progressBar).toHaveAttribute('aria-valuenow','40');
+  await expect(progressBar).toHaveAttribute('aria-valuetext','正在加载场景，40%');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('transition-property','transform');
+  await expect.poll(()=>progressBar.evaluate(el=>getComputedStyle(el,'::after').animationName)).toBe('cloud-progress-stream');
   expect(await entrance.evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim())).toBe('#161e2e');
   await page.screenshot({path:info.outputPath('standalone-night.png')});
+  await page.evaluate(()=>Reflect.get(window,'cloud').setProgress(0));
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve(undefined))));
+  await page.evaluate(()=>Reflect.get(window,'cloud').setProgress(.8));
+  await expect(progressBar).toHaveAttribute('aria-valuenow','80');
+  const widths=await progressBar.evaluate(async bar=>{const fill=bar.querySelector('.cloud-entrance__progress-fill')!;const samples:number[]=[];for(let i=0;i<10;i++){samples.push(fill.getBoundingClientRect().width);await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));}return samples;});
+  expect(widths.at(-1)).toBeGreaterThan(widths[0]);
+  expect(new Set(widths).size).toBeGreaterThan(6);
+  // Target changes must preserve the water animation objects and their phase.
+  await page.evaluate(()=>Reflect.set(window,'waterAnimations',document.querySelector('[data-cloud-progress]')!.getAnimations({subtree:true}).filter(a=>a instanceof CSSAnimation)));
+  expect(await page.evaluate(()=>Reflect.get(window,'waterAnimations').length)).toBe(2);
+  for (const value of [0,.2,.8]) {
+    await page.evaluate(value=>Reflect.get(window,'cloud').setProgress(value),value);
+    await expect(progressBar).toHaveAttribute('aria-valuenow',String(value*100));
+    expect(await progressBar.evaluate(bar=>bar.getAnimations({subtree:true}).filter(a=>a instanceof CSSAnimation).every((a,i)=>a===Reflect.get(window,'waterAnimations')[i]))).toBe(true);
+    const frames=await progressBar.evaluate(async bar=>{const before=getComputedStyle(bar,'::after').transform;await new Promise(resolve=>setTimeout(resolve,100));return [before,getComputedStyle(bar,'::after').transform];});
+    expect(frames[0]).not.toBe(frames[1]);
+  }
+  await page.waitForTimeout(850);
+  expect(await progressBar.evaluate(bar=>bar.querySelector('.cloud-entrance__progress-fill')!.getBoundingClientRect().width/bar.getBoundingClientRect().width)).toBeCloseTo(.8,2);
+  for (const event of ['pagehide','pageshow']) {
+    await page.evaluate(event=>window.dispatchEvent(new Event(event)),event);
+    await expect.poll(()=>progressBar.evaluate(bar=>getComputedStyle(bar,'::after').animationName)).toBe(event==='pagehide'?'none':'cloud-progress-stream');
+    await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('will-change',event==='pagehide'?'auto':'transform');
+  }
+  await page.evaluate(()=>Reflect.get(window,'cloud').setState('error','准备中断'));
+  await expect(progressBar).toBeHidden();
+  await expect.poll(()=>progressBar.evaluate(bar=>getComputedStyle(bar,'::after').animationName)).toBe('none');
+  await page.evaluate(()=>{Reflect.get(window,'cloud').setProgress(0);Reflect.get(window,'cloud').setState('loading');});
+  await expect(progressBar).toHaveAttribute('aria-valuenow','0');
+  await expect.poll(()=>progressBar.evaluate(bar=>getComputedStyle(bar,'::after').animationName)).toBe('cloud-progress-stream');
+  await page.evaluate(()=>Reflect.get(window,'cloud').setState('loading','正在准备首帧'));
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasText').includes('正在准备首帧'))).toBe(true);
   await page.clock.setFixedTime(new Date(2026,9,5,12));
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
   expect(await entrance.evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim())).toBe('#c6d0d2');
   await page.screenshot({path:info.outputPath('standalone-day.png')});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('animation-name','none');
+  await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('transition-duration','0s');
+  for (const pseudo of ['::before','::after']) {
+    await expect.poll(()=>progressBar.evaluate((bar,pseudo)=>getComputedStyle(bar,pseudo).animationName,pseudo)).toBe('none');
+    await expect.poll(()=>progressBar.evaluate((bar,pseudo)=>getComputedStyle(bar,pseudo).willChange,pseudo)).toBe('auto');
+  }
   await page.evaluate(()=>Reflect.get(window,'cloud').setState('ready'));
   await ready(page);
+  await expect(progressBar).toBeHidden();
+  await expect(progressBar).toHaveAttribute('aria-valuenow','100');
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasText').includes('点击拨开云雾'))).toBe(true);
   await page.getByRole('button',{name:'个人信息'}).click();
   expect(await page.evaluate(()=>Reflect.get(window,'enterCount'))).toBe(0);
   await overlay(page).focus();await page.keyboard.press('Space');
@@ -171,7 +244,8 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
     Reflect.get(window, 'cloud').setState('revealing');
     Reflect.get(window, 'cloud').setRevealProgress(0);
   });
-  expect(await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL())).toBe(initial);
+  await expect(progressBar).toBeHidden();
+  expect(await page.locator('[data-cloud-canvas]').evaluate(canvas => (canvas as HTMLCanvasElement).toDataURL())).not.toBe(initial);
   for (const [label, hour] of [['day', 12], ['night', 1], ['dawn', 6], ['dusk', 18]] as const) {
     await page.clock.setFixedTime(new Date(2026, 9, 5, hour));
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -180,6 +254,8 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
       await page.screenshot({path:info.outputPath(`cloud-${label}-${progress}.png`)});
     }
   }
+  await page.evaluate(()=>Reflect.get(window,'cloud').dismiss(0));
+  await expect(progressBar).toBeHidden();
   await page.evaluate(()=>Reflect.get(window,'cloud').dispose());
   expect(await page.locator('[data-cloud-canvas]').evaluate(canvas=>(canvas as HTMLCanvasElement).width)).toBe(0);
 });
