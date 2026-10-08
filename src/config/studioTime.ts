@@ -25,9 +25,9 @@ const stops = [
   { altitude:-6, morning:[0x294776,0xc3949e,0xb0a6b5,0x827e95], evening:[0x283451,0xc78569,0xb2a09e,0x8a7884] },
   { altitude:0, morning:[0x487caf,0xf5cba0,0xe8ccc0,0xc4b5b0], evening:[0x496b99,0xffc767,0xf1c598,0xc7aa88] },
   { altitude:6, morning:[0x438bc3,0xf8ddac,0xf5e3ca,0xe1d5bd], evening:[0x4083b4,0xffd477,0xffdfa6,0xe6ce9f] },
-  { altitude:18, morning:[0x287fb9,0xb5dbea,0xe4eaf0,0xc8dbe3], evening:[0x2d80b9,0xf0d6ac,0xf5e4c9,0xded4bd] },
-  { altitude:45, morning:[0x1975b6,0x9ccfe8,0xe4edf4,0xcddfe7], evening:[0x1975b6,0x9ccfe8,0xe4edf4,0xcddfe7] },
-  { altitude:90, morning:[0x126bae,0x8bc7e5,0xebf2f7,0xd9e5eb], evening:[0x126bae,0x8bc7e5,0xebf2f7,0xd9e5eb] },
+  { altitude:18, morning:[0x4786af,0xbcd8e2,0xe4e9ec,0xcbdadd], evening:[0x4b86af,0xebd6b3,0xf2e4cd,0xdcd0bd] },
+  { altitude:45, morning:[0x387aaa,0xa9cfe0,0xe5ecef,0xcddde1], evening:[0x387aaa,0xa9cfe0,0xe5ecef,0xcddde1] },
+  { altitude:90, morning:[0x2f71a2,0x9dc8dd,0xeaf0f2,0xd7e2e6], evening:[0x2f71a2,0x9dc8dd,0xeaf0f2,0xd7e2e6] },
 ] as const;
 
 export function environmentAt(date = new Date(), observer: Observer = studioObservatory): EnvironmentSnapshot {
@@ -53,7 +53,7 @@ export function environmentAt(date = new Date(), observer: Observer = studioObse
     daylight, background:css(mist), foreground:css(foreground), sky, sun,
     sunIntensity:2.5*daylightPower*smooth(0,4,h),
     moonIntensity:.2*illumination.fraction*smooth(0,12,lunar.altitude)*(1-daylight),
-    ambientIntensity:.23+daylight*.95,
+    ambientIntensity:.23+daylight*.65,
     lampIntensity:7-5.8*daylightPower, screenSpillIntensity:.08*(1-daylight)**2,
     sunDirection:celestialDirection(solar.azimuth,h),moonDirection:celestialDirection(lunar.azimuth,lunar.altitude),
     zenith,horizon,sunset:golden,
