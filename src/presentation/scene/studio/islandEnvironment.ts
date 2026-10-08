@@ -208,11 +208,14 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
           vec2 crossed=mat2(0.34,0.94,-0.94,0.34)*p;
           vec3 c=texture2D(normalMap,crossed/41.3+warp.yx+vec2(time*0.002,time*0.001)).xyz*2.0-1.0;
           float windStrength=0.8+0.2*noise(p*0.18+time*0.015);
-          windSlopes=(a.xy*0.50+mat2(0.8,0.6,-0.6,0.8)*b.xy*0.32+mat2(0.34,-0.94,0.94,0.34)*c.xy*0.18)*0.55*windStrength;
+          // Keep fine ripples near the viewer; daylight and distance soften their reflected contrast.
+          float rippleStrength=mix(.55,.22*mix(1.0,.35,smoothstep(.08,.8,footprint)),daylight);
+          windSlopes=(a.xy*0.50+mat2(0.8,0.6,-0.6,0.8)*b.xy*0.32+mat2(0.34,-0.94,0.94,0.34)*c.xy*0.18)*rippleStrength*windStrength;
         }
         vec3 normal = normalize(geometricNormal+vec3(windSlopes.x,0.0,windSlopes.y)*shoreCalm);
         vec3 view = normalize(cameraPosition - vWorld);
-        float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(view, normal), 0.0), 5.0);
+        // ponytail: bounded daytime reflection approximates rough-water scattering; use a filtered BRDF if optical accuracy is required.
+        float fresnel = 0.02 + mix(.98,.45,daylight) * pow(1.0 - max(dot(view, normal), 0.0), 5.0);
         vec3 reflected = reflect(-view,normal);
         vec3 reflectedSky = skyRadiance(reflected,0.0);
         vec3 base = mix(shallow,deep,depth);
