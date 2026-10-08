@@ -12,6 +12,13 @@ test('edge navigation adapts at the breakpoint and keeps the compact panel withi
     await page.setViewportSize({ width, height });
     await expect(trigger).toHaveAccessibleName(width <= 640 ? '探索' : '场景设置');
     await expect(page.locator('.studio-direct-links')).toBeVisible({ visible: width > 640 });
+    if (width > 640) {
+      const bar = (await page.locator('.studio-topbar').boundingBox())!;
+      const signature = (await page.locator('.studio-signature').boundingBox())!;
+      expect(bar.y).toBe(8);
+      expect(height - signature.y - signature.height).toBe(bar.y);
+      expect(signature.height).toBe(bar.height);
+    }
     await trigger.click();
     await expect(panel).toBeVisible();
     if (width <= 640) {
@@ -71,4 +78,33 @@ test('modal focus and outside dismissal isolate scene input; settings and naviga
   await studioSettings(page);
   await page.locator('[data-studio-tab="objects"]').click();
   await expect(lamp).toHaveAttribute('aria-checked', 'false');
+});
+
+test('signature fades only the desktop menu and leaves mobile exploration usable', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop toggle; the same test resizes into mobile');
+  await page.goto('/home');
+  const toggle = page.locator('[data-studio-menu-toggle]'), menu = page.locator('[data-home-menu]');
+  await expect(menu).toHaveCSS('opacity', '1');
+  const signature = await page.locator('.studio-signature').boundingBox();
+  await toggle.click();
+  await expect(menu).toHaveAttribute('inert', '');
+  await expect(menu).toHaveCSS('opacity', '0');
+  await expect(toggle).toBeVisible();
+  expect(await page.locator('.studio-signature').boundingBox()).toEqual(signature);
+  await toggle.press('Enter');
+  await expect(menu).toHaveCSS('opacity', '1');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await toggle.focus();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(toggle).toBeHidden();
+  await expect(page.locator('.studio-mobile-signature')).toBeVisible();
+  await expect(page.locator('[data-studio-explore]')).toBeFocused();
+  await page.locator('[data-studio-explore]').click();
+  await expect(page.locator('.studio-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(menu).toHaveCSS('opacity', '0');
+  await toggle.click();
+  await expect(menu).toHaveCSS('opacity', '1');
 });

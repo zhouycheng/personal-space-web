@@ -2,6 +2,7 @@
 import { ACTION_LABELS, DIARY_URL } from "../../../contracts/studio";
 import "./studio-navigation.css";
 import BgmControls from '../music/BgmControls.astro';
+import HomeProfile from '../music/HomeProfile.astro';
 const destinations = [
   {action:"works",href:"/works",title:"作品"},
   {action:"canvas",href:"/canvas",title:"画布"},
@@ -9,7 +10,9 @@ const destinations = [
   {action:"computer",href:"/os",title:"OS"},
 ];
 ---
-  <nav class="studio-navigation" aria-label="首页导航">
+  <header class="studio-topbar" id="studio-home-menu" data-home-menu inert>
+    <HomeProfile />
+    <nav class="studio-navigation" aria-label="首页导航">
     <div class="studio-direct-links">
       {destinations.map(item => <a href={item.href} data-studio-action={item.action}>{item.title}</a>)}
     </div>
@@ -17,7 +20,8 @@ const destinations = [
       <span class="studio-mobile-menu" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6z"/></svg>探索 <span>↑</span></span>
       <svg class="studio-desktop-settings" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
     </button>
-  </nav>
+    </nav>
+  </header>
   <dialog class="studio-panel" id="studio-explore-panel" aria-labelledby="studio-panel-title">
     <header class="studio-panel-header">
       <h2 id="studio-panel-title" tabindex="-1">目录</h2>

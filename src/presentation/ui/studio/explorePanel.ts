@@ -21,7 +21,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     '[data-studio-action^="zoom-"],[data-studio-action^="view-"],[data-studio-action="reset-view"]',
   )];
   let closeTimer = 0;
-  let backdropDown = false;
+  let backdropDown: { x: number; y: number } | undefined;
   let ready = false;
 
   function selectTab(id: string) {
@@ -48,7 +48,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     setSceneInputEnabled(false);
     if (!panel.open) panel.showModal();
     explore.setAttribute("aria-expanded", "true");
-    title.focus();
+    title.focus({ preventScroll: true });
   }
 
   function close(restoreFocus = true, immediate = false) {
@@ -59,7 +59,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
       panel.close();
       explore.setAttribute("aria-expanded", "false");
       setSceneInputEnabled(isRoom());
-      if (restoreFocus && isRoom()) explore.focus();
+      if (restoreFocus && isRoom()) explore.focus({ preventScroll: true });
     };
     if (immediate || reducedMotion.matches) finish();
     else {
@@ -94,8 +94,9 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   }
 
   explore.addEventListener("click", open, { signal });
-  settings.addEventListener('click', () => { selectTab(ready?'view':'music'); title.focus(); }, { signal });
+  settings.addEventListener('click', () => { selectTab(ready?'view':'music'); title.focus({ preventScroll: true }); }, { signal });
   function syncBreakpoint() {
+    if (mobile.matches && document.activeElement?.closest('[data-bgm-desktop]')) explore.focus({ preventScroll: true });
     explore.setAttribute('aria-label', mobile.matches ? '探索' : '场景设置');
     settings.hidden = mobile.matches;
     if (panel.open) close(true, true);
@@ -115,10 +116,12 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
       event.preventDefault(); first?.focus();
     }
   }, { signal });
-  panel.addEventListener("pointerdown", event => { backdropDown = event.target === panel && outsidePanel(event); }, { signal });
+  panel.addEventListener("pointerdown", event => {
+    backdropDown = event.target === panel && outsidePanel(event) ? { x: event.clientX, y: event.clientY } : undefined;
+  }, { signal });
   panel.addEventListener("click", event => {
-    if (backdropDown && event.target === panel && outsidePanel(event)) close();
-    backdropDown = false;
+    if (backdropDown && event.target === panel && outsidePanel(event) && Math.hypot(event.clientX - backdropDown.x, event.clientY - backdropDown.y) <= 6) close();
+    backdropDown = undefined;
   }, { signal });
   for (const tab of tabs) {
     tab.addEventListener("click", () => selectTab(tab.dataset.studioTab!), { signal });

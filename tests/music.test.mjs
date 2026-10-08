@@ -48,8 +48,8 @@ test('profile subscribes only on visible desktop home and shows only current act
   const win = new EventTarget(), doc = Object.assign(new EventTarget(), { hidden: false });
   const media = Object.assign(new EventTarget(), { matches: false });
   let changed, update, hidden = true, active = 0, opened = 0;
-  const bubble = { hidden: true }, label = {}, root = { dataset: {}, isConnected: true, parentElement: null,
-    closest: () => hidden ? root : null, querySelector: selector => selector === '.profile-bubble' ? bubble : label };
+  const label = { hidden: true }, bubble = label, root = { dataset: {}, isConnected: true, parentElement: null,
+    closest: () => hidden ? root : null, querySelector: () => label };
   win.subscribeProfileFixture = listener => { active++; opened++; update = listener; listener({ status: 'loading' }); return () => { active--; }; };
   Object.assign(globalThis, { window: win, document: doc, matchMedia: () => media,
     MutationObserver: class { constructor(callback) { changed = callback; } observe() {} disconnect() {} } });
