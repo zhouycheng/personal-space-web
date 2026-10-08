@@ -1,5 +1,5 @@
 import { expect } from "playwright/test";
-import { test } from './helpers/app';
+import { test, studioDestination } from './helpers/app';
 import { bookCanvas, drag, longBook, manifest, phase, serveBook, visual } from "./helpers/journal";
 
 test("T23–T26 article URLs, refresh, legacy redirects and invalid slugs", async ({ page }, info) => {
@@ -133,9 +133,7 @@ test("T30 failed textures keep an independent exit and recover on explicit retry
 
 test("T27 latest route wins when navigation interrupts journal preparation", async ({ page }) => {
   await page.goto("/home");
-  await page.locator("[data-studio-explore]").focus();
-  await page.keyboard.press("Enter");
-  await page.locator('[data-studio-action="diary"]').click();
+  await (await studioDestination(page, 'diary')).click();
   await expect(page).toHaveURL(/\/journal$/);
   await page.evaluate(() => { history.pushState({}, "", "/canvas"); dispatchEvent(new PopStateEvent("popstate")); });
   await expect(page.locator("[data-studio]")).toHaveAttribute("data-state", "canvas");

@@ -1,0 +1,79 @@
+---
+import { ACTION_LABELS, DIARY_URL } from "../../../contracts/studio";
+import "./studio-navigation.css";
+const destinations = [
+  {action:"works",href:"/works",title:"作品"},
+  {action:"canvas",href:"/canvas",title:"画布"},
+  {action:"diary",href:DIARY_URL,title:"日记"},
+  {action:"computer",href:"/os",title:"OS"},
+];
+---
+  <nav class="studio-navigation" aria-label="首页导航">
+    <div class="studio-direct-links">
+      {destinations.map(item => <a href={item.href} data-studio-action={item.action}>{item.title}</a>)}
+    </div>
+    <button class="studio-menu-trigger" data-studio-explore aria-label="场景设置" aria-haspopup="dialog" aria-controls="studio-explore-panel" aria-expanded="false">
+      <span class="studio-mobile-menu" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6z"/></svg>探索 <span>↑</span></span>
+      <svg class="studio-desktop-settings" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
+    </button>
+  </nav>
+  <dialog class="studio-panel" id="studio-explore-panel" aria-labelledby="studio-panel-title">
+    <header class="studio-panel-header">
+      <h2 id="studio-panel-title" tabindex="-1">目录</h2>
+      <button class="studio-panel-close" data-studio-close aria-label="关闭面板">×</button>
+    </header>
+    <div class="studio-panel-tabs" role="tablist" aria-label="场景设置" hidden>
+      {[["places","去逛逛"],["view","视角"],["objects","摆件"]].map(([id,label]) =>
+        <button id={`studio-tab-${id}`} role="tab" aria-controls={`studio-pane-${id}`} aria-selected={id==="view"?"true":"false"} tabindex={id==="view"?0:-1} data-studio-tab={id}>{label}</button>)}
+    </div>
+    <div class="studio-panel-content">
+      <section id="studio-pane-places" role="tabpanel" aria-labelledby="studio-tab-places">
+        <p class="studio-panel-status" data-studio-panel-status role="status">正在布置工作室…</p>
+        <button type="button" data-studio-retry hidden>重试三维场景</button>
+        <nav class="studio-destinations" aria-label="内容入口">
+          {destinations.map(item => <a href={item.href} data-studio-action={item.action}>
+            <span>{item.title}</span><span class="studio-chevron" aria-hidden="true">›</span>
+          </a>)}
+        </nav>
+        <button class="studio-settings-entry" data-studio-settings hidden>场景设置 <span aria-hidden="true">›</span></button>
+        <details class="studio-panel-details studio-diagnostics" data-studio-diagnostics hidden>
+          <summary>场景诊断 <span aria-hidden="true">›</span></summary>
+          <textarea readonly aria-label="场景诊断详情" rows="8"></textarea>
+          <button type="button">复制诊断信息</button>
+        </details>
+      </section>
+      <section id="studio-pane-view" role="tabpanel" aria-labelledby="studio-tab-view" hidden>
+        <div class="studio-zoom">
+          <h3>缩放</h3>
+          <div class="studio-zoom-stepper">
+            <button data-studio-action="zoom-out" aria-label={ACTION_LABELS["zoom-out"]}>−</button>
+            <output data-studio-zoom tabindex="-1" aria-live="polite" aria-label="场景倍率">1.00×</output>
+            <button data-studio-action="zoom-in" aria-label={ACTION_LABELS["zoom-in"]}>+</button>
+          </div>
+          <p>0.85× — 2.2×</p>
+        </div>
+        <button class="studio-reset" data-studio-action="reset-view">重置视角</button>
+        <details class="studio-panel-details">
+          <summary>转动视角 <span aria-hidden="true">›</span></summary>
+          <div class="studio-directions">
+            {[["left","←","左"],["right","→","右"],["up","↑","上"],["down","↓","下"]].map(([direction,arrow,label]) =>
+              <button data-studio-action={`view-${direction}`} aria-label={ACTION_LABELS[`view-${direction}` as keyof typeof ACTION_LABELS]}><span aria-hidden="true">{arrow}</span>{label}</button>)}
+          </div>
+        </details>
+      </section>
+      <section id="studio-pane-objects" role="tabpanel" aria-labelledby="studio-tab-objects" hidden>
+        <div class="studio-object-row"><span>台灯</span><button class="studio-switch" data-studio-action="lamp" role="switch" aria-checked="true" aria-label="台灯开关"><span></span></button></div>
+        <div class="studio-object-row"><span>电子钟</span><div class="studio-clock-options" role="group" aria-label="电子钟显示">
+          <button data-studio-clock="time" aria-pressed="true">时间</button><button data-studio-clock="date" aria-pressed="false">日期</button>
+        </div></div>
+        <details class="studio-panel-details studio-drawers">
+          <summary>抽屉 <span aria-hidden="true">›</span></summary>
+          {["top","middle","bottom"].map((layer,index) => <div class="studio-drawer-row">
+            <span>{["第一层","第二层","第三层"][index]}</span><span class="studio-drawer-status" data-drawer-status={layer}>已关闭</span>
+            <button data-studio-action={`drawer-${layer}`} aria-label={`打开${["第一层","第二层","第三层"][index]}抽屉`} aria-expanded="false">打开</button>
+          </div>)}
+        </details>
+        <div class="studio-object-row"><span>摇椅</span><button class="studio-chair-button" data-studio-action="chair">前后摇一摇</button></div>
+      </section>
+    </div>
+  </dialog>

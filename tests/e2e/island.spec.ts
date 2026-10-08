@@ -1,5 +1,6 @@
 import { expect } from "playwright/test";
-import { test } from './helpers/app';
+import { test, studioDestination, studioSettings } from './helpers/app';
+import type { StudioAction } from '../../src/contracts/studio';
 import { phase } from "./helpers/journal";
 
 test('ocean animates only in the visible home and respects reduced motion', async ({ page }, info) => {
@@ -23,8 +24,7 @@ test('ocean animates only in the visible home and respects reduced motion', asyn
   await page.emulateMedia({reducedMotion:'no-preference'});
   await expect(mount).toHaveAttribute('data-ocean-active','true');
   for(const [action,state] of [['computer','desktop'],['canvas','canvas'],['works','room'],['diary','journal']]) {
-    await page.locator('[data-studio-explore]').focus();await page.keyboard.press('Enter');
-    await page.locator(`[data-studio-action="${action}"]`).click();
+    await (await studioDestination(page, action as StudioAction)).click();
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state',state);
     await expect(mount).toHaveAttribute('data-ocean-active','false');
     if(action==='diary') {
@@ -54,7 +54,7 @@ test('sea background dragging cannot activate furniture; zoom and reset preserve
   await expect.poll(async()=>Number(await mount.getAttribute('data-camera-zoom'))).toBeGreaterThan(1.1);
   await page.waitForTimeout(400);
   await page.screenshot({path:info.outputPath('island-close.png')});
-  await page.locator('[data-studio-explore]').focus();await page.keyboard.press('Enter');
+  await studioSettings(page);
   await page.locator('[data-studio-tab="view"]').click();
   await page.locator('[data-studio-action="reset-view"]').click();
   await page.locator('[data-studio-close]').click();
