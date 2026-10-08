@@ -110,7 +110,7 @@ test('astronomical lighting follows Shanghai daylight and remains continuous at 
     [0, 0.23, 7, 0.08],
   );
   assert.equal(at(12).sunIntensity, 2.5);
-  assert.ok(Math.abs(at(12).ambientIntensity - 1.18) < 1e-12);
+  assert.ok(Math.abs(at(12).ambientIntensity - 0.88) < 1e-12);
   assert.ok(Math.abs(at(12).lampIntensity - 1.2) < 1e-12);
   assert.equal(at(12).screenSpillIntensity, 0);
   assert.ok(at(5, 30).daylight < at(6).daylight);
