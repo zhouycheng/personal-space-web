@@ -1,18 +1,22 @@
 .cloud-entrance {
   position: fixed; inset: 0; z-index: 1000; overflow: hidden; isolation: isolate;
   background: var(--cloud-entrance-background, var(--environment-background, #c6d0d2)); color: var(--cloud-entrance-foreground, var(--environment-foreground, #657a80)); font-family: ui-sans-serif, system-ui, sans-serif;
-  --cloud-progress: 0%; touch-action: manipulation;
+  --cloud-progress: 0; touch-action: manipulation;
 }
 .cloud-entrance[hidden] { display: none; }
 .cloud-entrance canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.cloud-entrance__fallback { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font: 600 clamp(80px,17vw,250px)/1 Georgia,serif; letter-spacing: -.045em; opacity: .13; filter: blur(9px); }
-.cloud-entrance[data-painted] .cloud-entrance__fallback { display: none; }
 .cloud-entrance__information { position: absolute; inset: 58% 10% auto; text-align: center; }
 .cloud-entrance__footer { position: absolute; bottom: max(7.5%, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; }
-.cloud-entrance__status { font-size: 13px; letter-spacing: .22em; line-height: 2; }
-.cloud-entrance:is([data-state="loading"],[data-state="dismissing"]) .cloud-entrance__status {
-  color: transparent; background: linear-gradient(to right,var(--cloud-entrance-progress, #637b82) var(--cloud-progress),var(--cloud-entrance-progress-pending, #9aaeb3) var(--cloud-progress)); background-clip: text; -webkit-background-clip: text;
-}
+.cloud-entrance__status { color: transparent; -webkit-text-fill-color: transparent; background: none; font-size: 16px; font-weight: 700; letter-spacing: .14em; line-height: 1.65; }
+.cloud-entrance__progress { position: relative; width: min(42vw, 220px); height: 4px; margin: 9px auto 0; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--cloud-entrance-progress-pending, #9aaeb3) 18%, transparent); }
+.cloud-entrance__progress-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--cloud-entrance-progress, #637b82); opacity: .8; transform-origin: left center; transform: scaleX(var(--cloud-progress, 0)); }
+/* Prepainted water streaks move independently of the real progress target. */
+.cloud-entrance__progress::before, .cloud-entrance__progress::after { position: absolute; z-index: 1; inset: 0; content: ""; pointer-events: none; opacity: 0; background: linear-gradient(90deg, transparent 30%, color-mix(in srgb, var(--cloud-entrance-progress, #637b82) 38%, white) 50%, transparent 70%); }
+.cloud-entrance[data-state="loading"]:not([hidden]):not([data-suspended]) .cloud-entrance__progress-fill { transition: transform 800ms cubic-bezier(.22,.61,.36,1); will-change: transform; }
+.cloud-entrance[data-state="loading"]:not([hidden]):not([data-suspended]) .cloud-entrance__progress::before,
+.cloud-entrance[data-state="loading"]:not([hidden]):not([data-suspended]) .cloud-entrance__progress::after { animation: cloud-progress-stream 2.4s linear infinite; will-change: transform, opacity; }
+.cloud-entrance[data-state="loading"]:not([hidden]):not([data-suspended]) .cloud-entrance__progress::after { animation-delay: -1.2s; }
+.cloud-entrance:not([data-state="loading"]) .cloud-entrance__progress { display: none; }
 .cloud-entrance[data-state="ready"] { cursor: pointer; }
 .cloud-entrance[data-state="ready"]:focus-visible { outline: 2px solid var(--cloud-entrance-focus, #71868c); outline-offset: -8px; }
 .cloud-entrance[data-state="revealing"] { background: transparent; cursor: default; }
@@ -21,5 +25,6 @@
 .cloud-entrance__error { margin-top: 12px; font-size: 13px; }
 .cloud-entrance__error[hidden] { display: none; }
 .cloud-entrance__error :is(a,button) { margin: 0 8px; padding: 6px; color: inherit; background: transparent; border: 0; text-decoration: underline; font: inherit; cursor: pointer; }
-@media (max-width: 600px) { .cloud-entrance__status { font-size: 12px; } }
-@media (prefers-reduced-motion: reduce) { .cloud-entrance * { transition: none !important; } }
+@keyframes cloud-progress-stream { 0% { transform: translateX(-70%); opacity: 0; } 20%,80% { opacity: .25; } 100% { transform: translateX(70%); opacity: 0; } }
+@media (max-width: 600px) { .cloud-entrance__status { font-size: 14px; } .cloud-entrance__progress { width: min(56vw, 200px); height: 4px; margin-top: 7px; } }
+@media (prefers-reduced-motion: reduce) { .cloud-entrance *, .cloud-entrance *::before, .cloud-entrance *::after { transition: none !important; animation: none !important; will-change: auto !important; } }
