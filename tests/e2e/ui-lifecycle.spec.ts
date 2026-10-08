@@ -1,5 +1,5 @@
 import { expect, type Page } from 'playwright/test';
-import { test } from './helpers/app';
+import { test, studioDestination } from './helpers/app';
 
 test.use({ reducedMotion: 'reduce' });
 
@@ -46,9 +46,7 @@ test('canvas stops its activity subscription immediately and restores memory-onl
   await page.clock.fastForward(60_100);
   await expect(page.locator('.react-flow')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).lifecycleStreams.opened)).toBe(1);
-  await page.locator('[data-studio-explore]').focus();
-  await page.keyboard.press('Enter');
-  await page.locator('[data-studio-action="canvas"]').click();
+  await (await studioDestination(page, 'canvas')).click();
   await page.clock.runFor(100);
   await expect(page.locator('.react-flow__node').first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).lifecycleStreams.opened)).toBe(2);

@@ -53,7 +53,7 @@ try {
     await sample('idle',()=>page.waitForTimeout(2200));
     await sample('orbit',async()=>{await page.mouse.move(680,450);await page.mouse.down();for(let i=0;i<=60;i++){const t=i/60*Math.PI*2;await page.mouse.move(680+Math.sin(t)*180,450+Math.sin(t)*55);await page.waitForTimeout(16);}await page.mouse.up();await page.waitForTimeout(500);});
     await sample('zoom',async()=>{for(let i=0;i<30;i++){await page.mouse.move(660+i*6,590+i%4*4);await page.mouse.wheel(0,i<15?-14:14);}await page.waitForTimeout(500);});
-    await sample('entryReturn',async()=>{await page.locator('[data-studio-explore]').focus();await page.keyboard.press('Enter');await page.locator('[data-studio-action="computer"]').click();await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='desktop');await page.locator('[data-studio-return]').click();await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='room');});
+    await sample('entryReturn',async()=>{await page.locator('.studio-direct-links [data-studio-action="computer"]').click();await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='desktop');await page.locator('[data-studio-return]').click();await page.waitForFunction(()=>document.querySelector('[data-studio]').dataset.state==='room');});
     if(repeat===1){
       await page.emulateMedia({reducedMotion:'reduce'});
       // Freeze at a deterministic zero-wind frame in a fresh page for pixel comparison.

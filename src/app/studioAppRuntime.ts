@@ -47,8 +47,8 @@ function init(shell: HTMLElement) {
   let stopRecovery = () => {};
   let savedScene:ReturnType<ScenePort["snapshot"]>|undefined;
   const panelController = createExplorePanel({
-    studio, mount, reducedMotion: reduce, signal: events.signal,
-    scene: () => scene,
+    studio, reducedMotion: reduce, signal: events.signal,
+    setSceneInputEnabled: enabled => scene?.setPointerEnabled(enabled),
     isRoom: () => !entrance?.covered && model.page === "home" && model.state === "room",
   });
   const panel = panelController.element;
@@ -144,7 +144,7 @@ function init(shell: HTMLElement) {
     studio.classList.add("is-fallback");
     status.hidden = false;
     const retrying=canRetryStudio(error,recoveryAttempted,disposed);
-    status.textContent = retrying?"正在恢复工作室…":error.stage==="context-lost"?"三维场景已暂停，等待恢复…":"三维场景加载失败，可在探索中重试。";
+    status.textContent = retrying?"正在恢复工作室…":error.stage==="context-lost"?"三维场景已暂停，等待恢复…":"三维场景加载失败，可在导航面板中重试。";
     panelStatus.textContent=status.textContent;
     retry.hidden=retrying;
     sceneAvailability(false);
