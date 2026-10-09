@@ -1,0 +1,9 @@
+---
+import './ocean-audio.css';
+---
+<div class="ocean-audio" data-ocean-audio data-state="paused">
+  <div class="studio-object-row"><span>海浪声</span><button type="button" class="studio-switch" data-ocean-toggle role="switch" aria-checked="true" aria-label="海浪声开关"><span></span></button></div>
+  <label class="ocean-audio-volume">音量<input data-ocean-volume type="range" min="0" max="1" step="0.01" value="0.2" aria-label="海浪音量"/><output data-ocean-output>20%</output></label>
+  <p data-ocean-status role="status" hidden></p>
+  <button type="button" class="studio-chair-button" data-ocean-retry hidden>重试海浪声</button>
+</div>
