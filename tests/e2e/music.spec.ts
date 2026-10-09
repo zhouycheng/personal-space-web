@@ -29,6 +29,7 @@ test('explore music controls keep one audio across navigation, pause and recover
   const original=await page.locator('audio').elementHandle();
   await play.click();
   await expect(music).toHaveAttribute('data-playing','true');
+  await expect(page.locator('[data-ocean-audio]')).toHaveAttribute('data-state','playing');
   await page.getByRole('button',{name:'关闭面板',exact:true}).click();
   for (const [action, exit] of [['canvas','[data-canvas-return]'],['works','[data-gallery-return]'],['diary','[data-journal-close]'],['computer','[data-studio-return]']] as const) {
     await (await studioDestination(page,action)).click();
@@ -37,6 +38,7 @@ test('explore music controls keep one audio across navigation, pause and recover
     await expect(page.locator('.home-profile')).toBeHidden();
     expect(await original!.evaluate(el=>el===document.querySelector('audio'))).toBe(true);
     await expect(music).toHaveAttribute('data-playing','true');
+    await expect(page.locator('[data-ocean-audio]')).toHaveAttribute('data-state','paused');
     await page.locator(exit).click();
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state','room');
   }
@@ -156,4 +158,5 @@ test('music remains usable when WebGL fails', async ({ page, isMobile }) => {
     await expect(page.locator('.studio-topbar')).toHaveCSS('color', 'rgb(48, 59, 57)');
   }
   await expect(page.locator('[data-bgm]')).toHaveAttribute('data-playing', 'true');
+  await expect(page.locator('[data-ocean-audio]')).toHaveAttribute('data-state','paused');
 });

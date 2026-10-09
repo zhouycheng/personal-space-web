@@ -23,6 +23,7 @@ import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
 import { createBgmPlayer } from '../presentation/ui/music/bgmRuntime';
 import { createHomeProfile } from '../presentation/ui/music/homeProfile';
 import { createHomeMenu } from '../presentation/ui/studio/homeMenu';
+import { createOceanAudioControls } from '../presentation/ui/music/oceanAudioRuntime';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -57,6 +58,7 @@ function init(shell: HTMLElement) {
   const panel = panelController.element;
   const homeMenu = createHomeMenu(studio, events.signal);
   const music = createBgmPlayer(shell, playing => scene?.setMusicPlaying(playing));
+  const oceanAudio = createOceanAudioControls(shell.querySelector<HTMLElement>('[data-ocean-audio]')!);
   const stopHomeProfile=createHomeProfile(shell.querySelector<HTMLElement>('[data-bgm-desktop]')!);
   const explore = panelController.explore;
   const openExplore = panelController.open;
@@ -130,6 +132,7 @@ function init(shell: HTMLElement) {
     if(disposed || !scenePrepared)return;
     const restored=sceneBlocked;stopRecovery();
     sceneBlocked=false;studio.classList.remove("is-fallback");status.hidden=true;retry.hidden=true;
+    syncOceanAudio();
     if(entrance?.covered){report();return;}
     sceneAvailability(true);scene?.setPointerEnabled(!panel.open);
     mount.dataset.renderActive=String((model.page==="home"||model.page==="journal"||isMoving())&&!document.hidden);
@@ -140,6 +143,7 @@ function init(shell: HTMLElement) {
   function sceneFailed(error:StudioFailure) {
     if(disposed)return;
     report(error);sceneBlocked=true;
+    oceanAudio.setAvailable(false,true);
     if(model.page==='journal')journal.fallback();
     if(isMoving()) {
       // Journal entry still has to activate its independent error/retry UI after loadScene settles.
@@ -164,6 +168,7 @@ function init(shell: HTMLElement) {
     await sceneLoading;
     if(disposed)return;
     stopRecovery();savedScene=model.targets;scene?.dispose();scene=undefined;scenePrepared=false;
+    oceanAudio.setAvailable(false,true);
     sceneBlocked=false;
     retry.hidden=true;status.hidden=false;status.textContent="正在恢复工作室…";
     await loadScene();
@@ -178,7 +183,11 @@ function init(shell: HTMLElement) {
   let osHintShown=false;
   try {osHintShown=localStorage.getItem('justin-os-return-hint')==='seen';}catch {}
   shell.querySelector('[data-os-hint-close]')!.addEventListener('click',()=>{osHint.hidden=true;},{signal:events.signal});
+  function syncOceanAudio() {
+    oceanAudio.setAvailable(model.page==='home'&&model.state==='room'&&scenePrepared&&!sceneBlocked&&!entrance?.covered&&!document.hidden,document.hidden||sceneBlocked);
+  }
   function sync() {
+    syncOceanAudio();
     const musicHome=model.page==='home'&&!isMoving();
     shell.dataset.musicHome=String(musicHome);
     homeMenu.setAvailable(musicHome&&!entrance?.covered);
@@ -415,9 +424,17 @@ function init(shell: HTMLElement) {
     const command = target.dataset.desktopCommand;
     if (command === "open-display-controls" || command === "arrange-icons") window.dispatchEvent(new CustomEvent(`justin-os-desktop:${command}`));
   }, { signal: events.signal });
+  function unlockOceanAudio(event:Event) {
+    if(!event.isTrusted||entrance?.covered||model.page!=='home'||model.state!=='room'||sceneBlocked)return;
+    if(event instanceof KeyboardEvent&&(event.repeat||event.metaKey||event.ctrlKey||event.altKey||!['Enter',' '].includes(event.key)))return;
+    oceanAudio.unlock();
+  }
+  shell.addEventListener('click',unlockOceanAudio,{signal:events.signal});
+  shell.addEventListener('keydown',unlockOceanAudio,{signal:events.signal});
   window.addEventListener("popstate", () => { historyPending = false; void applyRoute(pageForPath(location.pathname)); }, { signal: events.signal });
   document.addEventListener("visibilitychange", sync, { signal: events.signal });
   window.addEventListener("pagehide", event => {
+    oceanAudio.setAvailable(false,true);
     closeExplore(false,true);panelController.dispose();clearInterval(clock);scene?.setActive(false);
     if (!event.persisted) dispose();
   }, { signal: events.signal });
@@ -429,6 +446,7 @@ function init(shell: HTMLElement) {
     if(restoredPage!==currentPage)void applyRoute(restoredPage);else sync();
   }, { signal: events.signal });
   entrance=createEntranceRuntime(shell.querySelector<HTMLElement>('[data-cloud-entrance]')!,{
+    onEnter:()=>oceanAudio.unlock(),
     reducedMotion:reduce,
     palette:environmentNow().palette,
     cancel:()=>{
@@ -501,7 +519,7 @@ function init(shell: HTMLElement) {
   function dispose() {
     if(disposed)return;
     disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
-    for(const cleanup of [stopHomeProfile,()=>music.dispose(),()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
+    for(const cleanup of [stopHomeProfile,()=>music.dispose(),()=>oceanAudio.dispose(),()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}
     }

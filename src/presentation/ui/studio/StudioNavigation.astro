@@ -2,6 +2,7 @@
 import { ACTION_LABELS, DIARY_URL } from "../../../contracts/studio";
 import "./studio-navigation.css";
 import BgmControls from '../music/BgmControls.astro';
+import OceanAudioControls from '../music/OceanAudioControls.astro';
 import HomeProfile from '../music/HomeProfile.astro';
 const destinations = [
   {action:"works",href:"/works",title:"作品"},
@@ -32,7 +33,7 @@ const destinations = [
         <button id={`studio-tab-${id}`} role="tab" aria-controls={`studio-pane-${id}`} aria-selected={id==="view"?"true":"false"} tabindex={id==="view"?0:-1} data-studio-tab={id}>{label}</button>)}
     </div>
     <div class="studio-panel-content">
-      <section id="studio-pane-music" role="tabpanel" aria-labelledby="studio-tab-music" hidden><BgmControls /></section>
+      <section id="studio-pane-music" role="tabpanel" aria-labelledby="studio-tab-music" hidden><BgmControls /><OceanAudioControls /></section>
       <section id="studio-pane-places" role="tabpanel" aria-labelledby="studio-tab-places">
         <p class="studio-panel-status" data-studio-panel-status role="status"></p>
         <button type="button" data-studio-retry hidden>重试三维场景</button>

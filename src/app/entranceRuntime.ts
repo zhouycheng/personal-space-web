@@ -14,6 +14,7 @@ export function createEntranceRuntime(root: HTMLElement, options: {
   cancel(): void;
   sync(): void;
   complete(): void;
+  onEnter?(): void;
   reducedMotion: MediaQueryList;
   palette: EnvironmentPalette;
 }) {
@@ -67,6 +68,7 @@ export function createEntranceRuntime(root: HTMLElement, options: {
   }
   async function enter() {
     if (!blocking || playing || !ready || disposed) return;
+    options.onEnter?.();
     const token = ++version; playing = true; ready = false;
     view.setState('revealing'); options.sync();
     try {
