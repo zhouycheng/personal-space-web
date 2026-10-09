@@ -35,17 +35,6 @@ export const marineWaterGLSL = `
     vec3 transmission=exp(-vec3(.65,.32,.23)*distance*rayScale);
     return mix(waterColor,sampleColor.rgb*transmission+waterColor*(1.-transmission),sampleColor.a*.82);
   }
-  float marineReefDistance(vec2 p) {
-    float d=2.;
-    ${marineReefs.map(r => `{
-      vec2 q=p-vec2(${r.x.toFixed(5)},${r.z.toFixed(5)});
-      if(abs(q.x)<${(Math.max(r.width,r.depth)+.6).toFixed(5)}&&abs(q.y)<${(Math.max(r.width,r.depth)+.6).toFixed(5)}){
-        q=mat2(${Math.cos(r.rotation).toFixed(5)},${(-Math.sin(r.rotation)).toFixed(5)},${Math.sin(r.rotation).toFixed(5)},${Math.cos(r.rotation).toFixed(5)})*q;
-        d=min(d,(length(q/vec2(${(r.width * .8).toFixed(5)},${(r.depth * .8).toFixed(5)}))-1.)*${r.depth.toFixed(5)});
-      }
-    }`).join('\n')}
-    return d;
-  }
 `;
 
 export function createMarineEnvironment(materials: Set<THREE.Material>, geometries: Set<THREE.BufferGeometry>) {
