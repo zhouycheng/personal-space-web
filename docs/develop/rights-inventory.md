@@ -5,6 +5,7 @@
 | 文件 | 本站许可边界 |
 | --- | --- |
 | `public/avatar/my.jpg` | 个人图像，保留权利 |
+| `public/audio/ocean.m4a` | Andrew Holman / amholma 的 Gentle Waves – Quiet Beach 派生循环，CC0 1.0；来源与加工说明见第三方材料清单 |
 | `public/canvas/justin-avatar.jpg` | 个人图像，保留权利 |
 | `public/favicon.svg` | 站点标识，保留权利 |
 | `public/journal/fonts/NotoSerifSC.woff2` | 第三方字体，SIL OFL 1.1 |
@@ -35,6 +36,7 @@
 | `src/content/site/resume.json` | 个人简历，保留权利 |
 | `src/content/site/studio-files.json` | 展示编排清单，保留权利 |
 | `src/content/site/site.json` | 个人站点名、署名和描述，保留权利 |
+| `src/content/scene/rock-sections.bin.gz` | 本项目程序化岩石几何的派生接触数据，Zlib |
 | `public/journal/generated/current.json`、运行时索引、当前包 manifest | 生成索引代码按 Zlib；所含个人元信息保留权利 |
 | `public/journal/generated/<renderHash>/pages/*.webp`、`thumbnails/*.webp` | 个人日记的派生图像，保留权利；第三方字体仍遵守 OFL |
 
