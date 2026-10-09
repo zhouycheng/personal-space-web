@@ -6,6 +6,7 @@
 | npm 依赖 | `package.json`、`package-lock.json` | 各包遵循各自发布的许可；锁文件和安装包并不因本站软件使用 Zlib 而改变许可。 |
 | SunCalc 2.1.0 | 运行时依赖 `suncalc`，太阳与月亮方位计算 | BSD-2-Clause；完整声明如下。 |
 | Astro Rust compiler | 开发依赖 `@astrojs/compiler-rs`，用于分层检查的 Astro AST 解析 | MIT，原文见安装包 `LICENSE`；不随生产服务调用。 |
+| Gentle Waves – Quiet Beach | `public/audio/ocean.m4a` | Andrew Holman（Freesound 用户 amholma），[原始来源](https://freesound.org/people/amholma/sounds/376795/)，[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)。取官方 HQ 预览 12–38 秒的轻浪片段，2 秒等功率交叉淡化制成 24 秒循环，整体 RMS 调至约 −24 dBFS；32 kHz 双声道 AAC，96 kbps。 |
 
 本站个人照片、作品图、品牌图和桌面文档的授权边界见 `CONTENT-LICENSE.md`。添加任何外部图片、模型、字体、音乐或代码时，应先核查其来源与分发条件，并在此登记必要声明；来源不明的材料不能直接归入 Zlib。
 
