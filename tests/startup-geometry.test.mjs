@@ -41,12 +41,13 @@ test('cached leaf topology retains the pre-optimization indices and interpolatio
 
 test('worker transport transfers shared LOD buffers once and restores bounds and attributes',()=>{
   const details=createLeafDetails(leaves(8,5)),make=()=>new THREE.BoxGeometry();
-  const source={sand:make(),water:make(),rocks:make(),vegetation:{trunkGeometry:make(),stemGeometry:make(),details:[details]}};
+  const source={sand:make(),water:make(),rocks:make(),rockSections:new Uint16Array([12,34]),vegetation:{trunkGeometry:make(),stemGeometry:make(),details:[details]}};
   const bounds=details[0].geometry.boundingSphere.clone();
   const packet=packSceneGeometry(source),transfers=sceneGeometryTransfers(packet),count=details[0].geometry.attributes.position.count;
   assert.equal(new Set(transfers).size,transfers.length);
   const cloned=structuredClone(packet,{transfer:transfers});assert.ok(transfers.every(buffer=>buffer.byteLength===0));
   const result=unpackSceneGeometry(cloned),levels=result.vegetation.details[0];
+  assert.deepEqual([...result.rockSections],[12,34]);
   assert.equal(levels[0].geometry.attributes.position.count,count);
   assert.equal(levels[0].geometry.attributes.position,levels[2].geometry.attributes.position);
   assert.ok(levels[0].geometry.boundingSphere.equals(bounds));assert.equal(levels[2].error,details[2].error);

@@ -40,13 +40,13 @@ export function createWaterGeometry() {
   const spread=(value:number)=>Math.sign(value)*600*Math.pow(Math.abs(value)*2,3);
   for(let i=0;i<vertices.count;i++) vertices.setXYZ(i,spread(vertices.getX(i)),0,spread(vertices.getZ(i)));
   const coastData=new Float32Array(vertices.count*4);
-  const weight=(x:number,z:number)=>smoothstep(1.05,1.65,coastRadius(x,z));
   for(let i=0;i<vertices.count;i++){
     const x=vertices.getX(i),z=vertices.getZ(i),o=i*4;
-    coastData[o]=weight(x,z);
-    coastData[o+1]=(weight(x+.01,z)-weight(x-.01,z))/.02;
-    coastData[o+2]=(weight(x,z+.01)-weight(x,z-.01))/.02;
-    coastData[o+3]=1-smoothstep(1.03,1.45,coastRadius(x,z));
+    const radius=coastRadius(x,z);
+    coastData[o]=radius;
+    coastData[o+1]=(coastRadius(x+.01,z)-coastRadius(x-.01,z))/.02;
+    coastData[o+2]=(coastRadius(x,z+.01)-coastRadius(x,z-.01))/.02;
+    coastData[o+3]=1-smoothstep(1.03,1.45,radius);
   }
   waterGeometry.setAttribute('coastData',new THREE.BufferAttribute(coastData,4));
   waterGeometry.computeBoundingSphere();
