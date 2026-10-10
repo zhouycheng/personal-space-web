@@ -35,11 +35,13 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 
 ## 变更与验证
 
-- 改简历、作品或文件顺序：编辑 `src/content/site/`，运行 `test:unit`、`build` 和相关浏览器流程。
-- 改画布发布内容：使用 `justinspace-canvas-content`，保持卡片 ID 和边端点有效，并验证本地位置恢复/重置。
-- 改模型：保持 `ScenePort`；对照相同相机、视口和光照的重构前后画面，并检查 WebGL 失败入口及 GPU 释放。
-- 改过场：只改 `src/animation/` 或场景实现，检查中断时的 URL、返回、监听器和资源状态。
-- 改日记：先 `journal:build` 生成书页，再用 `journal:verify` 和 `build` 验证源、当前版本及 dist 一致；异常路径用隔离目录测试。
+检查选择遵循[开发工作流](workflow.md)，以下按行为定位检查范围：
+
+- 改简历、作品或文件顺序：编辑 `src/content/site/`，选择相关内容、repository、selector 用例和受影响的展示流程。
+- 改画布发布内容：使用 `justinspace-canvas-content`，保持卡片 ID 和边端点有效，按改动选择内容、位置恢复/重置或卡片渲染检查。
+- 改模型：保持 `ScenePort`；对照相同相机、视口和光照的变更前后画面，涉及生命周期或失败恢复时检查 GPU 释放或 WebGL 失败入口。
+- 改过场：检查受影响的中断、URL、返回、监听器和资源状态。
+- 改日记：阅读运行时修改选择相关阅读用例；只有内容、分页/渲染生成输入或包格式变更需要重新生成书页时，才运行 `journal:build`，并按目标选择 `journal:verify` 或构建产物检查；异常路径用隔离目录测试。
 
 `check:boundaries` 使用 TypeScript 与 Astro AST，检查逆向导入、运行时循环、纯层平台访问，以及浏览器入口到 Node/服务端模块的传递链；`test:boundaries` 包含必须失败的违规夹具。`test:unit`、`check:types`、`build`、`build:release` 与 `test:e2e` 分别验证规则、类型、已有包构建、分页发布和真实浏览器行为。Docker 构建需要可用的 daemon，无法运行时单独报告。
 
