@@ -4,11 +4,17 @@ import type { StudioAction } from '../../../src/contracts/studio';
 export async function studioDestination(page: Page, action: StudioAction) {
   await expect(page.locator('.studio-navigation')).toBeVisible({ timeout: 35000 });
   const panel = page.locator('.studio-panel');
-  if (await panel.isVisible()) return panel.locator(`[data-studio-action="${action}"]`);
   const direct = page.locator(`.studio-direct-links [data-studio-action="${action}"]`);
-  if (await direct.isVisible()) return direct;
-  await page.locator('[data-studio-explore]').click();
-  return panel.locator(`[data-studio-action="${action}"]`);
+  if (page.viewportSize()!.width > 640) {
+    if (await panel.isVisible()) await page.keyboard.press('Escape');
+    await expect(direct).toBeVisible();
+    return direct;
+  }
+  if (!(await panel.isVisible())) await page.locator('[data-studio-explore]').click();
+  await page.locator('[data-studio-tab="places"]').click();
+  const destination = panel.locator(`[data-studio-action="${action}"]`);
+  await expect(destination).toBeVisible();
+  return destination;
 }
 
 export async function studioSettings(page: Page) {

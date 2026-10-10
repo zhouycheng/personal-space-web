@@ -1,6 +1,9 @@
 ---
 import { ACTION_LABELS, DIARY_URL } from "../../../contracts/studio";
 import "./studio-navigation.css";
+import BgmControls from '../music/BgmControls.astro';
+import OceanAudioControls from '../music/OceanAudioControls.astro';
+import HomeProfile from '../music/HomeProfile.astro';
 const destinations = [
   {action:"works",href:"/works",title:"作品"},
   {action:"canvas",href:"/canvas",title:"画布"},
@@ -8,7 +11,9 @@ const destinations = [
   {action:"computer",href:"/os",title:"OS"},
 ];
 ---
-  <nav class="studio-navigation" aria-label="首页导航">
+  <header class="studio-topbar" id="studio-home-menu" data-home-menu inert>
+    <HomeProfile />
+    <nav class="studio-navigation" aria-label="首页导航">
     <div class="studio-direct-links">
       {destinations.map(item => <a href={item.href} data-studio-action={item.action}>{item.title}</a>)}
     </div>
@@ -16,19 +21,21 @@ const destinations = [
       <span class="studio-mobile-menu" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6z"/></svg>探索 <span>↑</span></span>
       <svg class="studio-desktop-settings" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
     </button>
-  </nav>
+    </nav>
+  </header>
   <dialog class="studio-panel" id="studio-explore-panel" aria-labelledby="studio-panel-title">
     <header class="studio-panel-header">
       <h2 id="studio-panel-title" tabindex="-1">目录</h2>
       <button class="studio-panel-close" data-studio-close aria-label="关闭面板">×</button>
     </header>
     <div class="studio-panel-tabs" role="tablist" aria-label="场景设置" hidden>
-      {[["places","去逛逛"],["view","视角"],["objects","摆件"]].map(([id,label]) =>
+      {[["places","去逛逛"],["view","视角"],["objects","摆件"],["music","音乐"]].map(([id,label]) =>
         <button id={`studio-tab-${id}`} role="tab" aria-controls={`studio-pane-${id}`} aria-selected={id==="view"?"true":"false"} tabindex={id==="view"?0:-1} data-studio-tab={id}>{label}</button>)}
     </div>
     <div class="studio-panel-content">
+      <section id="studio-pane-music" role="tabpanel" aria-labelledby="studio-tab-music" hidden><BgmControls /><OceanAudioControls /></section>
       <section id="studio-pane-places" role="tabpanel" aria-labelledby="studio-tab-places">
-        <p class="studio-panel-status" data-studio-panel-status role="status">正在布置工作室…</p>
+        <p class="studio-panel-status" data-studio-panel-status role="status"></p>
         <button type="button" data-studio-retry hidden>重试三维场景</button>
         <nav class="studio-destinations" aria-label="内容入口">
           {destinations.map(item => <a href={item.href} data-studio-action={item.action}>

@@ -186,6 +186,9 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       palette=next;setPaletteStyles(root,palette);bake();requestPaint();
     },
     setState(value: CloudState, message?: string) {
+      if (value === 'loading' || value === 'error') {
+        dismissal?.cancel(); dismissal = undefined; root.style.removeProperty('opacity');
+      }
       state = value; root.dataset.state = value; root.setAttribute('aria-busy', String(value === 'loading'));
       root.inert = value === 'revealing' || value === 'dismissing';
       root.tabIndex = value === 'ready' ? 0 : -1;
@@ -215,7 +218,10 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       this.setState('dismissing');
       if (duration <= 0 || reduce.matches) { root.style.opacity = '0'; return Promise.resolve(); }
       dismissal?.cancel();
-      dismissal = root.animate([{ opacity: 1 }, { opacity: 0 }], { duration, easing: 'ease-out', fill: 'forwards' });
+      dismissal = root.animate([
+        { opacity: 1, transform: 'scale(1)' },
+        { opacity: 0, transform: 'scale(1.035)' },
+      ], { duration, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
       return dismissal.finished.then(() => undefined, () => undefined);
     },
     dispose() {

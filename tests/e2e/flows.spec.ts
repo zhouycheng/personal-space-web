@@ -94,7 +94,9 @@ test("WebGL failure exposes a journal error with an independent exit", async ({ 
   });
   await page.goto("/home");
   await expect(page.locator('[data-studio]')).toHaveClass(/is-fallback/, { timeout: 35000 });
-  await expect(page.locator(".studio-panel")).toBeVisible();
+  await expect(page.locator('[data-studio-retry]')).toHaveJSProperty('hidden', false);
+  await page.locator('[data-cloud-error] a[href="/os"]').click();
+  await page.locator('[data-studio-return]').click();
   await (await studioDestination(page, 'diary')).focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/journal$/);

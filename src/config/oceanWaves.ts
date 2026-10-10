@@ -3,3 +3,6 @@ export const oceanWaves = [
   [1.9, .02, -.7, 1.4], [1.15, .01, .12, 3.7],
 ] as const;
 export const oceanSteepness = 0.6;
+
+// Amplitude, angular speed, X/Z wave numbers, phase; shared by buoyancy and GLSL.
+export const shoreWaves = [[.062, .78, .28, .19, 0], [.023, .47, -.17, .31, 1.7]] as const;

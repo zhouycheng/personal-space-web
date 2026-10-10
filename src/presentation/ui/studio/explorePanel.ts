@@ -21,7 +21,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     '[data-studio-action^="zoom-"],[data-studio-action^="view-"],[data-studio-action="reset-view"]',
   )];
   let closeTimer = 0;
-  let backdropDown = false;
+  let backdropDown: { x: number; y: number } | undefined;
   let ready = false;
 
   function selectTab(id: string) {
@@ -30,7 +30,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     tablist.hidden = !mobile.matches && directory;
     panel.querySelector<HTMLElement>('#studio-pane-places')!.hidden = !directory;
     for (const tab of tabs) {
-      tab.hidden = tab.dataset.studioTab === 'places' ? !mobile.matches : !ready;
+      tab.hidden = tab.dataset.studioTab === 'places' ? !mobile.matches : tab.dataset.studioTab === 'music' ? false : !ready;
       const selected = tab.dataset.studioTab === id;
       tab.setAttribute("aria-selected", String(selected));
       tab.tabIndex = selected ? 0 : -1;
@@ -48,7 +48,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     setSceneInputEnabled(false);
     if (!panel.open) panel.showModal();
     explore.setAttribute("aria-expanded", "true");
-    title.focus();
+    title.focus({ preventScroll: true });
   }
 
   function close(restoreFocus = true, immediate = false) {
@@ -59,7 +59,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
       panel.close();
       explore.setAttribute("aria-expanded", "false");
       setSceneInputEnabled(isRoom());
-      if (restoreFocus && isRoom()) explore.focus();
+      if (restoreFocus && isRoom()) explore.focus({ preventScroll: true });
     };
     if (immediate || reducedMotion.matches) finish();
     else {
@@ -82,8 +82,8 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
 
   function sceneAvailability(value: boolean) {
     ready = value;
-    settings.hidden = !ready || mobile.matches;
-    tabs.filter(tab => tab.dataset.studioTab !== 'places').forEach(tab => { tab.hidden = !ready; });
+    settings.hidden = mobile.matches;
+    tabs.filter(tab => !['places','music'].includes(tab.dataset.studioTab!)).forEach(tab => { tab.hidden = !ready; });
     status.hidden = ready;
     if (!ready) selectTab("places");
   }
@@ -94,10 +94,11 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   }
 
   explore.addEventListener("click", open, { signal });
-  settings.addEventListener('click', () => { selectTab('view'); title.focus(); }, { signal });
+  settings.addEventListener('click', () => { selectTab(ready?'view':'music'); title.focus({ preventScroll: true }); }, { signal });
   function syncBreakpoint() {
+    if (mobile.matches && document.activeElement?.closest('[data-bgm-desktop]')) explore.focus({ preventScroll: true });
     explore.setAttribute('aria-label', mobile.matches ? '探索' : '场景设置');
-    settings.hidden = !ready || mobile.matches;
+    settings.hidden = mobile.matches;
     if (panel.open) close(true, true);
   }
   mobile.addEventListener('change', syncBreakpoint, { signal });
@@ -106,7 +107,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   panel.addEventListener("cancel", event => { event.preventDefault(); close(); }, { signal });
   panel.addEventListener("keydown", event => {
     if (event.key !== "Tab") return;
-    const items = [...panel.querySelectorAll<HTMLElement>("button,a,summary,[tabindex]")]
+    const items = [...panel.querySelectorAll<HTMLElement>("button,a,input,select,textarea,summary,[tabindex]")]
       .filter(item => item.tabIndex >= 0 && !item.matches(":disabled") && item.checkVisibility());
     const first = items[0], last = items.at(-1);
     if (event.shiftKey && (document.activeElement === first || document.activeElement === title)) {
@@ -115,10 +116,12 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
       event.preventDefault(); first?.focus();
     }
   }, { signal });
-  panel.addEventListener("pointerdown", event => { backdropDown = event.target === panel && outsidePanel(event); }, { signal });
+  panel.addEventListener("pointerdown", event => {
+    backdropDown = event.target === panel && outsidePanel(event) ? { x: event.clientX, y: event.clientY } : undefined;
+  }, { signal });
   panel.addEventListener("click", event => {
-    if (backdropDown && event.target === panel && outsidePanel(event)) close();
-    backdropDown = false;
+    if (backdropDown && event.target === panel && outsidePanel(event) && Math.hypot(event.clientX - backdropDown.x, event.clientY - backdropDown.y) <= 6) close();
+    backdropDown = undefined;
   }, { signal });
   for (const tab of tabs) {
     tab.addEventListener("click", () => selectTab(tab.dataset.studioTab!), { signal });

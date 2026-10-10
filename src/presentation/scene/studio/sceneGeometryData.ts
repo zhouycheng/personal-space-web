@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import type { VegetationGeometry } from './vegetationGeometry.ts';
 
-export type PreparedSceneGeometry={sand:THREE.BufferGeometry;water:THREE.BufferGeometry;rocks:THREE.BufferGeometry;vegetation:VegetationGeometry};
+export type PreparedSceneGeometry={sand:THREE.BufferGeometry;water:THREE.BufferGeometry;rocks:THREE.BufferGeometry;vegetation:VegetationGeometry;rockSections:Uint16Array};
 type AttributeData={array:THREE.TypedArray;itemSize:number;normalized:boolean};
 type GeometryData={attributes:Record<string,number>;index?:number;box?:number[][];sphere?:{center:number[];radius:number}};
-export type SceneGeometryPacket={attributes:AttributeData[];geometries:GeometryData[];sand:number;water:number;rocks:number;trunk:number;stem:number;leaves:{geometry:number;error:number}[][]};
+export type SceneGeometryPacket={attributes:AttributeData[];geometries:GeometryData[];sand:number;water:number;rocks:number;trunk:number;stem:number;leaves:{geometry:number;error:number}[][];rockSections:Uint16Array};
 
 export function packSceneGeometry(data:PreparedSceneGeometry):SceneGeometryPacket {
   const attributes:AttributeData[]=[],geometries:GeometryData[]=[],ids=new Map<THREE.BufferAttribute,number>();
@@ -20,12 +20,12 @@ export function packSceneGeometry(data:PreparedSceneGeometry):SceneGeometryPacke
       sphere:value.boundingSphere?{center:value.boundingSphere.center.toArray(),radius:value.boundingSphere.radius}:undefined});
     return id;
   };
-  return {attributes,geometries,sand:geometry(data.sand),water:geometry(data.water),rocks:geometry(data.rocks),trunk:geometry(data.vegetation.trunkGeometry),stem:geometry(data.vegetation.stemGeometry),
+  return {attributes,geometries,rockSections:data.rockSections,sand:geometry(data.sand),water:geometry(data.water),rocks:geometry(data.rocks),trunk:geometry(data.vegetation.trunkGeometry),stem:geometry(data.vegetation.stemGeometry),
     leaves:data.vegetation.details.map(levels=>levels.map(level=>({geometry:geometry(level.geometry),error:level.error})))};
 }
 
 export function sceneGeometryTransfers(packet:SceneGeometryPacket) {
-  return [...new Set(packet.attributes.map(attribute=>attribute.array.buffer as ArrayBuffer))];
+  return [...new Set([...packet.attributes.map(attribute=>attribute.array.buffer as ArrayBuffer),packet.rockSections.buffer as ArrayBuffer])];
 }
 
 export function unpackSceneGeometry(packet:SceneGeometryPacket):PreparedSceneGeometry {
@@ -38,7 +38,7 @@ export function unpackSceneGeometry(packet:SceneGeometryPacket):PreparedSceneGeo
     if(g.sphere)result.boundingSphere=new THREE.Sphere(new THREE.Vector3().fromArray(g.sphere.center),g.sphere.radius);
     return result;
   });
-  return {sand:geometries[packet.sand],water:geometries[packet.water],rocks:geometries[packet.rocks],vegetation:{trunkGeometry:geometries[packet.trunk],stemGeometry:geometries[packet.stem],
+  return {rockSections:packet.rockSections,sand:geometries[packet.sand],water:geometries[packet.water],rocks:geometries[packet.rocks],vegetation:{trunkGeometry:geometries[packet.trunk],stemGeometry:geometries[packet.stem],
     details:packet.leaves.map(levels=>levels.map(level=>{const geometry=geometries[level.geometry];geometry.userData.detailError=level.error;return {geometry,error:level.error};}))}};
 }
 
