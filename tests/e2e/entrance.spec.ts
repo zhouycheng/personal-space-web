@@ -16,7 +16,7 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   let releaseInitial!:()=>void;
   gate=new Promise<void>(resolve=>{releaseInitial=resolve;});
   await page.route('**/*waternormals*',async route=>{if(gate)await gate;await route.continue();});
-  await page.goto('/home?source=entrance#start',{waitUntil:'domcontentloaded'});
+  await page.goto('/home?source=entrance&entrance=skip#start',{waitUntil:'domcontentloaded'});
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
   await expect(page.locator('[data-cloud-status]')).toHaveText('正在准备海面与材质');
   const progressBar=overlay(page).locator('[data-cloud-progress]');
@@ -48,6 +48,8 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await page.mouse.move(bounds.x+bounds.width*.42,bounds.y+bounds.height*.5);await page.waitForTimeout(500);
   expect(before.equals(await page.screenshot({path:info.outputPath('hover.png')}))).toBe(false);
   await enter(page);await expect(page).toHaveURL(/\/home\?source=entrance#start$/);
+  // An old bookmarked skip URL must also use the automatic cover on refresh.
+  await page.evaluate(()=>history.replaceState(history.state,'','/home?source=entrance&entrance=skip#start'));
   let releaseRefresh!:()=>void;
   gate=new Promise<void>(resolve=>{releaseRefresh=resolve;});
   await page.reload({waitUntil:'domcontentloaded'});
@@ -56,12 +58,20 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   const refreshPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(refreshPalette).toMatch(/^#[\da-f]{6}$/i);
   await expect.poll(()=>overlay(page).evaluate(el=>Number.parseFloat(getComputedStyle(el).getPropertyValue('--cloud-progress')))).toBeGreaterThan(0);
-  releaseRefresh();gate=undefined;await expect(overlay(page)).toHaveAttribute('data-state','dismissing',{timeout:35000});
-  await page.waitForTimeout(100);
-  const fadeOpacity=Number(await overlay(page).evaluate(el=>getComputedStyle(el).opacity));
-  expect(fadeOpacity).toBeGreaterThan(0);expect(fadeOpacity).toBeLessThan(1);
+  // Sample actual frames: a delayed protocol read can land after dispose resets opacity.
+  const fade = overlay(page).evaluate(async root => {
+    const samples: number[] = [];
+    while (!(root as HTMLElement).hidden) {
+      if ((root as HTMLElement).dataset.state === 'dismissing') samples.push(Number(getComputedStyle(root).opacity));
+      await new Promise(requestAnimationFrame);
+    }
+    return samples;
+  });
+  releaseRefresh();gate=undefined;
+  expect((await fade).filter(opacity => opacity > 0 && opacity < 1).length).toBeGreaterThan(2);
   await expect(overlay(page)).toBeHidden({timeout:15000});
   await expect(page.locator('[data-studio-scene]')).toHaveAttribute('data-ocean-active','true');
+  await expect(page).toHaveURL(/\/home\?source=entrance#start$/);
 });
 
 for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
@@ -146,6 +156,8 @@ test('WebGL denial exposes independent retry and usable content exits',async({pa
   expect(await page.evaluate(()=>sessionStorage.getItem('justin-entrance-completed'))).toBeNull();
   await page.locator('[data-cloud-error] a[href*="/os"]').click();
   await expect(overlay(page)).toBeHidden();await expect(page.locator('[data-studio]')).toHaveAttribute('data-state','desktop');
+  await expect(page).toHaveURL(/\/os$/);
+  expect(await page.evaluate(()=>sessionStorage.getItem('justin-entrance-completed'))).toBeNull();
 });
 
 test('standalone component needs no scene, slots are safe and disposed canvas releases its buffers',async({page,request},info)=>{
@@ -271,6 +283,16 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
       await page.screenshot({path:info.outputPath(`cloud-${label}-${progress}.png`)});
     }
   }
+  // A route change or failure during automatic dismissal must restore its cover.
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.evaluate(()=>{
+    void Reflect.get(window,'cloud').dismiss(1000);
+    const animation=document.querySelector('[data-cloud-entrance]')!.getAnimations()[0];
+    animation.pause();animation.currentTime=500;
+  });
+  expect(Number(await entrance.evaluate(el=>getComputedStyle(el).opacity))).toBeLessThan(1);
+  await page.evaluate(()=>Reflect.get(window,'cloud').setState('loading'));
+  await expect(entrance).toHaveCSS('opacity','1');
   await page.evaluate(()=>Reflect.get(window,'cloud').dismiss(0));
   await expect(progressBar).toBeHidden();
   await page.evaluate(()=>Reflect.get(window,'cloud').dispose());

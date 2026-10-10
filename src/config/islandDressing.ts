@@ -5,7 +5,7 @@ export const dressingPlants = [
   {x:3.9,z:-3.0,height:2.05,radius:.7,seed:179},
   {x:1.25,z:-3.65,height:1.7,radius:.65,seed:281},
   {x:-1.6,z:-4.45,height:2.3,radius:.8,seed:283},
-  {x:3.95,z:-2.1,height:1.15,radius:.52,seed:293},
+  {x:4.65,z:-2.65,height:1.15,radius:.52,seed:293},
   {x:4.75,z:2.9,height:1.5,radius:.55,seed:359},
   {x:3.9,z:3.65,height:1.05,radius:.48,seed:367},
   {x:-5.45,z:2.75,height:1.45,radius:.5,seed:373},

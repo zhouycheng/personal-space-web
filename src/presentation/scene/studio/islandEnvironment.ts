@@ -4,7 +4,7 @@ import type { StudioLighting } from "../../../contracts/studioPorts";
 import { oceanWavesGLSL } from "./oceanShader.ts";
 import { createIslandGeometry,createWaterGeometry } from './islandGeometry.ts';
 import type { PreparedSceneGeometry } from './sceneGeometryData.ts';
-import { createRockGeometry, createRockMaterial, rockCoastGLSL } from './islandRocks.ts';
+import { createRockGeometry, createRockMaterial, createRockContactTexture, rockCoastGLSL } from './islandRocks.ts';
 import { createIslandVegetation } from './islandVegetation.ts';
 import { islandPalms, islandUnderstory } from '../../../config/islandVegetation.ts';
 import { dressingPlants,dressingProps } from '../../../config/islandDressing.ts';
@@ -94,10 +94,12 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   group.add(rocks);geometries.add(rockGeometry);materials.add(rockMaterial);
   const vegetation=createIslandVegetation(materials,geometries,prepared?.vegetation);group.add(vegetation);
 
+  const rockSections=createRockContactTexture(prepared?.rockSections);
   const uniforms = {
     ...marine.uniforms,
     boatInverse:{value:new THREE.Matrix4()},boatReady:{value:0},boatCenter:{value:new THREE.Vector3()},
     time: { value: 0 }, daylight: { value: 1 },
+    rockSections:{value:rockSections},
     normalMap: { value: null as THREE.Texture | null }, normalReady: { value: 0 },
     shallow: { value: new THREE.Color(island.shallowWater) },
     deep: { value: new THREE.Color(island.deepWater) },
@@ -120,18 +122,17 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
     vertexShader: `varying vec3 vWorld;
       varying float vWaterDepth;
       attribute vec4 coastData;
-      varying vec2 vRest, vCoastGradient;
-      varying float vCoastWeight;
+      varying vec2 vRest;
+      varying vec4 vCoast;
       uniform float time;
       ${coastGLSL}
       ${oceanWavesGLSL}
       void main() {
         vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
         vRest=vWorld.xz;
-        vCoastWeight=coastData.x;
-        vCoastGradient=coastData.yz;
-        vWorld += oceanParticle(vRest,time,0.0).offset * vCoastWeight;
-        vWorld.y+=.026*sin(time*.72+vRest.x*.17+vRest.y*.11)*coastData.w;
+        vCoast=coastData;
+        vWorld += oceanParticle(vRest,time,0.0).offset * smoothstep(1.05,1.65,coastData.x);
+        if(coastData.w>0.)vWorld.y+=shoreWash(vRest,time).x*coastData.w;
         vec4 viewPosition=viewMatrix*vec4(vWorld,1.0);
         vWaterDepth=-viewPosition.z;
         gl_Position = projectionMatrix * viewPosition;
@@ -146,8 +147,8 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
       uniform vec3 shallow, deep, sky;
       ${islandSkyGLSL}
       varying vec3 vWorld;
-      varying vec2 vRest, vCoastGradient;
-      varying float vCoastWeight;
+      varying vec2 vRest;
+      varying vec4 vCoast;
       ${coastGLSL}
       ${oceanWavesGLSL}
       float hash(vec2 p) {
@@ -163,18 +164,6 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
       }
       ${rockCoastGLSL}
       ${marineWaterGLSL}
-      float foamCells(vec2 p) {
-        p+=vec2(noise(p*1.9+time*.06),noise(p*2.1+17.-time*.045))*.56;
-        vec2 cell=floor(p),f=fract(p);float first=8.,second=8.;
-        for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
-          vec2 n=vec2(float(x),float(y));
-          vec2 jitter=vec2(hash(cell+n),hash(cell+n+13.7));
-          float d=length(n+jitter-f);
-          if(d<first){second=first;first=d;}else{second=min(second,d);}
-        }
-        float edge=second-first;
-        return (1.-smoothstep(.022,.105,edge))*smoothstep(.2,.48,noise(p*2.4+time*.09));
-      }
       void main() {
         // Exclude the dry interior below the waterline using the moving hull section.
         vec2 boatDelta=vWorld.xz-boatCenter.xz;
@@ -189,14 +178,23 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         }
         vec2 p = vWorld.xz;
         float radius = coastRadius(p);
-        float angle = atan(p.y-(${island.centerZ}),p.x);
-        float bedDepth=max(0.,${-island.seaLevel}*pow(max(0.,(radius-${island.plateau})/(1.-${island.plateau})),1.65)+${island.seaLevel}+.32*smoothstep(1.,1.16,radius));
+        float bedY=${island.seaLevel}*pow(max(0.,(radius-${island.plateau})/(1.-${island.plateau})),1.65)-.32*smoothstep(1.,1.16,radius);
+        float waterDepth=vWorld.y-bedY;
+        float bedDepth=max(0.,waterDepth);
         float depth = 1.-exp(-bedDepth*.7);
         float footprint = max(length(dFdx(p)),length(dFdy(p)));
         OceanParticle particle = oceanParticle(vRest,time,footprint);
+        float coastWeight=smoothstep(1.05,1.65,vCoast.x);
+        vec2 coastGradient=vCoast.yz*coastDerivative(1.05,1.65,vCoast.x);
+        vec4 wash=vec4(0.);
+        vec2 washGradient=vec2(0.);
+        if(vCoast.w>0.) {
+          wash=shoreWash(vRest,time);
+          washGradient=wash.yz*vCoast.w-wash.x*vCoast.yz*coastDerivative(1.03,1.45,vCoast.x);
+        }
         // Product rule includes the shoreline taper; reflection follows the displaced surface.
-        vec3 tangentX=mix(vec3(1,0,0),particle.tangentX,vCoastWeight)+particle.offset*vCoastGradient.x;
-        vec3 tangentZ=mix(vec3(0,0,1),particle.tangentZ,vCoastWeight)+particle.offset*vCoastGradient.y;
+        vec3 tangentX=mix(vec3(1,0,0),particle.tangentX,coastWeight)+particle.offset*coastGradient.x+vec3(0.,washGradient.x,0.);
+        vec3 tangentZ=mix(vec3(0,0,1),particle.tangentZ,coastWeight)+particle.offset*coastGradient.y+vec3(0.,washGradient.y,0.);
         vec3 geometricNormal=normalize(cross(tangentZ,tangentX));
         float shoreCalm = mix(0.25,1.0,smoothstep(1.0,1.7,radius));
         vec2 windSlopes=vec2(0.0);
@@ -238,25 +236,20 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         vec3 color = mix(waterBody,reflectedSky,fresnel);
         float specular = pow(max(dot(reflect(-sunDirection,normal),view),0.0),360.0);
         color += sunColor * specular * (0.01+daylight*(.18+sunset*.65))*smoothstep(0.0,.07,sunDirection.y);
-        if(radius<2.) {
-        float rockEdge=min(rockDistance(p),marineReefDistance(p));
-        float washPhase=time*.72+p.x*.17+p.y*.11;
-        float waterline=1.-.021*sin(washPhase);
-        float shoreMeters=(radius-waterline)*7.0;
-        float shoreBand=(1.-smoothstep(.15,1.25,shoreMeters))*smoothstep(-.10,.04,shoreMeters);
-        float rockBand=1.-smoothstep(.06,.48,abs(rockEdge-.1-.035*sin(washPhase)));
-        // Leading-edge noise shifts at most .035 m; outside .12 m its contribution is zero.
-        // Screen derivatives and implicit texture samples are evaluated above this branch.
-        if(shoreBand>0.||abs(shoreMeters-.035)<.12||(rockBand>0.&&radius>.93)) {
-        vec2 drift=normalize(p-vec2(0.,${island.centerZ}))*sin(washPhase)*.13;
-        vec2 foamP=(p+drift+vec2(noise(p*1.8+time*.06),noise(p*1.7-time*.04))*.28)*3.4;
-        float lace=foamCells(foamP);
-        float patches=smoothstep(.25,.65,noise(p*1.35+vec2(time*.035,0.)));
-        float leading=(1.-smoothstep(.018,.085,abs(shoreMeters-.035-(noise(p*6.)-.5)*.07)))*(.45+.45*patches);
-        float foam=shoreBand*lace*(.3+.35*patches)+leading*.32;
-        float rockWash=rockBand
-          *(.18+lace*.7)*( .7+.3*sin(washPhase+noise(p)*4.));
-        foam=max(foam,rockWash*smoothstep(.93,1.,radius));
+        if(radius<2.&&footprint<.4) {
+        float shoreBand=(1.-smoothstep(.025,.15,waterDepth))*smoothstep(-.006,.012,waterDepth);
+        float rockEdge=rockDistance(p,vWorld.y);
+        float rockBand=(1.-smoothstep(.018,.19,rockEdge))*smoothstep(-.025,.015,rockEdge);
+        if(shoreBand>0.||rockBand>0.) {
+        vec2 drift=normalize(p-vec2(0.,${island.centerZ}))*wash.x*2.5;
+        float advancing=smoothstep(-.025,.035,wash.w);
+        float patches=smoothstep(.32,.7,noise(p*2.2-drift+time*.018));
+        float fine=mix(.5,noise((p+drift)*18.),1.-smoothstep(.025,.10,footprint));
+        float broken=smoothstep(.30,.66,noise((p+drift)*7.)*.7+fine*.3);
+        float leading=(1.-smoothstep(.01,.045,waterDepth))*smoothstep(-.006,.008,waterDepth);
+        float foam=shoreBand*broken*patches*(.12+.30*advancing)+leading*patches*.32;
+        foam=max(foam,rockBand*broken*patches*(.16+.38*advancing));
+        foam*=1.-smoothstep(.12,.4,footprint);
         foam*=1.-smoothstep(1.65,2.,radius);
         color = mix(color, vec3(0.82,0.91,0.87)*(0.06+daylight*0.85), foam);
         }
@@ -280,7 +273,7 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
   return {
     group,
     renderMarine:marine.render,
-    dispose:marine.dispose,
+    dispose(){rockSections.dispose();marine.dispose();},
     get time(){return uniforms.time.value;},
     setBoatInverse(matrix:THREE.Matrix4){uniforms.boatInverse.value.copy(matrix);uniforms.boatCenter.value.setFromMatrixPosition(boatWorld.copy(matrix).invert());uniforms.boatReady.value=1;},
     setWind(seconds:number){vegetation.setWind(seconds);},

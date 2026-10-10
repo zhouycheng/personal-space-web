@@ -11,6 +11,7 @@ import { journal } from "../../../infrastructure/server/journal";
 import { siteIdentity } from '../../../data/repositories/siteIdentity';
 import { articleTitle } from '../../../data/selectors/siteIdentity';
 import CloudEntrance from '../../../justin-kit/components/cloud-entrance/CloudEntrance.astro';
+import BgmPlayer from '../music/BgmPlayer.astro';
 type Props = { initialPage?: AppPage; journalSlug?: string };
 const { initialPage = "home", journalSlug } = Astro.props;
 const activePage = isAppPage(initialPage) ? initialPage : "home";
@@ -20,25 +21,17 @@ const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journ
 <BaseLayout title={article?articleTitle(siteIdentity, article.title):PAGE_TITLES[activePage]} description={article?.description}>
   <main class:list={["app-shell", "alpha-shell", activePage === "home" && "is-home-active",activePage==='journal'&&'is-journal-active']} data-initial-page={activePage} data-entrance="preparing" aria-label={siteIdentity.brand}>
     <CloudEntrance>
-      <Fragment slot="fallback"><a href="/works?entrance=skip">作品</a><a href="/canvas?entrance=skip">画布</a><a href="/os?entrance=skip">OS</a></Fragment>
+      <Fragment slot="fallback"><a href="/works" data-entrance-exit>作品</a><a href="/canvas" data-entrance-exit>画布</a><a href="/os" data-entrance-exit>OS</a></Fragment>
     </CloudEntrance>
     <script is:inline>
-      // A completed tab only uses the automatic cloud cover on a browser refresh.
-      const shell = document.currentScript.closest('main');
+      // Keep every full document load cloud-covered; only a fresh tab needs a click.
       try {
-        const navigation = performance.getEntriesByType('navigation')[0];
-        const cloud = shell.querySelector('[data-cloud-entrance]');
-        if (sessionStorage.getItem('justin-entrance-completed') === '1' && navigation?.type === 'reload') {
-          cloud.dataset.loadingText = '正在加载场景';
-          cloud.querySelector('[data-cloud-status]').textContent = '正在加载场景';
-          shell.dataset.entrance = 'refresh';
-        } else if (sessionStorage.getItem('justin-entrance-completed') === '1') {
-          cloud.hidden = true;
-          shell.removeAttribute('data-entrance');
+        if (sessionStorage.getItem('justin-entrance-completed') === '1') {
+          document.currentScript.closest('main').dataset.entrance = 'refresh';
         }
       } catch {}
-      if (new URLSearchParams(location.search).get('entrance') === 'skip') shell.removeAttribute('data-entrance');
     </script>
+    <BgmPlayer />
     <div class="app-content">
       <section id="page-home" class:list={["app-page", activePage === "home" && "is-active"]} aria-label="工作室"><InteractiveStudio /></section>
       <section id="page-works" class:list={["app-page", activePage === "works" && "is-active"]} aria-label="文件夹"><StudioPortfolio /></section>
@@ -75,5 +68,5 @@ const article = activePage==='journal' ? journal.articles.find(a=>a.slug===journ
   .alpha-shell[data-entrance-target="canvas"] #page-canvas.studio-projecting { visibility: visible; opacity: unset; z-index: 58; }
   .alpha-shell[data-entrance-target="works"] #page-works { visibility: visible; opacity: var(--entrance-content-opacity,0); z-index: 58; }
   .alpha-shell[data-entrance="playing"] [data-studio-scene] canvas { filter: blur(var(--entrance-blur,0px)); }
-  .alpha-shell[data-entrance] :is(.studio-signature,.studio-loading,.studio-navigation) { visibility: hidden; }
+  .alpha-shell[data-entrance] :is(.studio-signature,.studio-loading,.studio-topbar) { visibility: hidden; }
 </style>

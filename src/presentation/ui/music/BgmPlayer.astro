@@ -1,0 +1,7 @@
+---
+import tracks from '../../../content/site/music.json';
+import './bgm.css';
+---
+<div hidden data-bgm data-tracks={JSON.stringify(tracks)}>
+  <audio preload="none"></audio>
+</div>

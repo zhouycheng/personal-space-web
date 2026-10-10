@@ -2,10 +2,23 @@
 // displaced world position. Wave packets bend crests and vary their strength.
 // Q*k*A sums to 0.6; packet/phase gradients keep the upper bound below 0.75.
 // Reference: NVIDIA GPU Gems, chapter 1, equations 9–12.
-import { oceanWaves,oceanSteepness } from '../../../config/oceanWaves.ts';
+import { oceanWaves,oceanSteepness,shoreWaves } from '../../../config/oceanWaves.ts';
 export { oceanWaves,oceanSteepness } from '../../../config/oceanWaves.ts';
 
 export const oceanWavesGLSL = `
+  vec4 shoreWash(vec2 p,float time) {
+    vec4 wash=vec4(0.);
+    ${shoreWaves.map(([amplitude,speed,kx,kz,phase])=>`{
+      float angle=time*${speed}+dot(p,vec2(${kx},${kz}))+${phase.toFixed(1)};
+      float slope=${amplitude}*cos(angle);
+      wash+=vec4(${amplitude}*sin(angle),slope*${kx},slope*${kz},slope*${speed});
+    }`).join('\n')}
+    return wash;
+  }
+  float coastDerivative(float a,float b,float r) {
+    float t=clamp((r-a)/(b-a),0.,1.);
+    return 6.*t*(1.-t)/(b-a);
+  }
   struct OceanParticle { vec3 offset; vec3 tangentX; vec3 tangentZ; };
   OceanParticle oceanParticle(vec2 p, float time, float footprint) {
     OceanParticle result;

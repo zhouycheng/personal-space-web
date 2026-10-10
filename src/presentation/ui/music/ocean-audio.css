@@ -1,0 +1,6 @@
+.ocean-audio{margin-top:20px;padding-top:12px;border-top:1px solid #d8d8ce}
+.ocean-audio-volume{display:flex;align-items:center;gap:12px;font-size:12px;color:#737d76}
+.ocean-audio-volume input{flex:1;min-width:0;min-height:44px;accent-color:#738477}
+.ocean-audio-volume output{min-width:32px;text-align:right;font-variant-numeric:tabular-nums}
+.ocean-audio p{margin:8px 0;color:#737d76;font-size:12px;line-height:1.6}
+.ocean-audio :focus-visible{outline:2px solid #738477;outline-offset:3px}

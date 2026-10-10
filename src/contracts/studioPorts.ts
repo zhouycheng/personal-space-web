@@ -38,6 +38,7 @@ export interface ScenePort extends TransitionPort {
   snapshot(): SceneSnapshot;
   restore(snapshot: SceneSnapshot): void;
   setPointerEnabled(value: boolean): void;
+  setMusicPlaying(value: boolean): void;
   setActive(value: boolean): void;
   setLighting(light: StudioLighting): void;
   setTime(date: Date): void;

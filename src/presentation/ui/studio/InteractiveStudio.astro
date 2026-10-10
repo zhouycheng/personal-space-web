@@ -5,9 +5,12 @@ import { siteIdentity } from '../../../data/repositories/siteIdentity';
 ---
 <div class="studio" data-studio data-state="room">
   <div class="studio-scene" data-studio-scene aria-label="可交互的三维工作室">
-    <p class="studio-loading" data-studio-status role="status">正在布置工作室…</p>
+    <p class="studio-loading" data-studio-status role="status" hidden></p>
     <span class="studio-tooltip" data-studio-tooltip hidden></span>
   </div>
-  <p class="studio-signature">{siteIdentity.signature}</p>
+  <p class="studio-signature">
+    <button type="button" data-studio-menu-toggle aria-controls="studio-home-menu" aria-expanded="true" aria-label="隐藏顶部菜单栏">{siteIdentity.signature}</button>
+    <span class="studio-mobile-signature">{siteIdentity.signature}</span>
+  </p>
   <StudioNavigation />
 </div>

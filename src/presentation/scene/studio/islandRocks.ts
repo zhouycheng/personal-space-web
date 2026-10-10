@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { islandRocks,rockBase } from '../../../config/islandTerrain.ts';
+import { islandRocks,rockBase,coastRadius,smoothstep } from '../../../config/islandTerrain.ts';
 import { islandAppearance } from '../../../config/islandAppearance.ts';
+import { marineReefs } from '../../../config/marineLife.ts';
+import { oceanWaves,shoreWaves } from '../../../config/oceanWaves.ts';
+import { rockSectionSamples,ROCK_SECTION_ANGLES,ROCK_SECTION_LEVELS,ROCK_SECTION_BOTTOM,ROCK_SECTION_TOP } from './rockContact.ts';
 
 /** Baked world-space vertices let all rocks share one material and draw call. */
 export function createRockGeometry(rocks: readonly (typeof islandRocks[number] & {base?:number})[] = islandRocks, detail?:number) {
@@ -100,4 +103,57 @@ const distanceField=(name:string,surfaceOnly:boolean)=>{
     return distanceToRock;
   }`;
 };
-export const rockCoastGLSL=distanceField('rockDistance',true)+distanceField('reefDistance',false);
+export function rockContacts() {
+  return [...islandRocks,...marineReefs].flatMap(rock=>{
+    const base='base' in rock&&typeof rock.base==='number'?rock.base:rockBase(rock), r=coastRadius(rock.x,rock.z);
+    const reach=oceanWaves.reduce((sum,w)=>sum+w[1],0)*smoothstep(1.05,1.65,r)
+      +shoreWaves.reduce((sum,w)=>sum+w[0],0)*(1-smoothstep(1.03,1.45,r));
+    if(base>=islandAppearance.seaLevel+reach||base+rock.height*1.08<=islandAppearance.seaLevel-reach||r>2.1)return [];
+    const c=Math.cos(rock.rotation),s=Math.sin(rock.rotation);
+    return [{...rock,base,c,s,extentX:(Math.abs(c)*rock.width+Math.abs(s)*rock.depth)*1.22+.3,
+      extentZ:(Math.abs(s)*rock.width+Math.abs(c)*rock.depth)*1.22+.3}];
+  });
+}
+const contacts=rockContacts();
+export const ROCK_CONTACT_BYTES=(ROCK_SECTION_ANGLES+1)*ROCK_SECTION_LEVELS*contacts.length*8;
+export function createRockContactData() {
+  const width=ROCK_SECTION_ANGLES+1,height=ROCK_SECTION_LEVELS*contacts.length;
+  const data=new Uint16Array(width*height*4);
+  contacts.forEach((rock,i)=>{
+    const geometry=createRockGeometry([rock],rock.seed>=901?2:undefined);
+    const samples=rockSectionSamples(geometry,rock);geometry.dispose();
+    for(let j=0;j<samples.length;j++)data[i*samples.length+j]=THREE.DataUtils.toHalfFloat(samples[j]);
+  });
+  return data;
+}
+export function createRockContactTexture(data:Uint16Array=createRockContactData()) {
+  const texture=new THREE.DataTexture(data,ROCK_SECTION_ANGLES+1,ROCK_SECTION_LEVELS*contacts.length,THREE.RGBAFormat,THREE.HalfFloatType);
+  texture.minFilter=texture.magFilter=THREE.LinearFilter;texture.needsUpdate=true;
+  return texture;
+}
+const contactField=`uniform sampler2D rockSections;
+  float rockDistance(vec2 p,float waterY) {
+    if(waterY<=${ROCK_SECTION_BOTTOM}||waterY>=${ROCK_SECTION_TOP})return .24;
+    if(any(lessThan(p,vec2(${Math.min(...contacts.map(r=>r.x-r.extentX))},${Math.min(...contacts.map(r=>r.z-r.extentZ))})))||
+       any(greaterThan(p,vec2(${Math.max(...contacts.map(r=>r.x+r.extentX))},${Math.max(...contacts.map(r=>r.z+r.extentZ))}))))return .24;
+    float d=.24;
+    float level=clamp((waterY-(${ROCK_SECTION_BOTTOM}))/${ROCK_SECTION_TOP-ROCK_SECTION_BOTTOM},0.,1.)*${(ROCK_SECTION_LEVELS-1).toFixed(1)};
+    ${contacts.map((r,i)=>`{
+      vec2 q=p-vec2(${r.x.toFixed(6)},${r.z.toFixed(6)});
+      if(abs(q.x)<${r.extentX.toFixed(6)}&&abs(q.y)<${r.extentZ.toFixed(6)}&&waterY>${r.base.toFixed(6)}&&waterY<${(r.base+r.height*1.08).toFixed(6)}) {
+        q=mat2(${r.c.toFixed(8)},${(-r.s).toFixed(8)},${r.s.toFixed(8)},${r.c.toFixed(8)})*q;
+        float row=(${(i*ROCK_SECTION_LEVELS+.5).toFixed(1)}+level)/${(ROCK_SECTION_LEVELS*contacts.length).toFixed(1)};
+        vec4 section=textureLod(rockSections,vec2(${.5/(ROCK_SECTION_ANGLES+1)},row),0.);
+        if(section.a>0.) {
+          q-=section.xy;
+          float angle=atan(q.y,q.x)/6.28318530718;
+          if(angle<0.)angle+=1.;
+          float radius=textureLod(rockSections,vec2((angle*${ROCK_SECTION_ANGLES.toFixed(1)}+.5)/${(ROCK_SECTION_ANGLES+1).toFixed(1)},row),0.).b;
+          d=min(d,mix(.24,length(q)-radius,smoothstep(0.,.025,section.a)));
+        }
+      }
+    }`).join('\n')}
+    return d;
+  }
+`;
+export const rockCoastGLSL=contactField+distanceField('reefDistance',false);

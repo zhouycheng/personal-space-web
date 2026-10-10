@@ -20,6 +20,10 @@ import { createEntranceRuntime } from './entranceRuntime';
 import { entranceCompleted } from '../infrastructure/client/entranceSession';
 import type { StartupProgress } from '../contracts/startup';
 import { paintOpportunity } from '../infrastructure/client/paintOpportunity';
+import { createBgmPlayer } from '../presentation/ui/music/bgmRuntime';
+import { createHomeProfile } from '../presentation/ui/music/homeProfile';
+import { createHomeMenu } from '../presentation/ui/studio/homeMenu';
+import { createOceanAudioControls } from '../presentation/ui/music/oceanAudioRuntime';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -34,7 +38,7 @@ function init(shell: HTMLElement) {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const events = new AbortController();
   const initialPage = pageForPath(location.pathname);
-  const needsEntrance = !entranceCompleted() && new URLSearchParams(location.search).get('entrance') !== 'skip';
+  const needsEntrance = !entranceCompleted();
   let pendingPage = initialPage;
   let entrance: ReturnType<typeof createEntranceRuntime>;
   const model = createStudioClientStore(needsEntrance ? 'home' : initialPage, needsEntrance ? 'room' : studioStateForPage(initialPage));
@@ -52,6 +56,10 @@ function init(shell: HTMLElement) {
     isRoom: () => !entrance?.covered && model.page === "home" && model.state === "room",
   });
   const panel = panelController.element;
+  const homeMenu = createHomeMenu(studio, events.signal);
+  const music = createBgmPlayer(shell, playing => scene?.setMusicPlaying(playing));
+  const oceanAudio = createOceanAudioControls(shell.querySelector<HTMLElement>('[data-ocean-audio]')!);
+  const stopHomeProfile=createHomeProfile(shell.querySelector<HTMLElement>('[data-bgm-desktop]')!);
   const explore = panelController.explore;
   const openExplore = panelController.open;
   const closeExplore = panelController.close;
@@ -124,6 +132,7 @@ function init(shell: HTMLElement) {
     if(disposed || !scenePrepared)return;
     const restored=sceneBlocked;stopRecovery();
     sceneBlocked=false;studio.classList.remove("is-fallback");status.hidden=true;retry.hidden=true;
+    syncOceanAudio();
     if(entrance?.covered){report();return;}
     sceneAvailability(true);scene?.setPointerEnabled(!panel.open);
     mount.dataset.renderActive=String((model.page==="home"||model.page==="journal"||isMoving())&&!document.hidden);
@@ -134,6 +143,7 @@ function init(shell: HTMLElement) {
   function sceneFailed(error:StudioFailure) {
     if(disposed)return;
     report(error);sceneBlocked=true;
+    oceanAudio.setAvailable(false,true);
     if(model.page==='journal')journal.fallback();
     if(isMoving()) {
       // Journal entry still has to activate its independent error/retry UI after loadScene settles.
@@ -158,6 +168,7 @@ function init(shell: HTMLElement) {
     await sceneLoading;
     if(disposed)return;
     stopRecovery();savedScene=model.targets;scene?.dispose();scene=undefined;scenePrepared=false;
+    oceanAudio.setAvailable(false,true);
     sceneBlocked=false;
     retry.hidden=true;status.hidden=false;status.textContent="正在恢复工作室…";
     await loadScene();
@@ -172,7 +183,14 @@ function init(shell: HTMLElement) {
   let osHintShown=false;
   try {osHintShown=localStorage.getItem('justin-os-return-hint')==='seen';}catch {}
   shell.querySelector('[data-os-hint-close]')!.addEventListener('click',()=>{osHint.hidden=true;},{signal:events.signal});
+  function syncOceanAudio() {
+    oceanAudio.setAvailable(model.page==='home'&&model.state==='room'&&scenePrepared&&!sceneBlocked&&!entrance?.covered&&!document.hidden,document.hidden||sceneBlocked);
+  }
   function sync() {
+    syncOceanAudio();
+    const musicHome=model.page==='home'&&!isMoving();
+    shell.dataset.musicHome=String(musicHome);
+    homeMenu.setAvailable(musicHome&&!entrance?.covered);
     if(entrance?.blocking) {
       shell.dataset.entrance=entrance.playing?'playing':'preparing';
       closeExplore(false,true);clearInterval(clock);scene?.setPointerEnabled(false);
@@ -197,7 +215,7 @@ function init(shell: HTMLElement) {
       const status=panel.querySelector<HTMLElement>(`[data-drawer-status="${name}"]`);if(status)status.textContent=open?'已打开':'已关闭';
     });
     const home = model.page === "home";
-    if(!home||model.state!=="room")closeExplore(false,true);
+    if(entrance?.covered||!home||model.state!=="room")closeExplore(false,true);
     const osOpen = model.state === "desktop";
     if(osOpen&&!osHintShown){
       osHint.hidden=false;osHintShown=true;
@@ -208,7 +226,7 @@ function init(shell: HTMLElement) {
     const canvasVisible = canvasOpen || model.state.endsWith("-canvas");
     const journalVisible = model.page==='journal'||model.state.endsWith('-journal');
     studio.dataset.state = model.state;
-    studio.inert = !journalVisible&&(!home || model.state !== "room");
+    studio.inert = Boolean(entrance?.covered) || (!journalVisible&&(!home || model.state !== "room"));
     studio.style.visibility = isOpen() ? "hidden" : "";
     shell.classList.toggle("is-home-active", home || isMoving());
     shell.classList.toggle("is-home-suspended", model.page === "works");
@@ -217,11 +235,11 @@ function init(shell: HTMLElement) {
     shell.querySelector<HTMLElement>(".app-dock")!.hidden = true;
     desktop.classList.toggle("is-settled", osOpen);
     desktop.setAttribute("aria-hidden", String(!osOpen));
-    desktop.inert = !osOpen;
+    desktop.inert = Boolean(entrance?.covered) || !osOpen;
     shell.querySelectorAll<HTMLElement>(".app-page").forEach(el => {
       const active = el.id === `page-${model.page}` || (el.id === "page-home" && (model.page === "works" || journalVisible || isMoving())) || (el === personalCanvas && canvasVisible);
       el.classList.toggle("is-active", active);
-      el.inert = !active || (el === personalCanvas && canvasVisible && !canvasOpen) || (el.id === "page-home" && model.page === "works");
+      el.inert = Boolean(entrance?.covered) || !active || (el === personalCanvas && canvasVisible && !canvasOpen) || (el.id === "page-home" && model.page === "works");
     });
     personalCanvas.classList.toggle("studio-canvas-open", canvasVisible);
     shell.querySelector<HTMLElement>("[data-canvas-return]")!.hidden = !canvasOpen;
@@ -268,6 +286,7 @@ function init(shell: HTMLElement) {
       mount.dataset.startupTimings=JSON.stringify(timings);
       scene.restore(savedScene??model.targets);
       scene.setPointerEnabled(!entrance?.covered&&!panel.open);
+      scene.setMusicPlaying(music.playing);
       updateLighting();
       const current=scene;
       if(prepareForEntrance) {
@@ -375,6 +394,14 @@ function init(shell: HTMLElement) {
     if (!(event.target instanceof Element)) return;
     const target = event.target.closest<HTMLElement>("button,a");
     if (!target) return;
+    if (target instanceof HTMLAnchorElement && target.hasAttribute('data-entrance-exit')) {
+      if (event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return;
+      event.preventDefault();
+      pendingPage = pageForPath(target.pathname);
+      history.pushState({justinPage:pendingPage,from:null}, '', target.pathname);
+      entrance.exit();
+      return;
+    }
     if (target.matches(".app-dock a")) {
       if (event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return;
       event.preventDefault(); navigate(pageForPath((target as HTMLAnchorElement).pathname));
@@ -397,9 +424,17 @@ function init(shell: HTMLElement) {
     const command = target.dataset.desktopCommand;
     if (command === "open-display-controls" || command === "arrange-icons") window.dispatchEvent(new CustomEvent(`justin-os-desktop:${command}`));
   }, { signal: events.signal });
+  function unlockOceanAudio(event:Event) {
+    if(!event.isTrusted||entrance?.covered||model.page!=='home'||model.state!=='room'||sceneBlocked)return;
+    if(event instanceof KeyboardEvent&&(event.repeat||event.metaKey||event.ctrlKey||event.altKey||!['Enter',' '].includes(event.key)))return;
+    oceanAudio.unlock();
+  }
+  shell.addEventListener('click',unlockOceanAudio,{signal:events.signal});
+  shell.addEventListener('keydown',unlockOceanAudio,{signal:events.signal});
   window.addEventListener("popstate", () => { historyPending = false; void applyRoute(pageForPath(location.pathname)); }, { signal: events.signal });
   document.addEventListener("visibilitychange", sync, { signal: events.signal });
   window.addEventListener("pagehide", event => {
+    oceanAudio.setAvailable(false,true);
     closeExplore(false,true);panelController.dispose();clearInterval(clock);scene?.setActive(false);
     if (!event.persisted) dispose();
   }, { signal: events.signal });
@@ -411,6 +446,7 @@ function init(shell: HTMLElement) {
     if(restoredPage!==currentPage)void applyRoute(restoredPage);else sync();
   }, { signal: events.signal });
   entrance=createEntranceRuntime(shell.querySelector<HTMLElement>('[data-cloud-entrance]')!,{
+    onEnter:()=>oceanAudio.unlock(),
     reducedMotion:reduce,
     palette:environmentNow().palette,
     cancel:()=>{
@@ -468,20 +504,22 @@ function init(shell: HTMLElement) {
       return scene.playEntrance({duration,onProgress:reveal});
     },
     complete(){
-      sceneAvailability(true);scene?.setPointerEnabled(!panel.open);delete shell.dataset.entrance;delete shell.dataset.entranceTarget;
+      sceneAvailability(scenePrepared&&!sceneBlocked);scene?.setPointerEnabled(!sceneBlocked&&!panel.open);delete shell.dataset.entrance;delete shell.dataset.entranceTarget;
       model.page=pendingPage;model.state=studioStateForPage(pendingPage);clearProjection();sync();focusRoute();
       shell.style.removeProperty('--entrance-content-opacity');
       mount.style.removeProperty('--entrance-blur');
     },
   });
-  history.replaceState({ ...history.state, justinPage: initialPage }, "", (initialPage==='journal'?location.pathname:pathForPage(initialPage)) + location.search + location.hash);
+  const initialUrl = new URL(location.href);
+  initialUrl.searchParams.delete('entrance');
+  initialUrl.pathname = initialPage==='journal' ? location.pathname : pathForPage(initialPage);
+  history.replaceState({ ...history.state, justinPage: initialPage }, "", initialUrl);
   sync();
-  if(entrance.covered)void entrance.start();
-  else if(model.page==='journal'){prepareJournalTargets();void loadScene().then(()=>{if(!disposed&&model.page==='journal')return journal.enter(location.pathname+location.hash,0);});}
+  void entrance.start();
   function dispose() {
     if(disposed)return;
     disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
-    for(const cleanup of [()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
+    for(const cleanup of [stopHomeProfile,()=>music.dispose(),()=>oceanAudio.dispose(),()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}
     }
