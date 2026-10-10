@@ -1,4 +1,4 @@
 interface:
   display_name: "JustinSpace Review and Delivery"
-  short_description: "Review changes, run checks, update docs, and prepare handoffs."
-  default_prompt: "Use $justinspace-delivery to plan checks, review and validate this JustinSpace change, or prepare a requested handoff."
+  short_description: "Review changes and prepare handoffs with scoped validation."
+  default_prompt: "Use $justinspace-delivery for this JustinSpace review, validation report or handoff, selecting checks for the changed behavior and affected callers."

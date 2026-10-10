@@ -38,12 +38,23 @@ OS、文件箱、画布和日记进入完成后不主动聚焦左上角的返回
 
 ## 验证入口
 
+按[开发工作流](../develop/workflow.md)选择检查，区分以下行为：
+
+| 改动 | 定向检查 |
+| --- | --- |
+| 云雾、加载文字、进度条等组件视觉 | 选择相关纯逻辑用例及 `entrance.spec.ts` 的 `standalone component` 用例，检查受影响状态和视口，不追加日记入口检查。 |
+| 准备、就绪、揭幕、成功记录或后台恢复协调 | 从 `entrance.spec.ts`、`entrance-lifecycle.spec.ts` 中选择对应阶段、首访/刷新或生命周期用例。 |
+| 目标页面续接、深链接与历史 | 选择受影响路由的 `fresh ...` 用例；影响日记 slug/锚点时选择 `a published journal slug and anchor survive entrance`，不追加整套日记阅读回归。 |
+| Worker、几何或资源预热 | 从 `startup-geometry.test.mjs` 和 `startup-preparation.spec.ts` 中选择对应生成、回退、超时或取消用例。 |
+
+`entrance.spec.ts` 同时包含组件与多个目标页面的用例，指定文件后仍需用 `--grep` 筛选行为，并用 `--project` 指定相关浏览器。确认被测服务包含当前改动；命令示例见开发工作流。需要核对选例范围时可追加 `--list`，它只列出用例，不代表检查通过。
+
 `data-timings` 同时记录导航至准备/就绪、云雾 CPU 与各阶段累计时间。`data-startup-timings` 区分模块等待、Worker 总时间、各生成函数 CPU、家具与后续装配 CPU、纹理等待/上传、编译和试绘。Worker 与家具时间有重叠，不能直接相加；`data-normals-wait` 标识资源就绪或超时。
 
 几何合批保留索引、属性和三角形顺序；LOD 缓存网格拓扑与重心权重，细节选择遵循轮廓和误差阈值。海水只在贡献确定为零时跳过波浪频段或泡沫计算，屏幕导数与纹理采样在这些条件分支之前执行。远海颜色使用同一天空混合函数。阴影分辨率、风动更新、DPR 上限及相机交互参数由共享配置维护。
 
 `tests/startup-geometry.test.mjs` 检查原算法 LOD 结果、索引合并和共享缓冲传输；`tests/e2e/startup-preparation.spec.ts` 检查阶段可见性、网络分包、Worker 回退、纹理超时和准备期导航。`scripts/startup-performance-measure.mjs` 通过 `PERF_URL`、`PERF_LABEL` 对已有生产服务采样三轮，将原始数据和截图写到 `.workspace/startup-optimization/`。测量期间不要同时运行另一浏览器检查或构建。
 
-`tests/entrance.test.mjs` 验证真实俯角、精确落点、既有取景和存储降级；`tests/e2e/entrance*.spec.ts` 验证真实资源等待、文字互斥、首访/刷新/深链接、悬停、键盘、独立插槽、resize、后台恢复及 WebGL 错误。其他 E2E 通过 `helpers/app.ts` 使用已完成开场的标签页，继续覆盖正常场景和内容回归。图像、独立 HTML 预览和测量记录保留在 `.workspace/entrance-validation/`。
+`tests/entrance.test.mjs` 验证真实俯角、精确落点、既有取景和存储降级；`tests/e2e/entrance*.spec.ts` 提供真实资源等待、文字互斥、首访/刷新/深链接、悬停、键盘、独立插槽、resize、后台恢复及 WebGL 错误用例，按上述影响范围选择。其他 E2E 通过 `helpers/app.ts` 使用已完成开场的标签页；它们是各模块的独立回归，不因开场修改而自动运行。图像、独立 HTML 预览和测量记录保留在 `.workspace/entrance-validation/`。
 
-客户端预热旨在降低首次显露的停顿；不采用服务端 3D 预渲染或静态海岛替换，不承诺持续 FPS 提升。测量需使用相同浏览器、设备、光照、DPR、视口，三次重复，单独记录首次绘制、可点击时间、点击到落定和帧间隔。无头软件 WebGL 不能用来宣称设备性能。
+客户端预热旨在降低首次显露的停顿；不采用服务端 3D 预渲染或静态海岛替换，不承诺持续 FPS 提升。仅在用户要求或需要支撑性能结论时测量，使用相同浏览器、设备、光照、DPR、视口，三次重复，单独记录首次绘制、可点击时间、点击到落定和帧间隔。无头软件 WebGL 不能用来宣称设备性能。
