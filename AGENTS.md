@@ -40,7 +40,7 @@ The application runs from the repository root using Astro 7 server output, the `
 
 ## Commands
 
-Prefix shell commands with `rtk` unless debugging requires raw output. Run application commands from the repository root:
+Prefix shell commands with `rtk` unless debugging requires raw output. Run application commands from the repository root. These are available commands, not a per-task checklist:
 
 ```bash
 rtk npm install
@@ -59,14 +59,14 @@ rtk npm run monitor:activity
 
 ## Validation
 
-- Run `rtk npm run build`, `rtk npm run check:boundaries`, and `rtk npm run check:types` as the baseline. Run relevant Node tests for logic changes and the full suite for shared-flow changes. Report build and type-check results separately.
+- Select the minimum sufficient checks for the changed behavior and affected callers using [the validation workflow](docs/develop/workflow.md). Build, boundary and type checks are independent choices, not a mandatory baseline.
+- For docs and skills, check content, links, metadata and skill format only; do not run application builds or business tests. For logic, select relevant Node test files and test names. For E2E, select the relevant spec, test names and browser project rather than using an unfiltered command.
+- Trace shared-flow consumers and check affected entry points. A shared file, task completion, skill invocation, handoff, new agent or new session does not justify a full suite. Run local full suites only when explicitly requested; preserve the current CI gates.
+- Reuse verifiable results when the checked code, scope and environment still match. Rerun only for new changes, failures or unresolved concerns, and explain the concrete reason for expanding checks. Report only completed checks, with build and type-check outcomes separately when run.
 - Ordinary development and builds validate the pregenerated journal package without Chromium. Development reports missing/outdated books; production builds fail on missing, corrupt or stale packages. Install pinned Chromium with `journal:setup` before explicit `journal:build`, `build:release` or `test:journal:render`. Update the active package allowlist in `.gitignore` when publishing changed content. Use isolated directories for generation tests.
-- `test:unit` never launches a browser. `test:e2e` uses the existing production build and unified Playwright fixtures; `test:e2e:release` builds first. Record browser/environment failures separately from passes. Keep traces, screenshots and performance raw data in `.workspace/`.
-- Capture B0/B1/B2 under matching conditions and compare three repeats. A software WebGL backend, mobile emulation and JS heap do not establish device FPS or total GPU memory.
-- Check UI and animation changes on desktop and narrow viewports, including intermediate frames. For studio interactions, check dragging, clicking, hovering, entry, and return. Base touch and performance claims on checks using the relevant devices.
-- For routing or shell changes, check direct loading, refresh, back/forward, and mid-animation navigation across `/`, `/home`, `/works`, `/canvas`, and `/os`. Check viewport changes when transitions depend on dimensions.
-- For canvas changes, verify position restoration/reset, invalid storage fallback, content and edge validity, mobile reading, and static asset paths. For desktop scanning or deployment changes, verify built content and `/api/health`.
-- For local activity changes, check affected endpoints, authentication, event streams, and required environment configuration. Report checks actually performed, their results, and remaining risks.
+- `test:unit` never launches a browser. `test:e2e` defaults to the existing production build and unified Playwright fixtures; `test:e2e:release` builds first. Ensure the tested service contains the current changes; build once when matching production artifacts are needed. Keep journal integrity checks in builds. Record browser/environment failures separately from passes and keep artifacts in `.workspace/`.
+- For UI and animation, inspect affected components, states and viewports, including intermediate frames when timing changes. Check desktop and narrow layouts when responsive behavior is affected; use the browser relevant to a compatibility issue. Select gesture, keyboard, reduced-motion, recovery and lifecycle scenarios according to the changed behavior and owning feature docs.
+- Run performance sampling only when requested or needed to support a performance claim. Then capture B0/B1/B2 under matching conditions and compare three repeats. Software WebGL, mobile emulation and JS heap do not establish device FPS or total GPU memory; base touch and device-performance claims on the relevant devices.
 
 ## Workspace and Documentation
 

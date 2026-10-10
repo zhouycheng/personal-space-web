@@ -31,7 +31,7 @@
 
 ## 命令
 
-从仓库根目录运行命令，并用 `rtk` 作为命令段前缀：
+从仓库根目录运行命令，并用 `rtk` 作为命令段前缀。以下是可用命令，不是每个任务的必跑清单：
 
 ```bash
 rtk npm install
@@ -50,14 +50,31 @@ rtk npm run monitor:activity
 
 ## 验证
 
-- 基线：`rtk npm run build`、`rtk npm run check:boundaries` 和 `rtk npm run check:types`。发布书页另跑 `rtk npm run build:release`。
-- App 外壳辅助逻辑：`rtk node --test tests/*.test.mjs`。
-- UI 和动效变更需要在桌面和窄屏幕上进行浏览器预览。
-- 路由外壳变更需要对 `/`、`/home`、`/works`、`/canvas` 和 `/os` 进行直接加载、刷新、动画中途导航和浏览器后退/前进检查。
-- 桌面扫描器变更需要 `public/os-desktop/` 文件列表验证。
-- Docker 桌面变更需要验证 `dist/client/os-desktop/`，并确认 `/api/health` 返回非空桌面计数。
-- 画布变更验证本地位置恢复与重置、无效存储回退、卡片连线完整性和手机阅读。
-- 本地活动变更需要路由和环境检查。
+先根据改动行为和调用关系确定影响范围，再选择足以验证当前目标的检查。`build`、`check:boundaries` 和 `check:types` 分别按需选择，没有固定必跑组合。
+
+| 改动 | 选择依据 |
+| --- | --- |
+| 文档、项目 Skill | 检查内容、链接、索引、元数据及 Skill 格式，不运行应用构建或业务测试；Skill 格式校验遵循 `justinspace-skill-create`。 |
+| 局部逻辑 | 运行覆盖改动与受影响调用方的 Node 测试文件；同一文件混合多个行为时用 `--test-name-pattern` 筛选。 |
+| 类型、导入、构建 | 需要验证类型及调用方兼容性时选择 `check:types`；改动影响导入或分层依赖时选择 `check:boundaries`；验证打包、服务端输出或需要更新被测生产产物时选择 `build`。 |
+| UI、动画、浏览器兼容 | 检查相关组件、状态和中间帧；响应式行为受影响时覆盖桌面及窄屏。E2E 指定 spec、相关用例和浏览器项目，通常先选 `desktop-chromium`，兼容问题改选目标浏览器，需要移动布局时选对应项目。 |
+| 共享流程、路由与外壳 | 沿调用关系选择受影响入口的直接加载、刷新、后退/前进、动画中途导航或尺寸变化用例，不因文件共享就追加其他模块回归。 |
+| 内容、存储、扫描器、活动接口 | 按改动选择内容与边端点、位置恢复/重置、无效存储回退、静态资源、文件扫描、接口认证或事件流用例。涉及生产桌面扫描或部署时检查构建内容及 `/api/health`。 |
+
+下面展示指定文件、用例和浏览器的方式；每次只选择与改动相关的命令：
+
+```bash
+rtk node --test tests/entrance.test.mjs
+rtk node --test --test-name-pattern='palette follows local' tests/entrance.test.mjs
+rtk npm run test:e2e -- tests/e2e/entrance.spec.ts --project=desktop-chromium --grep='standalone component'
+```
+
+- `test:unit` 覆盖全部根目录单元测试文件；未筛选的 `test:e2e` 覆盖全部 spec 和配置的浏览器项目。本地全量回归仅在用户明确要求时运行，当前 CI 的全量单测、静态检查与构建门禁保持不变。
+- E2E 默认使用生产产物。被测服务必须包含当前改动；需要更新产物时执行一次 `build`，不能用旧 `dist` 的通过结果验证新代码。构建自带的日记包完整性校验保留，它不要求追加日记阅读回归。
+- 只有日记内容、分页/渲染生成输入或包格式变更需要重新生成书页时，才在对应范围内运行 `journal:build` 或 `build:release`；阅读运行时或其他模块修改不自动触发生成。
+- 代码、检查范围与环境一致且证据可核实时复用结果。任务结束、Skill 调用、交接、新 Agent 或新会话都不是重跑理由；只有新改动、失败或未解决的问题才补跑。扩大检查前说明具体影响或失败路径，不增加确认环节。
+- 性能采样仅在用户要求或需要支撑性能结论时开展；采样条件与重复次数遵循 `AGENTS.md`。普通功能修改不自动启动性能测量。
+- 汇报实际执行的检查和结果，区分构建、类型检查、浏览器观察及未验证行为，不把定向验证表述成完整回归。
 
 ## Git 与交付
 
