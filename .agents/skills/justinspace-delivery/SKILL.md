@@ -1,6 +1,6 @@
 ---
 name: justinspace-delivery
-description: "Plan checks, review JustinSpace changes, run relevant validation, calibrate docs, and prepare requested delivery handoffs."
+description: "Review JustinSpace changes and prepare requested validation reports, doc calibration or delivery handoffs, with checks scoped to affected behavior."
 ---
 
 # JustinSpace Review and Delivery
@@ -9,10 +9,12 @@ Read `AGENTS.md` and `.agents/skills/README.md` first. Inspect the branch, workt
 
 ## Modes
 
-- **Plan:** choose checks that match the changed behavior before implementation.
+- **Plan:** choose checks for the changed behavior and affected callers using `AGENTS.md` and `docs/develop/workflow.md`; explain any expansion with concrete impact or failures.
 - **Review:** trace affected callers and boundaries; inspect docs, runtime, UI, and unrelated changes. Report findings by severity.
-- **Run:** perform the relevant checks from `AGENTS.md`. Do not run the full suite for a docs-only edit. For shared flows, use the relevant unit tests, build, boundary and type checks.
-- **Closeout:** calibrate current facts in `README.md`, `CONTEXT.md`, `AGENTS.md`, `CHANGELOG.md`, `docs/README.md`, affected `docs/develop/` or `docs/features/` files, and touched component READMEs.
+- **Run:** perform only the selected checks. Docs and skills need content, link, metadata and format checks, not application builds or business tests. Select relevant files, test names and browser projects; use build, boundary and type checks independently when needed. Shared flows require affected callers, not an automatic full suite.
+- **Closeout:** calibrate changed facts in their owning docs and touched component READMEs; record dated history in `CHANGELOG.md`. Do not broaden review or validation merely because this skill was invoked.
+
+Reuse verifiable results when code, scope and environment still match. New agents, sessions, handoffs and task completion do not trigger reruns. Local full-suite runs require an explicit user request; keep current CI gates and run performance sampling only when requested or needed for a performance claim. Ensure any tested service contains the current changes, building once when matching production artifacts are needed.
 
 For browser or device work, separate automated results, browser observations, and device-dependent behavior that was not exercised. State commands and outcomes exactly; explain failures and report only checks actually completed.
 

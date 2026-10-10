@@ -17,6 +17,7 @@ These skills serve this repository only.
 - Follow the ownership map in `AGENTS.md`; use targeted search to select only the relevant docs, source, tests, and component guidance.
 - Inspect Git state for validation, delivery, release, skill maintenance, or explicit Git requests. Preserve unrelated user changes.
 - Use the Node version recorded in `.node-version` and prefix project commands with `rtk`.
+- Select checks for the changed behavior and affected callers according to `AGENTS.md` and `docs/develop/workflow.md`. Invoking a project skill does not expand validation scope.
 
 ## Skill Router
 
@@ -24,13 +25,14 @@ These skills serve this repository only.
 | --- | --- | --- |
 | Maintain canvas content, layout and cards | `justinspace-canvas-content` | Published source files |
 | Implement confirmed code, docs, or scripts | `justinspace-implementation` | Working-tree changes |
-| Plan checks, review changes, validate, calibrate docs, prepare version notes, and hand off | `justinspace-delivery` | Validation report, changelog entry, or delivery handoff |
+| Request a review, validation report, doc calibration, version notes, or delivery handoff | `justinspace-delivery` | Scoped validation report, changelog entry, or delivery handoff |
 | Maintain this project-local skill matrix | `justinspace-skill-create` | Updated skills and routing docs |
 
 ## Recommended Flows
 
-- Confirmed implementation: `justinspace-implementation` -> `justinspace-delivery`.
-- Skill system maintenance: `justinspace-skill-create` -> `justinspace-delivery`.
+- Confirmed implementation: `justinspace-implementation`, ending after the relevant checks and result report.
+- Skill system maintenance: `justinspace-skill-create`, ending after skill format, index and metadata checks.
+- Use `justinspace-delivery` when the task calls for its review, report or handoff; do not append it automatically to ordinary implementation or skill maintenance.
 - Commit or PR preparation after validation: `justinspace-delivery`.
 - Version notes: `justinspace-delivery` -> `CHANGELOG.md`.
 - Production deployment: follow [the deployment guide](../../docs/develop/deployment.md) and verify the current server state.

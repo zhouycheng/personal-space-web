@@ -1,6 +1,6 @@
 ---
 name: justinspace-implementation
-description: "Implement confirmed JustinSpace code, content, styles, scripts, and documentation while preserving project boundaries and existing user work; route skill maintenance to justinspace-skill-create."
+description: "Implement confirmed JustinSpace changes with validation scoped to affected behavior, preserving project boundaries and existing work; route skill maintenance to justinspace-skill-create."
 ---
 
 # JustinSpace Implementation
@@ -21,6 +21,8 @@ description: "Implement confirmed JustinSpace code, content, styles, scripts, an
 
 ## Checks and handoff
 
-- Run the checks required by `AGENTS.md` for the changed behavior. Use `justinspace-delivery` for a full review, validation report, or requested delivery handoff.
+- Select the minimum sufficient checks for the changed behavior and affected callers using `AGENTS.md` and `docs/develop/workflow.md`. Explain the concrete impact or failure that requires broader checks; a shared file or task completion is not a reason to run a full suite.
+- For docs and skills, check content, links, metadata and skill format only. For mixed test files, select relevant test names; for E2E, also select the browser project and ensure the service contains the current changes.
+- Reuse matching, verifiable results. Ordinary implementation ends after the relevant checks and report; use `justinspace-delivery` only when the task calls for its review, validation report or handoff, preserving the same check scope.
 - Report the changed files, behavior, checks actually run, and any unverified behavior.
 - Do not stage, commit, push, release, or deploy unless the user explicitly asks for that action.
