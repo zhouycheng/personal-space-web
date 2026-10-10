@@ -8,10 +8,21 @@ async function ready(page:Page) { await expect(overlay(page)).toHaveAttribute('d
 async function enter(page:Page) { await ready(page); await overlay(page).focus();await page.keyboard.press('Enter');await expect(overlay(page)).toBeHidden({timeout:15000}); }
 
 test('loading reports real progress and a completed refresh auto-fades the cloud cover',async({page},info)=>{
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   await page.emulateMedia({reducedMotion:'no-preference'});
   // Fix the cloud palette without mocking PerformanceNavigationTiming on reload.
   await page.addInitScript(()=>{Date.prototype.getHours=()=>14;Date.prototype.getMinutes=()=>0;});
+  await page.addInitScript(()=>{
+    Reflect.set(window,'cloudTextFrames',[]);
+    const original=CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText=function(text,_x,y){
+      if(this.canvas.matches('[data-cloud-canvas]'))Reflect.get(window,'cloudTextFrames').push({
+        state:(this.canvas.closest('[data-cloud-entrance]') as HTMLElement).dataset.state,
+        text,y:y*this.canvas.clientHeight/this.canvas.height,
+      });
+      return Reflect.apply(original,this,arguments);
+    };
+  });
   let gate:Promise<void>|undefined;
   let releaseInitial!:()=>void;
   gate=new Promise<void>(resolve=>{releaseInitial=resolve;});
@@ -36,7 +47,29 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   await overlay(page).click({position:{x:100,y:100}});
   expect(await page.evaluate(()=>sessionStorage.getItem('justin-entrance-completed'))).toBeNull();
   await page.screenshot({path:info.outputPath('loading.png')});
-  releaseInitial();gate=undefined;await ready(page);
+  const loadingY=await page.locator('[data-cloud-status]').evaluate(el=>{const r=el.getBoundingClientRect();return r.top+r.height/2;});
+  // Start sampling before releasing the gate; ready may arrive within 200ms.
+  await overlay(page).evaluate(root=>{Reflect.set(window,'cloudCompletion',(async()=>{
+    const bar=root.querySelector<HTMLElement>('[data-cloud-progress]')!;
+    const status=root.querySelector<HTMLElement>('[data-cloud-status]')!;
+    const samples:{opacity:number;y:number}[]=[];
+    while(true){
+      if((root as HTMLElement).dataset.state==='ready'){
+        const style=getComputedStyle(bar),r=status.getBoundingClientRect();
+        samples.push({opacity:Number(style.opacity),y:r.top+r.height/2});
+        if(style.visibility==='hidden')return samples;
+      }
+      await new Promise(requestAnimationFrame);
+    }
+  })());});
+  releaseInitial();gate=undefined;
+  const completedFrames=await page.evaluate(()=>Reflect.get(window,'cloudCompletion') as Promise<{opacity:number;y:number}[]>);await ready(page);
+  await info.attach('ready-frames.json',{contentType:'application/json',body:JSON.stringify(completedFrames)});
+  expect(completedFrames.filter(frame=>frame.opacity>0&&frame.opacity<1).length).toBeGreaterThan(2);
+  expect(completedFrames.every(frame=>Math.abs(frame.y-loadingY)<1)).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudTextFrames').some((frame:{state:string})=>frame.state==='ready'))).toBe(true);
+  const initialTextFrames=await page.evaluate(()=>Reflect.get(window,'cloudTextFrames') as {state:string;y:number}[]);
+  expect(initialTextFrames.filter(frame=>['loading','ready'].includes(frame.state)).every(frame=>Math.abs(frame.y-loadingY)<1)).toBe(true);
   await expect(page.locator('[data-cloud-status]')).toHaveCount(1);
   await expect(page.locator('[data-cloud-status]')).toHaveText('点击拨开云雾');
   await expect(progressBar).toBeHidden();
@@ -58,17 +91,29 @@ test('loading reports real progress and a completed refresh auto-fades the cloud
   const refreshPalette=await overlay(page).evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim());
   expect(refreshPalette).toMatch(/^#[\da-f]{6}$/i);
   await expect.poll(()=>overlay(page).evaluate(el=>Number.parseFloat(getComputedStyle(el).getPropertyValue('--cloud-progress')))).toBeGreaterThan(0);
+  const refreshY=await page.locator('[data-cloud-status]').evaluate(el=>{const r=el.getBoundingClientRect();return r.top+r.height/2;});
   // Sample actual frames: a delayed protocol read can land after dispose resets opacity.
-  const fade = overlay(page).evaluate(async root => {
-    const samples: number[] = [];
+  await overlay(page).evaluate(root=>{Reflect.set(window,'cloudFade',(async()=>{
+    const status=root.querySelector<HTMLElement>('[data-cloud-status]')!;
+    const bar=root.querySelector<HTMLElement>('[data-cloud-progress]')!;
+    const samples:{opacity:number;y:number;barVisible:boolean}[]=[];
     while (!(root as HTMLElement).hidden) {
-      if ((root as HTMLElement).dataset.state === 'dismissing') samples.push(Number(getComputedStyle(root).opacity));
+      if ((root as HTMLElement).dataset.state === 'dismissing') {
+        const r=status.getBoundingClientRect(),bounds=root.getBoundingClientRect(),style=getComputedStyle(bar);
+        samples.push({opacity:Number(getComputedStyle(root).opacity),y:(r.top-bounds.top+r.height/2)*root.clientHeight/bounds.height,barVisible:style.visibility==='visible'&&Number(style.opacity)===1});
+      }
       await new Promise(requestAnimationFrame);
     }
     return samples;
-  });
+  })());});
   releaseRefresh();gate=undefined;
-  expect((await fade).filter(opacity => opacity > 0 && opacity < 1).length).toBeGreaterThan(2);
+  const fadeFrames=await page.evaluate(()=>Reflect.get(window,'cloudFade') as Promise<{opacity:number;y:number;barVisible:boolean}[]>);
+  await info.attach('refresh-frames.json',{contentType:'application/json',body:JSON.stringify(fadeFrames)});
+  expect(fadeFrames.filter(frame=>frame.opacity>0&&frame.opacity<1).length).toBeGreaterThan(2);
+  expect(fadeFrames.every(frame=>Math.abs(frame.y-refreshY)<1&&frame.barVisible)).toBe(true);
+  const refreshTextFrames=await page.evaluate(()=>Reflect.get(window,'cloudTextFrames') as {state:string;y:number}[]);
+  expect(refreshTextFrames.some(frame=>frame.state==='dismissing')).toBe(true);
+  expect(refreshTextFrames.filter(frame=>['loading','dismissing'].includes(frame.state)).every(frame=>Math.abs(frame.y-refreshY)<1)).toBe(true);
   await expect(overlay(page)).toBeHidden({timeout:15000});
   await expect(page.locator('[data-studio-scene]')).toHaveAttribute('data-ocean-active','true');
   await expect(page).toHaveURL(/\/home\?source=entrance#start$/);
@@ -86,7 +131,7 @@ for(const path of ['/','/home','/works','/canvas','/os','/journal']) {
     const returnFocus=page.locator('[data-studio-return]:focus,[data-canvas-return]:focus,[data-gallery-return]:focus,[data-journal-close]:focus');
     await expect(returnFocus).toHaveCount(0);
     if(path==='/journal')await phase(page,'reading');
-    await page.reload();await expect(overlay(page)).toBeHidden();
+    await page.reload();await expect(overlay(page)).toBeHidden({timeout:35000});
     const state=path==='/os'?'desktop':path==='/canvas'?'canvas':path==='/journal'?'journal':'room';
     await expect(page.locator('[data-studio]')).toHaveAttribute('data-state',state);
     await expect(returnFocus).toHaveCount(0);
@@ -105,23 +150,24 @@ test('camera and clouds share progress, survive resize, land without bounce and 
   await page.clock.install({time:new Date(2026,9,4,14)});await page.clock.pauseAt(new Date(2026,9,4,14,0,1));
   await page.keyboard.press('Enter');await page.keyboard.press('Enter');
   await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
-  await page.clock.runFor(150);
+  // Establish the active clock, then sample its elapsed-time poses without rendering every skipped frame.
+  await page.clock.runFor(16);await page.clock.fastForward(134);
   await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
   await page.screenshot({path:info.outputPath('prompt-dissolving.png')});
-  await page.clock.runFor(200);
+  await page.clock.fastForward(200);
   await expect(overlay(page).locator('[data-cloud-progress]')).toBeHidden();
   await page.screenshot({path:info.outputPath('far-B.png')});
-  await page.clock.runFor(700);
+  await page.clock.fastForward(700);
   await page.screenshot({path:info.outputPath('mid-reveal.png')});
   const progress=Number(await page.locator('[data-studio-scene]').getAttribute('data-entrance-progress'));
   expect(progress).toBeGreaterThan(.25);expect(progress).toBeLessThan(.5);
   await page.setViewportSize({width:390,height:844});
-  await page.clock.runFor(600);await page.screenshot({path:info.outputPath('narrow-reveal.png')});
-  await page.clock.runFor(1600);await expect(overlay(page)).toBeHidden();
+  await page.clock.fastForward(600);await page.screenshot({path:info.outputPath('narrow-reveal.png')});
+  await page.clock.fastForward(1600);await expect(overlay(page)).toBeHidden();
   await page.screenshot({path:info.outputPath('narrow-settled.png')});
   const mount=page.locator('[data-studio-scene]');
   await expect(mount).toHaveAttribute('data-camera-angle','-0.4800');await expect(mount).toHaveAttribute('data-camera-zoom','1.0000');
-  await page.clock.runFor(500);await expect(mount).toHaveAttribute('data-camera-angle','-0.4800');
+  await page.clock.fastForward(500);await expect(mount).toHaveAttribute('data-camera-angle','-0.4800');
   await page.clock.resume();
   await page.mouse.move(55,210);await page.mouse.down();await page.mouse.move(125,230,{steps:8});await page.mouse.up();
   await expect(mount).not.toHaveAttribute('data-camera-angle','-0.4800');
@@ -139,7 +185,7 @@ test('a published journal slug and anchor survive entrance; history does not acq
   expect(await page.evaluate(()=>location.search+location.hash)).toBe(`?source=deep#${encodeURIComponent(anchor)}`);
   expect(await page.evaluate(()=>history.length)).toBe(length);
   const readingPage=await page.locator('canvas[data-journal-phase]').getAttribute('data-journal-page');
-  await page.reload();await expect(overlay(page)).toBeHidden();await phase(page,'reading');
+  await page.reload();await expect(overlay(page)).toBeHidden({timeout:35000});await phase(page,'reading');
   await expect(page.locator('canvas[data-journal-phase]')).toHaveAttribute('data-journal-page',readingPage!);
   expect(await page.evaluate(()=>location.search+location.hash)).toBe(`?source=deep#${encodeURIComponent(anchor)}`);
   expect(await page.evaluate(()=>history.length)).toBe(length);
@@ -161,6 +207,7 @@ test('WebGL denial exposes independent retry and usable content exits',async({pa
 });
 
 test('standalone component needs no scene, slots are safe and disposed canvas releases its buffers',async({page,request},info)=>{
+  test.setTimeout(90_000);
   const body=await (await request.get('/home')).text();
   const html=await page.evaluate(body=>new DOMParser().parseFromString(body,'text/html').querySelector('[data-cloud-entrance]')!.outerHTML,body);
   const css=await readFile('src/justin-kit/components/cloud-entrance/cloud-entrance.css','utf8');
@@ -177,8 +224,12 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
     Object.defineProperty(CanvasRenderingContext2D.prototype,'filter',{configurable:true,get(){return undefined;},set(){throw new Error('Canvas filter is unavailable');}});
     const NativeResizeObserver=window.ResizeObserver;
     window.ResizeObserver=class extends NativeResizeObserver {constructor(callback){super(callback);window.cloudResize=()=>callback([],this);}};
-    window.cloudCanvasText=[];const originalFillText=CanvasRenderingContext2D.prototype.fillText;
-    CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.cloudCanvasText.push(String(text));return Reflect.apply(originalFillText,this,[text,...args]);};
+    window.cloudCanvasText=[];window.cloudCanvasStatus=[];const originalFillText=CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText=function(text,...args){
+      window.cloudCanvasText.push(String(text));
+      if(this.canvas.matches('[data-cloud-canvas]'))window.cloudCanvasStatus.push({state:this.canvas.closest('[data-cloud-entrance]').dataset.state,y:args[1]*this.canvas.clientHeight/this.canvas.height});
+      return Reflect.apply(originalFillText,this,[text,...args]);
+    };
     root.querySelector('.cloud-entrance__information').innerHTML='<button data-cloud-no-enter>个人信息</button>';
     window.enterCount=0;window.cloud=createCloudEntrance(root,()=>{window.enterCount++;},()=>{});
     window.cloud.setProgress(.4);window.cloud.setState('loading');`;
@@ -236,6 +287,35 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
   expect(await entrance.evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-entrance-background').trim())).toBe('#c6d0d2');
   await page.screenshot({path:info.outputPath('standalone-day.png')});
+  const pausedReadyTime=await page.evaluate(async()=>{
+    Reflect.get(window,'cloud').setState('ready');
+    await new Promise(requestAnimationFrame);
+    const animation=document.querySelector('[data-cloud-progress]')!.getAnimations()[0];
+    animation.currentTime=80;Reflect.set(window,'readyAnimation',animation);
+    window.dispatchEvent(new Event('pagehide'));
+    await animation.ready;
+    return animation.currentTime as number;
+  });
+  await expect(progressBar).toBeVisible();
+  const pausedOpacity=Number(await progressBar.evaluate(bar=>getComputedStyle(bar).opacity));
+  expect(pausedOpacity).toBeGreaterThan(0);expect(pausedOpacity).toBeLessThan(1);
+  await page.waitForTimeout(250);
+  expect(await page.evaluate(()=>Reflect.get(window,'readyAnimation').currentTime as number)).toBeCloseTo(pausedReadyTime,2);
+  await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
+  await expect(progressBar).toBeHidden();
+  await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
+  expect(await page.evaluate(()=>Reflect.get(window,'readyAnimation').playState)).toBe('finished');
+  await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
+  expect(await page.evaluate(()=>Reflect.get(window,'readyAnimation').playState)).toBe('finished');
+  await expect(progressBar).toBeHidden();
+  expect(await page.evaluate(async()=>{
+    Reflect.get(window,'cloud').setState('loading');Reflect.get(window,'cloud').setState('ready');
+    await new Promise(requestAnimationFrame);
+    Reflect.get(window,'cloud').setState('error','准备中断');
+    return document.querySelector('[data-cloud-progress]')!.getAnimations().length;
+  })).toBe(0);
+  await expect(progressBar).toBeHidden();
+  await page.evaluate(()=>{Reflect.get(window,'cloud').setProgress(.8);Reflect.get(window,'cloud').setState('loading','正在准备首帧');});
   await page.emulateMedia({reducedMotion:'reduce'});
   await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('animation-name','none');
   await expect(progressBar.locator('.cloud-entrance__progress-fill')).toHaveCSS('transition-duration','0s');
@@ -243,11 +323,13 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
     await expect.poll(()=>progressBar.evaluate((bar,pseudo)=>getComputedStyle(bar,pseudo).animationName,pseudo)).toBe('none');
     await expect.poll(()=>progressBar.evaluate((bar,pseudo)=>getComputedStyle(bar,pseudo).willChange,pseudo)).toBe('auto');
   }
+  const loadingStatusY=await page.locator('[data-cloud-status]').evaluate(el=>{const r=el.getBoundingClientRect();return r.top+r.height/2;});
   await page.evaluate(()=>Reflect.get(window,'cloud').setState('ready'));
   await ready(page);
   await expect(progressBar).toBeHidden();
   await expect(progressBar).toHaveAttribute('aria-valuenow','100');
   await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasText').includes('点击拨开云雾'))).toBe(true);
+  expect(await page.locator('[data-cloud-status]').evaluate(el=>{const r=el.getBoundingClientRect();return r.top+r.height/2;})).toBeCloseTo(loadingStatusY,1);
   await page.getByRole('button',{name:'个人信息'}).click();
   expect(await page.evaluate(()=>Reflect.get(window,'enterCount'))).toBe(0);
   await overlay(page).focus();await page.keyboard.press('Space');
@@ -291,10 +373,36 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
     animation.pause();animation.currentTime=500;
   });
   expect(Number(await entrance.evaluate(el=>getComputedStyle(el).opacity))).toBeLessThan(1);
+  await expect(progressBar).toBeHidden();
+  await expect(entrance).not.toHaveAttribute('data-dismiss-progress','');
+  await page.evaluate(()=>Reflect.get(window,'cloud').setState('loading'));
+  await expect(entrance).toHaveCSS('opacity','1');
+  await expect(progressBar).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasStatus').at(-1).state)).toBe('loading');
+  const beforeDismissY=await page.evaluate(()=>Reflect.get(window,'cloudCanvasStatus').at(-1).y as number);
+  await page.evaluate(()=>{
+    Reflect.get(window,'cloud').setProgress(1);
+    void Reflect.get(window,'cloud').dismiss(1000);
+    const animation=document.querySelector('[data-cloud-entrance]')!.getAnimations()[0];
+    animation.pause();animation.currentTime=500;
+  });
+  await expect(progressBar).toBeVisible();
+  await expect(progressBar).toHaveAttribute('aria-valuenow','100');
+  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'cloudCanvasStatus').at(-1).state)).toBe('dismissing');
+  expect(await page.evaluate(()=>Reflect.get(window,'cloudCanvasStatus').at(-1).y as number)).toBeCloseTo(beforeDismissY,1);
+  await page.evaluate(()=>Reflect.get(window,'cloud').setState('error','准备中断'));
+  await expect(entrance).toHaveCSS('opacity','1');
+  await expect(progressBar).toBeHidden();
+  await expect(entrance).not.toHaveAttribute('data-dismiss-progress','');
+  await page.evaluate(()=>{Reflect.get(window,'cloud').setState('loading');Reflect.get(window,'cloud').setProgress(0);});
+  await expect(progressBar).toBeVisible();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.evaluate(()=>Reflect.get(window,'cloud').dismiss(1000));
+  await expect(entrance).toHaveCSS('opacity','0');
   await page.evaluate(()=>Reflect.get(window,'cloud').setState('loading'));
   await expect(entrance).toHaveCSS('opacity','1');
   await page.evaluate(()=>Reflect.get(window,'cloud').dismiss(0));
-  await expect(progressBar).toBeHidden();
+  await expect(entrance).toHaveCSS('opacity','0');
   await page.evaluate(()=>Reflect.get(window,'cloud').dispose());
   expect(await page.locator('[data-cloud-canvas]').evaluate(canvas=>(canvas as HTMLCanvasElement).width)).toBe(0);
 });

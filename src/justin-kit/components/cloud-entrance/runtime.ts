@@ -14,6 +14,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   const canvas = root.querySelector<HTMLCanvasElement>('[data-cloud-canvas]')!;
   const context = canvas.getContext('2d');
   const status = root.querySelector<HTMLElement>('[data-cloud-status]')!;
+  const progressBar = root.querySelector<HTMLElement>('[data-cloud-progress]');
   const error = root.querySelector<HTMLElement>('[data-cloud-error]')!;
   const events = new AbortController();
   const field=createFogField();
@@ -28,7 +29,8 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   let state: CloudState = 'loading', reveal = 0, disposed = false, frame = 0;
   let width = 1, height = 1, pixelRatio = 1, progress = 0, hover = 0, hoverTarget = 0, previous = 0;
   let pointer = { x: -1, y: -1 }, down: { x: number; y: number } | undefined;
-  let dismissal: Animation | undefined;
+  let dismissal: Animation | undefined, readyFade: Animation | undefined;
+  let readyFadePending = false;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   root.toggleAttribute('data-suspended', document.hidden);
   function bake() {
@@ -76,8 +78,8 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     if (!text) return;
     const statusRect = status.getBoundingClientRect(), rootRect = root.getBoundingClientRect();
     const style = getComputedStyle(status);
-    const x = (statusRect.left - rootRect.left + statusRect.width / 2) * pixelRatio;
-    const y = (statusRect.top - rootRect.top + statusRect.height / 2) * pixelRatio;
+    const x = (statusRect.left - rootRect.left + statusRect.width / 2) * width / rootRect.width;
+    const y = (statusRect.top - rootRect.top + statusRect.height / 2) * height / rootRect.height;
     context!.save();
     context!.globalAlpha = alpha;
     const statusFontSize = Number.parseFloat(style.fontSize) * pixelRatio;
@@ -96,7 +98,6 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     context!.restore();
   }
   function syncProgressSemantics() {
-    const progressBar = root.querySelector<HTMLElement>('[data-cloud-progress]');
     if (!progressBar) return;
     const value = Math.round(progress * 100);
     progressBar.setAttribute('aria-valuenow', String(value));
@@ -111,6 +112,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   function paint(now = performance.now()) {
     frame = 0;
     if (disposed || !context || document.hidden || root.hidden) return;
+    if (readyFadePending) { readyFadePending = false; readyFade?.play(); }
     const delta = previous ? Math.min(50, now - previous) : 16; previous = now;
     hover += (hoverTarget - hover) * (1 - Math.exp(-delta / 160));
     if (Math.abs(hoverTarget - hover) < .005) hover = hoverTarget;
@@ -175,20 +177,23 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   document.addEventListener('visibilitychange', () => {
     root.toggleAttribute('data-suspended', document.hidden);
     cancelAnimationFrame(frame); frame = 0; previous = 0;
-    if (document.hidden) dismissal?.pause();
-    else { dismissal?.play(); updatePalette(); requestPaint(); }
+    if (document.hidden) { dismissal?.pause(); if (readyFade?.playState === 'running') readyFade.pause(); }
+    else { dismissal?.play(); if (!readyFadePending && readyFade?.playState === 'paused') readyFade.play(); updatePalette(); requestPaint(); }
   }, { signal: events.signal });
-  window.addEventListener('pagehide', () => { root.setAttribute('data-suspended', ''); cancelAnimationFrame(frame); frame = 0; previous = 0; dismissal?.pause(); }, { signal: events.signal });
-  window.addEventListener('pageshow', () => { root.toggleAttribute('data-suspended', document.hidden); if (!document.hidden) dismissal?.play(); updatePalette(); requestPaint(); }, { signal: events.signal });
+  window.addEventListener('pagehide', () => { root.setAttribute('data-suspended', ''); cancelAnimationFrame(frame); frame = 0; previous = 0; dismissal?.pause(); if (readyFade?.playState === 'running') readyFade.pause(); }, { signal: events.signal });
+  window.addEventListener('pageshow', () => { root.toggleAttribute('data-suspended', document.hidden); if (!document.hidden) { dismissal?.play(); if (!readyFadePending && readyFade?.playState === 'paused') readyFade.play(); } updatePalette(); requestPaint(); }, { signal: events.signal });
   return {
     setPalette(next:ReturnType<typeof entranceTimePalette>) {
       if(disposed||root.hidden||JSON.stringify(next)===JSON.stringify(palette))return;
       palette=next;setPaletteStyles(root,palette);bake();requestPaint();
     },
     setState(value: CloudState, message?: string) {
+      const fadeProgress = value === 'ready' && state === 'loading';
+      if (value !== 'ready') { readyFade?.cancel(); readyFade = undefined; readyFadePending = false; }
       if (value === 'loading' || value === 'error') {
         dismissal?.cancel(); dismissal = undefined; root.style.removeProperty('opacity');
       }
+      root.toggleAttribute('data-dismiss-progress', value === 'dismissing' && (state === 'loading' || root.hasAttribute('data-dismiss-progress')));
       state = value; root.dataset.state = value; root.setAttribute('aria-busy', String(value === 'loading'));
       root.inert = value === 'revealing' || value === 'dismissing';
       root.tabIndex = value === 'ready' ? 0 : -1;
@@ -197,6 +202,14 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       if(value==='ready')root.setAttribute('aria-keyshortcuts','Enter Space');else root.removeAttribute('aria-keyshortcuts');
       if(value!=='revealing'&&value!=='dismissing')status.textContent = message ?? (value === 'ready' ? root.dataset.readyText! : root.dataset.loadingText!);
       if (value === 'ready') { progress = 1; root.style.setProperty('--cloud-progress', '1'); }
+      if (fadeProgress && progressBar && !reduce.matches) {
+        readyFade = progressBar.animate([
+          { opacity: 1, visibility: 'visible' },
+          { opacity: 0, visibility: 'visible' },
+        ], { duration: 200, easing: 'ease' });
+        // Start on the next painted frame after synchronous scene preparation.
+        readyFade.pause(); readyFade.currentTime = 0; readyFadePending = true;
+      }
       syncProgressSemantics();
       error.hidden = value !== 'error';
       if (value === 'revealing' || value === 'dismissing') { hover = hoverTarget = 0; down = undefined; }
@@ -226,7 +239,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     },
     dispose() {
       if (disposed) return; disposed = true; events.abort(); observer.disconnect(); cancelAnimationFrame(frame); window.clearInterval(paletteTimer);
-      dismissal?.cancel();
+      dismissal?.cancel(); readyFade?.cancel();
       canvas.width = canvas.height = surface.width = surface.height = underneath.width = underneath.height = patch.width = patch.height = 0;
       clouds.width=clouds.height=0;
       cloudPixels=new ImageData(1,1);field.dispose();
