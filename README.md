@@ -17,7 +17,7 @@
   <a href="https://github.com/zhouycheng/personal-space-web/issues">问题反馈</a>
 </p>
 
-JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件。海岛工作室中的电脑、iPad、文件木箱和日记分别连接桌面、画布、作品与阅读页面。GitHub 仓库和 GHCR 镜像使用 `personal-space-web`。
+JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件。海岛工作室中的电脑、iPad、资料柜和日记分别连接桌面、画布、作品与阅读页面。GitHub 仓库和 GHCR 镜像使用 `personal-space-web`。
 
 ## 页面
 

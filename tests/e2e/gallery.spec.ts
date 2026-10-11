@@ -3,6 +3,7 @@ import { test } from './helpers/app';
 
 test("file selection centers before opening, preserves copyable details and supports keyboard", async ({ page, isMobile }) => {
   await page.goto("/works");
+  await expect(page.locator('[data-cloud-entrance]')).toBeHidden({ timeout: 35000 });
   const buttons = page.locator("[data-gallery-file]"), dialog = page.locator("[data-gallery-detail]");
   expect(await page.locator("[data-studio-gallery]").evaluate(element => getComputedStyle(element).userSelect)).toBe("none");
   expect(await dialog.evaluate(element => getComputedStyle(element).userSelect)).toBe("text");

@@ -11,7 +11,7 @@ import { islandLeisure as layout } from '../../../config/islandLeisure.ts';
 import { breezeAt } from '../../../animation/studio/breeze.ts';
 import { createLoungeShell,loungePanel } from './leisureGeometry.ts';
 import { createDockBoat } from './dockBoat.ts';
-import { createHurricaneLantern } from './hurricaneLantern.ts';
+import { createHurricaneLantern,createLanternFlameMaterial } from './hurricaneLantern.ts';
 import { restControllerOnLounge } from './loungeSupport.ts';
 
 /** Decorative beach objects; intentionally independent of the furniture picking tree. */
@@ -159,9 +159,8 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
   const glass=new THREE.MeshPhysicalMaterial({color:0xf2f5ed,transparent:true,opacity:.14,depthWrite:false,roughness:.08,clearcoat:1,side:THREE.DoubleSide});materials.add(glass);
   const lampMetal=p.material(0x434a42,.42);lampMetal.metalness=.55;
   const lampBrass=p.material(0x9b8152,.36);lampBrass.metalness=.7;
-  const wick=p.material(0xffd486);wick.emissive.set(0xffaa32);wick.emissiveIntensity=2;
-  const core=new THREE.MeshBasicMaterial({color:0xfff1d7,toneMapped:false});materials.add(core);
-  const lamp=createHurricaneLantern(p,{metal:lampMetal,brass:lampBrass,dark:charcoal,glass,wick,core});
+  const wick=createLanternFlameMaterial(materials);
+  const lamp=createHurricaneLantern(p,{metal:lampMetal,brass:lampBrass,dark:charcoal,glass,flame:wick});
   lamp.position.set(.02,.53,.04);lamp.scale.setScalar(.8);table.add(lamp);
   const gameLight=new THREE.PointLight(0xffcf91,2.6,4.3,1.5);gameLight.position.set(-.5,1.2,-.35);game.add(gameLight);
   const dockLights:THREE.PointLight[]=[];
@@ -183,7 +182,8 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
   }
   let daylight=1;
   const boat=createDockBoat(p,materials,textures);group.add(boat.group);
-  return {group,boatInverse:boat.inverse,setWaterTime:boat.update,setLighting(value:number){daylight=value;wick.emissiveIntensity=1.1+(1-value)*.9;gameLight.intensity=.8+(1-value)*1.7;dockLights.forEach(light=>light.intensity=.35+(1-value)*1.3);},setWind(seconds:number){
+  return {group,boatInverse:boat.inverse,setWaterTime:boat.update,setLighting(value:number){daylight=value;gameLight.intensity=.8+(1-value)*1.7;dockLights.forEach(light=>light.intensity=.35+(1-value)*1.3);},setWind(seconds:number){
+    wick.uniforms.time.value=seconds;
     const gust=breezeAt(layout.campfire.x,layout.campfire.z,seconds);
     for(const flame of flames){(flame.material as THREE.ShaderMaterial).uniforms.time.value=seconds;flame.rotation.z=-gust*.0765;flame.rotation.x=gust*.0477;}
     glow.intensity=(2.4+(1-daylight)*1.8)*(1+.075*Math.sin(seconds*7.3)+.035*Math.sin(seconds*13.1));
