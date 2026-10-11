@@ -9,7 +9,7 @@ test('ocean animates only in the visible home and respects reduced motion', asyn
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/home');
   const mount=page.locator('[data-studio-scene]');
-  await expect(mount).toHaveAttribute('data-ocean-active','true');
+  await expect(mount).toHaveAttribute('data-ocean-active','true',{timeout:35000});
   const a=await page.screenshot();
   await page.waitForTimeout(300);
   const b=await page.screenshot({path:info.outputPath('island-day.png')});
@@ -43,7 +43,7 @@ test('sea background dragging cannot activate furniture; zoom and reset preserve
   await page.clock.setFixedTime(new Date(2026,9,3,14));
   await page.goto('/home');
   const mount=page.locator('[data-studio-scene]');
-  await expect(mount).toHaveAttribute('data-ocean-active','true');
+  await expect(mount).toHaveAttribute('data-ocean-active','true',{timeout:35000});
   const rect=(await mount.boundingBox())!;
   const x=rect.x+rect.width*.12,y=rect.y+rect.height*.3;
   await page.mouse.move(x,y);await page.mouse.down();

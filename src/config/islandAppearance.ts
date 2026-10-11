@@ -8,8 +8,8 @@ export const islandAppearance = {
   shoreHarmonics: [[3, 0.065, 0.4], [5, 0.035, 1.2], [7, 0.018, -0.7], [11, 0.006, 1.8]],
   // Front beach (+Z) and eastern landing (+X), joined by broad continuous slopes.
   shoreExtensions: [[Math.PI / 2, 0.38, 0.72], [0, 0.08, 0.62]],
-  sand: 0xe7d4aa,
-  wetSand: 0x9a8967,
-  shallowWater: 0x24aaa5,
-  deepWater: 0x104b69,
+  sand: 0xe4d3b6,
+  wetSand: 0xb1a18c,
+  shallowWater: 0x379f9e,
+  deepWater: 0x1e5270,
 } as const;

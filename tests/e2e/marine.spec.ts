@@ -44,6 +44,46 @@ test('submerged marine meshes composite through water, reject foreground depth a
   await page.waitForTimeout(200);
   expect(await page.evaluate(() => (window as any).__marine.scene.getObjectByName('marine-shark').position.toArray())).toEqual(initial.position);
 
+  // Compare the actual sand shader with its relief disabled under uniform daylight.
+  // This catches a missing/ineffective relief while keeping the furniture platform level.
+  await page.evaluate(() => {
+    const p=(window as any).__marine,{scene,camera,renderer}=p,sand=scene.getObjectByName('island-sand');
+    p.surface={sand,material:sand.material,position:camera.position.clone(),rotation:camera.quaternion.clone(),visible:[],lamps:[],shadows:renderer.shadowMap.enabled};
+    scene.traverse((object:any)=>{
+      if(object.isMesh){p.surface.visible.push([object,object.visible]);object.visible=false;}
+      if(object.isPointLight||object.isSpotLight){p.surface.lamps.push([object,object.intensity]);object.intensity=0;}
+    });
+    sand.visible=true;camera.position.set(0,3,0);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+    renderer.shadowMap.enabled=false;renderer.setRenderTarget(null);renderer.render(scene,camera);
+  });
+  const canvas = mount.locator('canvas');
+  const texturedSand=await canvas.screenshot({path:info.outputPath('sand-relief.png')});
+  await page.evaluate(()=>{
+    const p=(window as any).__marine,s=p.surface;
+    s.plain=s.material.clone();
+    s.plain.onBeforeCompile=(shader:any,renderer:any)=>{
+      s.material.onBeforeCompile(shader,renderer);
+      shader.fragmentShader=shader.fragmentShader.replace('normal=normalize(abs(sandDet)*normal-sandGradient);','');
+    };
+    s.sand.material=s.plain;p.renderer.render(p.scene,p.camera);
+  });
+  const plainSand=await canvas.screenshot();
+  await page.evaluate(()=>{
+    const p=(window as any).__marine,s=p.surface;
+    s.sand.material=s.material;s.plain.dispose();
+    for(const [object,visible] of s.visible)object.visible=visible;
+    for(const [light,intensity] of s.lamps)light.intensity=intensity;
+    p.renderer.shadowMap.enabled=s.shadows;
+    p.camera.position.copy(s.position);p.camera.quaternion.copy(s.rotation);p.camera.updateMatrixWorld();
+    delete p.surface;
+  });
+  async function luminanceDeviation(buffer:Buffer){
+    const {data,info}=await sharp(buffer).resize(160,100).greyscale().raw().toBuffer({resolveWithObject:true});
+    const mean=data.reduce((sum,value)=>sum+value,0)/(info.width*info.height);
+    return Math.sqrt(data.reduce((sum,value)=>sum+(value-mean)**2,0)/data.length);
+  }
+  expect(await luminanceDeviation(texturedSand)).toBeGreaterThan(await luminanceDeviation(plainSand)+1);
+
   // Render the actual scene shader with a controlled camera and body position.
   // Changing only the fish depth isolates rejection from water animation and UI motion.
   await page.evaluate(() => {
@@ -61,7 +101,6 @@ test('submerged marine meshes composite through water, reject foreground depth a
     };
     p.draw();
   });
-  const canvas = mount.locator('canvas');
   const submerged = await canvas.screenshot({ path: info.outputPath('marine-submerged.png') });
   await page.evaluate(() => { const p = (window as any).__marine;p.scene.getObjectByName('marine-turtle').visible = false;p.draw(); });
   const empty = await canvas.screenshot();

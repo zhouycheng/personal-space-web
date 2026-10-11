@@ -56,7 +56,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   renderer.shadowMap.needsUpdate = true;
   renderer.setClearColor(0xeee9de, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.3;
+  renderer.toneMappingExposure = 1.18;
   renderer.info.autoReset = false;
   canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口");
   canvas.tabIndex = -1;
