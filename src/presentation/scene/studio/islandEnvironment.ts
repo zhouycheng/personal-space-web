@@ -34,8 +34,8 @@ float sandNoise(vec2 p) {
     mix(sandHash(i+vec2(0,1)),sandHash(i+vec2(1,1)),f.x),f.y);
 }
 float sandRelief(vec2 p) {
-  return sandNoise(p*9.0)*0.004 + sandNoise(p*37.0)*0.0012
-    + sin(p.y*25.0+5.0*sandNoise(p*1.7))*0.0006;
+  return sandNoise(p*2.4)*0.014 + sandNoise(p*9.0)*0.009 + sandNoise(p*37.0)*0.0015
+    + sin(p.y*25.0+5.0*sandNoise(p*1.7))*0.001;
 }`;
 
 // Ground shading follows every planted center, with irregular soft edges rather than decals.

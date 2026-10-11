@@ -53,7 +53,7 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
   };
   const details=data.details.map(levels=>{
     const mesh=new THREE.Mesh(levels[0].geometry,foliage);
-    mesh.name='plant-leaves';mesh.userData.detailLevel=0;mesh.castShadow=true;mesh.customDepthMaterial=depth;
+    mesh.name='plant-leaves';mesh.userData.detailLevel=0;mesh.castShadow=true;mesh.receiveShadow=true;mesh.customDepthMaterial=depth;
     group.add(mesh);levels.forEach(level=>geometries.add(level.geometry));
     return {mesh,levels,errors:levels.map(level=>level.error),level:0};
   });

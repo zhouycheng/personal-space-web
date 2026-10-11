@@ -37,12 +37,17 @@ test('workspace textures and materials share one scene owner and dispose without
   const materials=new Set(),textures=new Set(),first=createWorkspaceMaterials(materials,textures);
   assert.equal(createWorkspaceMaterials(materials,textures),first);
   assert.notEqual(createWorkspaceMaterials(new Set(),new Set()).canvas,first.canvas);
-  assert.equal(textures.size,4);assert.equal(materials.size,4);
+  assert.equal(textures.size,8);assert.equal(materials.size,4);
+  for(const material of Object.values(first)) {
+    assert.equal(material.map.colorSpace,THREE.SRGBColorSpace);
+    assert.equal(material.bumpMap.colorSpace,THREE.NoColorSpace);
+    assert.notEqual(material.map,material.bumpMap);
+  }
   const roof=first.canvas.clone();roof.opacity=0;
   assert.equal(first.canvas.opacity,1,'roof fading cannot fade chair fabric');
   assert.equal(roof.map,first.canvas.map);
   let disposed=0;for(const item of [...materials,...textures]){item.addEventListener('dispose',()=>disposed++);item.dispose();}
-  assert.equal(disposed,8);roof.dispose();
+  assert.equal(disposed,12);roof.dispose();
 });
 
 test('furniture keeps diary and device anchors fixed and places the record player beside the left drawers',()=>{
