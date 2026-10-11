@@ -543,10 +543,11 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       if(failed||destroyed)return {status:'failed',code:'entrance-unavailable',retryable:true};
       stopCamera();clearHover();zoomed=false;
       entranceFlight=Boolean(target);entranceUpdate=onProgress;
+      const fileLook=target==='works'?new THREE.Box3().setFromObject(fileLibrary).getCenter(new THREE.Vector3()):undefined;
       const task=target==='works'?motion.start(duration,progress=>{
         entranceProgress=progress;onProgress(progress);
-        const look=fileLibrary.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0,.4,0));
-        const position=look.clone().add(new THREE.Vector3(-1.1,2.3,3.5));
+        const look=fileLook!;
+        const position=look.clone().add(new THREE.Vector3(0,.7,3.5).applyQuaternion(fileLibrary.getWorldQuaternion(new THREE.Quaternion())));
         const amount=smooth(entranceContentProgress(progress));
         camera.position.lerpVectors(roomPosition(),position,amount);currentLook.lerpVectors(roomLook(),look,amount);
         camera.up.set(0,1,0);camera.lookAt(currentLook);blendEntranceCamera();

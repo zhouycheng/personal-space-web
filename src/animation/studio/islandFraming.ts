@@ -1,6 +1,6 @@
 import { islandAppearance as island } from "../../config/islandAppearance.ts";
 import { islandRocks, rockBase, shoreRadius } from '../../config/islandTerrain.ts';
-import { islandLeisure } from '../../config/islandLeisure.ts';
+import { islandLeisure,fishingRodPoints } from '../../config/islandLeisure.ts';
 import { workspaceAppearance as workspace } from "../../config/workspaceAppearance.ts";
 import { palmBounds } from '../../config/islandVegetation.ts';
 
@@ -36,6 +36,7 @@ function fitEnvelope(aspect: number, angle: number, pitch: number, fov: number, 
     fit(x,dock.deck+.65-.35,z-island.centerZ);
   for(const x of [dock.end-islandLeisure.boat.offsetFromEnd-1.8,dock.end-islandLeisure.boat.offsetFromEnd+1.8])for(const z of [dock.z+.7,dock.z+2.3])
     fit(x,.35,z-island.centerZ);
+  for(const [x,y,z] of fishingRodPoints)fit(x+.12,y-.35,z-island.centerZ);
   for (const x of [-1.8,1.8]) for (const z of [-2.1,0.9]) fit(x,2.5-0.35,z-island.centerZ);
   for (const rock of islandRocks) {
     const extent=Math.hypot(rock.width,rock.depth)*1.16;
