@@ -1,7 +1,49 @@
 import * as THREE from 'three';
 import type { StudioPrimitives } from './studioPrimitives.ts';
-type Skin={metal:THREE.Material;brass:THREE.Material;glass:THREE.Material;wick:THREE.Material;core:THREE.Material;dark:THREE.Material};
+type Skin={metal:THREE.Material;brass:THREE.Material;glass:THREE.Material;flame:THREE.ShaderMaterial;dark:THREE.Material};
 const templates=new WeakMap<THREE.Material,THREE.Group>();
+
+/** A sheltered wick flame: continuous warm volume, blue base and a gently moving tip. */
+export function createLanternFlameMaterial(materials:Set<THREE.Material>) {
+  const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,toneMapped:false,
+    uniforms:{time:{value:0}},
+    vertexShader:`varying vec3 point;varying vec3 eye;
+      void main(){
+        point=position;
+        vec3 offset=cameraPosition-modelMatrix[3].xyz;
+        eye=vec3(dot(modelMatrix[0].xyz,offset)/dot(modelMatrix[0].xyz,modelMatrix[0].xyz),
+          dot(modelMatrix[1].xyz,offset)/dot(modelMatrix[1].xyz,modelMatrix[1].xyz),
+          dot(modelMatrix[2].xyz,offset)/dot(modelMatrix[2].xyz,modelMatrix[2].xyz));
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);
+      }`,
+    fragmentShader:`precision highp float;varying vec3 point;varying vec3 eye;uniform float time;
+      void main(){
+        vec3 ray=normalize(point-eye),p=point+ray*.001;
+        vec4 sum=vec4(0.);
+        float phase=time*3.1;
+        float height=.89+.035*sin(phase)+.018*sin(phase*1.73);
+        for(int i=0;i<40;i++){
+          if(abs(p.x)>.5||abs(p.z)>.5||p.y<0.||p.y>1.)break;
+          float h=p.y/height;
+          if(h>0.&&h<1.){
+            vec2 bend=vec2(.075*sin(phase-h*2.),.035*sin(phase*1.37-h))*h*h;
+            float radius=(.13+.25*sin(min(h/.4,1.)*1.5708))*pow(1.-h,.85);
+            float radial=length((p.xz-bend)*vec2(1.,1.15));
+            float density=(1.-smoothstep(radius*.48,radius,radial))*smoothstep(0.,.035,h);
+            float hot=(1.-smoothstep(0.,radius,radial))*(1.-smoothstep(.45,1.,h));
+            vec3 color=mix(vec3(1.35,.29,.018),vec3(2.,1.55,.72),hot);
+            color=mix(vec3(.16,.3,1.),color,smoothstep(.025,.14,h));
+            float alpha=density*.18;
+            sum.rgb+=(1.-sum.a)*color*alpha;sum.a+=(1.-sum.a)*alpha;
+          }
+          p+=ray*.045;
+        }
+        if(sum.a<.003)discard;
+        gl_FragColor=vec4(sum.rgb/max(sum.a,.001),sum.a);
+        #include <colorspace_fragment>
+      }`});
+  materials.add(material);return material;
+}
 
 /** A shared hurricane-lamp assembly, with actual glass thickness and supported hardware. */
 export function createHurricaneLantern(p:StudioPrimitives,skin:Skin) {
@@ -17,10 +59,9 @@ export function createHurricaneLantern(p:StudioPrimitives,skin:Skin) {
   ring(.164,.03,.005,skin.brass);ring(.097,.154,.005,skin.metal);
   lathe([[.055,.135],[.063,.15],[.065,.17],[.036,.185],[.025,.195]],skin.brass);
   p.box(g,[.022,.018,.009],[0,.196,0],skin.dark);
-  const fire=new THREE.SphereGeometry(1,24,20),verts=fire.attributes.position;
-  for(let i=0;i<verts.count;i++){const y=verts.getY(i),t=(y+1)/2;verts.setXYZ(i,verts.getX(i)*(1-.7*t)+.23*t*t,y,verts.getZ(i)*(1-.7*t));}fire.computeVertexNormals();
-  const flame=p.mesh(g,fire,skin.wick,0,.239,0);flame.scale.set(.026,.05,.023);flame.castShadow=false;
-  const core=p.mesh(g,fire,skin.core,0,.226,.003);core.scale.set(.014,.033,.014);core.castShadow=false;
+  const fire=new THREE.BoxGeometry(1,1,1);fire.translate(0,.5,0);
+  const flame=p.mesh(g,fire,skin.flame,0,.205,0);flame.name='lantern-flame';
+  flame.scale.set(.085,.115,.085);flame.castShadow=flame.receiveShadow=false;
   // Closed thin wall: both lips join the inner and outer profiles.
   const chimney=lathe([[.073,.177],[.085,.186],[.106,.223],[.109,.28],[.098,.336],[.073,.383],[.063,.421],
     [.060,.421],[.070,.383],[.095,.336],[.106,.28],[.103,.223],[.082,.186],[.070,.177],[.073,.177]],skin.glass);

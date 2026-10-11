@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {createWoolMaterial,addWoolPile} from './woolRug.ts';
-import {createHurricaneLantern} from './hurricaneLantern.ts';
+import {createHurricaneLantern,createLanternFlameMaterial} from './hurricaneLantern.ts';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { indexedCopy } from './indexedGeometry.ts';
@@ -12,7 +12,7 @@ import { createDressingMaterials } from './dressingMaterials.ts';
 import { breezeGLSL } from '../../../animation/studio/breeze.ts';
 import type { StudioPrimitives } from './studioPrimitives';
 
-/** Decorative objects are baked by material, outside every furniture hotspot. */
+/** Decorations are baked by material; the file cabinet keeps its picking identity. */
 export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Material>,geometries:Set<THREE.BufferGeometry>,textures:Set<THREE.Texture>) {
   const source=new THREE.Group(),group=new THREE.Group();group.name='island-dressing';
   const {canvas,cork}=createWorkspaceMaterials(materials,textures);
@@ -20,10 +20,9 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   timber.vertexColors=true;
   const bagFabric=canvas.clone();bagFabric.color.setHex(0x687460);materials.add(bagFabric);
   const dark=p.material(0x353c35,.82);
-  const wick=p.material(0xffd79b,.55);wick.emissive.setHex(0xffb45e);
+  const flameMaterial=createLanternFlameMaterial(materials);
   const glass=new THREE.MeshPhysicalMaterial({color:0xe5eee5,roughness:.075,metalness:0,clearcoat:1,clearcoatRoughness:.06,transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide});materials.add(glass);
   glass.envMap=reflection;glass.envMapIntensity=.9;
-  const flameCore=new THREE.MeshBasicMaterial({color:0xffefd0,toneMapped:false});materials.add(flameCore);
   const drapedCanvas=canvas.clone();drapedCanvas.side=THREE.DoubleSide;materials.add(drapedCanvas);
   const windTime={value:0};
   const clothDepth=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});materials.add(clothDepth);
@@ -37,6 +36,7 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   }
   const roots:THREE.Group[]=[];
   const lanternLights:THREE.PointLight[]=[];
+  const lanternFlames:THREE.Object3D[]=[];
   function root(key:keyof typeof dressingProps) {
     const spec=dressingProps[key],g=new THREE.Group();g.name=key;g.userData.seed=spec.seed;g.position.set(spec.x,terrainHeight(spec.x,spec.z),spec.z);g.rotation.y=spec.angle;source.add(g);roots.push(g);return g;
   }
@@ -61,8 +61,9 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
     for(let i=1;i<7;i++)p.box(parent,[.001,h-.012,d-.005],[x-w/2+i*w/7,y+h/2,z-.004],canvas);
   }
   function lantern(parent:THREE.Object3D,x:number,y:number,z:number,scale=1) {
-    const g=createHurricaneLantern(p,{metal,brass,dark,glass,wick,core:flameCore});
+    const g=createHurricaneLantern(p,{metal,brass,dark,glass,flame:flameMaterial});
     g.position.set(x,y,z);g.scale.setScalar(scale);parent.add(g);
+    lanternFlames.push(g.getObjectByName('lantern-flame')!);
     const light=new THREE.PointLight(0xffb35f,.5,3.3,1);light.position.set(0,.245,0);light.castShadow=false;g.add(light);lanternLights.push(light);
   }
   function foldedCloth(parent:THREE.Object3D,x:number,y:number,z:number) {
@@ -223,10 +224,15 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
     else {const leaf=p.mesh(source,new THREE.SphereGeometry(.055,8,4),cork,x,terrainHeight(x,z)+.008,z);leaf.scale.set(1,.08,.32);leaf.rotation.y=angle;}
   }
   source.updateMatrixWorld(true);
+  // Flame volumes retain their local coordinates for ray marching through each chimney.
+  for(const flame of lanternFlames)group.attach(flame);
   for(const light of lanternLights) {
     const position=light.getWorldPosition(new THREE.Vector3());light.removeFromParent();light.position.copy(position);group.add(light);
   }
   const batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
+  const cabinetBatches=new Map<THREE.Material,THREE.BufferGeometry[]>();
+  const cabinetMeshes=new Set<THREE.Object3D>();cabinet.traverse(object=>cabinetMeshes.add(object));
+  const cabinetInverse=cabinet.matrixWorld.clone().invert();
   let woodIndex=0;
   source.traverse(object=>{
     if(!(object instanceof THREE.Mesh))return;
@@ -242,16 +248,18 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
       geometry.computeBoundingBox();const center=geometry.boundingBox!.getCenter(new THREE.Vector3());geometry.translate(-center.x,-center.y,-center.z);
       geometries.add(geometry);const mesh=new THREE.Mesh(geometry,mat);mesh.position.copy(center);group.add(mesh);return;
     }
-    const parts=batches.get(mat)??[];parts.push(geometry);batches.set(mat,parts);
+    const target=cabinetMeshes.has(object)?cabinetBatches:batches;
+    if(target===cabinetBatches)geometry.applyMatrix4(cabinetInverse);
+    const parts=target.get(mat)??[];parts.push(geometry);target.set(mat,parts);
   });
-  for(const [material,pieces] of batches) {
+  cabinet.clear();cabinet.removeFromParent();
+  for(const [target,batch] of [[group,batches],[cabinet,cabinetBatches]] as const)for(const [material,pieces] of batch) {
     const geometry=mergeGeometries(pieces)!;pieces.forEach(g=>g.dispose());geometries.add(geometry);
-    const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=material!==wick&&material!==flameCore&&material!==matMaterial;mesh.receiveShadow=material!==flameCore;group.add(mesh);
+    const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=material!==matMaterial;mesh.receiveShadow=true;target.add(mesh);
     if(material===drapedCanvas){mesh.customDepthMaterial=clothDepth;geometry.computeBoundingSphere();geometry.boundingSphere!.radius+=.1;}
   }
   group.userData.placements=placements;
-  return {group,setWind(seconds:number){windTime.value=seconds;},setLighting(daylight:number){
-    wick.emissiveIntensity=.8+(1-daylight)*2.1;
+  return {group,cabinet,setWind(seconds:number){windTime.value=seconds;flameMaterial.uniforms.time.value=seconds;},setLighting(daylight:number){
     for(const mat of [metal,brass,ceramic])mat.envMapIntensity=.12+daylight*.6;
     glass.envMapIntensity=.18+daylight*.8;
     for(const light of lanternLights)light.intensity=.3+(1-daylight)*2.4;

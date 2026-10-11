@@ -35,17 +35,29 @@ test('decorations are grounded, batched, unpickable and scene-owned; existing fr
   assert.equal(room.children.length,0,'no ornaments in furniture picking group');
   const meshes=dressing.group.children.filter(object=>object.isMesh);
   assert.ok(meshes.filter(mesh=>!mesh.material.transparent).length<=16,'opaque ornaments remain batched by material');
-  assert.equal(meshes.filter(mesh=>mesh.material.transparent).length,3,'three closed, thick glass chimneys stay independently sortable');
+  assert.equal(meshes.filter(mesh=>mesh.material.transparent).length,6,'three flame volumes and three glass chimneys stay independently sortable');
+  assert.equal(dressing.cabinet.parent,null,'file cabinet remains separate for the furniture picking tree');
+  const wood=dressing.cabinet.children.find(mesh=>mesh.material.vertexColors);
+  assert.ok(wood.geometry.getAttribute('color'),'interactive cabinet retains baked wood shading');
+  assert.ok(meshes.some(mesh=>mesh.material===wood.material),'cabinet keeps the original shared timber material');
+  const cabinetBounds=new THREE.Box3().setFromObject(dressing.cabinet);
+  assert.ok(cabinetBounds.min.x>1.8,'cabinet clears the desk');
+  assert.ok(cabinetBounds.max.z>-.7,'cabinet front reaches beyond the desk front');
   const lamps=dressing.group.children.filter(object=>object.isLight);assert.equal(lamps.length,3);
   for(const placement of dressing.group.userData.placements)
     assert.ok(Math.abs(placement.bounds.min.y-terrainHeight(placement.x,placement.z))<1e-8);
-  dressing.group.traverse(object=>{
+  for(const root of [dressing.group,dressing.cabinet])root.traverse(object=>{
     assert.equal(object.userData.action,undefined);
     if(object.isLight)assert.equal(object.castShadow,false,'local lantern light adds no shadow pass');
     if(object.isMesh){assert.ok(geometries.has(object.geometry));assert.ok(materials.has(object.material));}
   });
-  const glowing=meshes.find(mesh=>mesh.material.emissive?.getHex()===0xffb45e).material;
-  dressing.setLighting(1);const day=glowing.emissiveIntensity;dressing.setLighting(0);assert.ok(glowing.emissiveIntensity>day);
+  const flames=meshes.filter(mesh=>mesh.name==='lantern-flame');assert.equal(flames.length,3);
+  assert.equal(new Set(flames.map(mesh=>mesh.material)).size,1);
+  for(const flame of flames){assert.equal(flame.castShadow,false);assert.equal(flame.material.depthWrite,false);assert.ok(flame.position.y>.2);}
+  dressing.setWind(1.5);assert.ok(flames.every(flame=>flame.material.uniforms.time.value===1.5));
+  dressing.setWind(1.5);assert.ok(flames.every(flame=>flame.material.uniforms.time.value===1.5),'paused scene time freezes all wick flames');
+  dressing.setWind(2);assert.ok(flames.every(flame=>flame.material.uniforms.time.value===2));
+  dressing.setLighting(1);const day=lamps[0].intensity;dressing.setLighting(0);assert.ok(lamps.every(lamp=>lamp.intensity>day));
   for(const aspect of [390/844,1440/900])for(const angle of [-1.22,-.48,1.22])for(const elevation of [.2,.55,1]) {
     const camera=new THREE.PerspectiveCamera(38,aspect,.1,900),focus=new THREE.Vector3(0,.35,islandAppearance.centerZ);
     camera.position.copy(focus).add(new THREE.Vector3(Math.sin(angle),Math.sin(elevation),Math.cos(angle)).multiplyScalar(islandViewDistance(aspect,angle,elevation)));

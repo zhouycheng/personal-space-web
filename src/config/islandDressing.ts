@@ -22,12 +22,12 @@ export const dressingFerns = [
 export const dressingProps = {
   suitcase:{x:-3.32,z:-1.65,width:1.05,depth:.64,height:.47,angle:-.28,seed:227},
   backpack:{x:-3.55,z:-2.45,width:.55,depth:.38,height:.76,angle:.35,seed:229},
-  cabinet:{x:2.8,z:-1.85,width:1.26,depth:.64,height:2.05,angle:-.16,seed:233},
-  sideTable:{x:2.95,z:-.2,width:.76,depth:.68,height:.65,angle:.34,seed:239},
-  supplyCrate:{x:-3.15,z:-.3,width:.88,depth:.66,height:1.32,angle:.22,seed:241},
-  basket:{x:3.5,z:-1.05,width:.55,depth:.52,height:.43,angle:-.34,seed:243},
-  lowCase:{x:-3.8,z:.45,width:.68,depth:.48,height:.34,angle:-.24,seed:347},
-  bookCrate:{x:3.75,z:.3,width:.74,depth:.5,height:.48,angle:.32,seed:349},
+  cabinet:{x:2.85,z:-.9,width:1.26,depth:.64,height:2.05,angle:-1.05,seed:233},
+  sideTable:{x:3.35,z:.45,width:.76,depth:.68,height:.65,angle:-1.2,seed:239},
+  supplyCrate:{x:-3.48,z:-.55,width:.88,depth:.66,height:1.32,angle:.6,seed:241},
+  basket:{x:3.95,z:-1.35,width:.55,depth:.52,height:.43,angle:-.34,seed:243},
+  lowCase:{x:-3.65,z:.65,width:.68,depth:.48,height:.34,angle:.85,seed:347},
+  bookCrate:{x:3.7,z:1.5,width:.74,depth:.5,height:.48,angle:-1.35,seed:349},
 } as const;
 const midRocks=[[-4.85,-2.3,.37,.29,.4],[-5.1,-1.65,.27,.23,.3],[-4.95,-.95,.2,.18,.22],
   [4.95,-1.4,.34,.27,.37],[5.15,-.5,.26,.22,.3],[4.85,.5,.2,.17,.23]];

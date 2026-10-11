@@ -4,7 +4,6 @@ import * as THREE from 'three';
 import { createStudioPrimitives } from '../src/presentation/scene/studio/studioPrimitives.ts';
 import { createStudioFurniture } from '../src/presentation/scene/studio/studioFurniture.ts';
 import { createStudioDevices } from '../src/presentation/scene/studio/studioDevices.ts';
-import { createStudioFiles } from '../src/presentation/scene/studio/studioFiles.ts';
 import { canopyDistanceOpacity,fadeCanopyOpacity } from '../src/animation/studio/canopyVisibility.ts';
 import { workspaceAppearance as layout } from '../src/config/workspaceAppearance.ts';
 import { createWorkspaceMaterials } from '../src/presentation/scene/studio/workspaceMaterials.ts';
@@ -46,7 +45,7 @@ test('workspace textures and materials share one scene owner and dispose without
   assert.equal(disposed,8);roof.dispose();
 });
 
-test('furniture keeps diary on the desktop, leaves device anchors fixed, and puts files beside the desk',()=>{
+test('furniture keeps diary and device anchors fixed and places the record player beside the left drawers',()=>{
   const before=globalThis.document;
   globalThis.document={createElement:()=>({getContext:()=>new Proxy({},{get:()=>()=>{}})})};
   const room=new THREE.Group(),materials=new Set(),geometries=new Set(),textures=new Set();
@@ -62,16 +61,16 @@ test('furniture keeps diary on the desktop, leaves device anchors fixed, and put
     assert.ok(furniture.chairSeat.children.some(child=>child.name==='solid-canvas-back'));
     const motion=createChairRocking();motion.push();const pose=motion.step(.05);furniture.chairSeat.rotation.x=pose.angle;furniture.chairSeat.position.set(0,pose.y,pose.z);
     const devices=createStudioDevices(p,renderer,materials,textures,'Justin OS');
-    createStudioFiles(p,[],materials,geometries,textures);room.updateMatrixWorld(true);
+    room.updateMatrixWorld(true);
     const tablet=devices.canvasSurface.getWorldPosition(new THREE.Vector3());
     assert.ok(tablet.distanceTo(new THREE.Vector3(1.04,1.474,-1.1))<1e-10);
     const computer=room.children.find(child=>child.userData.action==='computer');
     assert.deepEqual(computer.scale.toArray(),[.6,.6,.6]);
     assert.ok(computer.position.distanceTo(new THREE.Vector3(-.08,.572,-.52))<1e-10);
-    const crate=room.children.find(child=>child.userData.action==='works');
-    const box=new THREE.Box3().setFromObject(crate);
-    assert.ok(box.max.x < -1.75,'crate clears cabinet and drawer travel');
-    assert.ok(box.min.y>=-.01&&box.min.y<.03,'crate rests on sand');
+    const player=room.getObjectByName('record-player-cabinet');
+    const box=new THREE.Box3().setFromObject(player);
+    assert.ok(box.max.x < -1.75,'record player clears cabinet and drawer travel');
+    assert.ok(box.min.z>-.7&&box.max.z<1,'record player sits ahead of the desk');
     room.traverse(object=>{if(object.isMesh){assert.ok(geometries.has(object.geometry));assert.ok(materials.has(object.material));}});
   } finally {
     globalThis.document=before;

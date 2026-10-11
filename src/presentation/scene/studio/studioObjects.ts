@@ -2,7 +2,6 @@ import * as THREE from "three";
 import type { StudioSceneFile } from "../../../contracts/studio";
 import { createStudioPrimitives } from "./studioPrimitives";
 import { createStudioFurniture } from "./studioFurniture";
-import { createStudioFiles } from "./studioFiles";
 import { createStudioDevices } from "./studioDevices";
 import { createStudioAtmosphere } from "./studioAtmosphere";
 import { createWorkspaceCanopy } from "./workspaceCanopy";
@@ -32,7 +31,10 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
     createStudioFurniture(room, primitives, materials, textures);
   const { computerSurface, canvasSurface, screenGlow, tabletGlow } =
     createStudioDevices(primitives, renderer, materials, textures, computerLabel);
-  const fileLibrary=createStudioFiles(primitives,studioFiles,materials,geometries,textures);
+  const fileLibrary=dressing.cabinet;
+  fileLibrary.userData.action='works';
+  fileLibrary.userData.label=`资料柜 · ${studioFiles.length} 个文件`;
+  room.add(fileLibrary);
   const { steam, deskClock, clockImage, clockTexture, lampModel, diffuserMaterial, lamp, sun, ambient } =
     createStudioAtmosphere(scene, room, primitives, materials, textures, cleanup);
   batchStaticChildren(room,geometries,new Set([computerSurface,canvasSurface,deskClock]));
