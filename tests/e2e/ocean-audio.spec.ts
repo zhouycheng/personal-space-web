@@ -6,12 +6,17 @@ async function observeAudio(page:Page,blockedUntilGesture=false) {
     const Native=window.AudioContext;
     let allowed=!blockedUntilGesture;
     addEventListener('click',event=>{if(event.isTrusted)allowed=true;},{capture:true});
-    const probe={contexts:[] as AudioContext[],sources:0,decodes:0,bytes:0,seconds:0};
+    const probe={contexts:[] as AudioContext[],gains:[] as GainNode[],samples:[] as {time:number,value:number}[],sources:0,decodes:0,bytes:0,seconds:0};
+    setInterval(()=>{
+      const context=probe.contexts[0],gain=probe.gains[0];
+      if(context?.state==='running'&&gain&&probe.sources)probe.samples.push({time:context.currentTime,value:gain.gain.value});
+    },50);
     Object.assign(window,{oceanProbe:probe});
     window.AudioContext=class extends Native {
       constructor(options?:AudioContextOptions){super(options);probe.contexts.push(this);}
       get state(){return allowed?super.state:'suspended';}
       resume(){return allowed?super.resume():Promise.reject(new DOMException('Gesture required','NotAllowedError'));}
+      createGain(){const gain=super.createGain();probe.gains.push(gain);return gain;}
       createBufferSource(){probe.sources++;return super.createBufferSource();}
       async decodeAudioData(bytes:ArrayBuffer,...callbacks:Parameters<AudioContext['decodeAudioData']> extends [ArrayBuffer,...infer Rest]?Rest:never){
         probe.decodes++;
@@ -24,6 +29,33 @@ async function openAudio(page:Page) {
   await page.locator('[data-studio-explore]').click();
   await page.getByRole('tab',{name:'音乐',exact:true}).click();
 }
+
+test('sea audio fades in over 2.5 seconds on first play and after suspension',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await observeAudio(page);await page.goto('/home');
+  await expect(page.locator('[data-studio-explore]')).toBeVisible({timeout:35000});
+  await openAudio(page);
+  const audio=page.locator('[data-ocean-audio]');
+  async function expectFade() {
+    await expect(audio).toHaveAttribute('data-state','playing',{timeout:35000});
+    await expect.poll(()=>page.evaluate(()=>(window as any).oceanProbe.gains[0].gain.value)).toBeGreaterThan(.099);
+    const samples=await page.evaluate(()=>(window as any).oceanProbe.samples as {time:number,value:number}[]);
+    const fading=samples.filter(sample=>sample.value>0&&sample.value<.099);
+    expect(fading.length).toBeGreaterThan(20);
+    expect(fading[0].value).toBeLessThan(.015);
+    expect(fading.at(-1)!.time-fading[0].time).toBeGreaterThan(2);
+    for(let i=1;i<fading.length;i++)expect(fading[i].value).toBeGreaterThanOrEqual(fading[i-1].value);
+  }
+  await expectFade();
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
+  await expect.poll(()=>page.evaluate(()=>(window as any).oceanProbe.contexts[0].state)).toBe('suspended');
+  await page.evaluate(()=>{
+    (window as any).oceanProbe.samples=[];
+    Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expectFade();
+  expect(await page.evaluate(()=>(window as any).oceanProbe.sources)).toBe(1);
+});
 
 test('first cloud gesture unlocks one sea loop; routes, rapid navigation and settings retain it',async({page})=>{
   test.setTimeout(90000);

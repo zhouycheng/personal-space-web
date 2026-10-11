@@ -23,7 +23,8 @@ export function createOceanAudio(changed:(state:OceanAudioState)=>void) {
     if(!context||!gain)return;
     const parameter=gain.gain,time=context.currentTime;
     parameter.cancelAndHoldAtTime(time);
-    parameter.linearRampToValueAtTime(value,time+duration);
+    parameter.setValueAtTime(parameter.value,time);
+    parameter.linearRampToValueAtTime(value*.5,time+duration);
   }
   async function start() {
     if(disposed||!active||failed)return;
@@ -31,6 +32,7 @@ export function createOceanAudio(changed:(state:OceanAudioState)=>void) {
     try {
       const ctx=getContext();
       if(ctx.state!=='running'){emit('blocked');return;}
+      if(source&&state==='playing')return;
       if(!source) {
         emit('loading');
         buffer??=fetch('/audio/ocean.m4a',{signal:fetchLifetime.signal}).then(response=>{
@@ -41,7 +43,7 @@ export function createOceanAudio(changed:(state:OceanAudioState)=>void) {
         source=ctx.createBufferSource();source.buffer=decoded;source.loop=true;
         source.connect(gain!);source.start();
       }
-      ramp(volume,.8);emit('playing');
+      ramp(volume,2.5);emit('playing');
     } catch {
       if(disposed||token!==version)return;
       failed=true;buffer=undefined;emit('error');void context?.suspend().catch(()=>{});
