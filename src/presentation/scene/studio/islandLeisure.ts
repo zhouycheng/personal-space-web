@@ -6,6 +6,7 @@ import {createCampChair} from './campChair.ts';
 import { mergeIndexed } from './indexedGeometry.ts';
 import type { StudioPrimitives } from './studioPrimitives.ts';
 import { createWorkspaceMaterials } from './workspaceMaterials.ts';
+import { studioPalette as palette } from '../../../config/studioPalette.ts';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
 import { islandLeisure as layout } from '../../../config/islandLeisure.ts';
 import { breezeAt } from '../../../animation/studio/breeze.ts';
@@ -19,11 +20,11 @@ import { createDockFishing } from './dockFishing.ts';
 export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Material>,textures:Set<THREE.Texture>) {
   const group=new THREE.Group();group.name='island-leisure';
   const {timber,canvas,cork,end}=createWorkspaceMaterials(materials,textures);
-  const wood=timber.clone();wood.color.set(0x775d45);materials.add(wood);
+  const wood=timber.clone();wood.color.set(palette.wood);materials.add(wood);
   const stone=p.material(0x858580,.98),charcoal=p.material(0x25221f,1),metal=p.material(0x383c37,.6);
   const bark=createCampfireWood(materials,textures);
-  const fabric=canvas.clone();fabric.color.set(0x67645f);fabric.bumpScale=.00012;materials.add(fabric);
-  const seam=p.material(0x646058,.98);
+  const fabric=canvas.clone();fabric.color.set(palette.upholstery);fabric.bumpScale=.00012;materials.add(fabric);
+  const seam=p.material(0x827566,.98);
   const sand=p.material(0x5a5145,1);sand.transparent=true;sand.depthWrite=false;
   const ashData=new Uint8Array(64*64*4);
   for(let y=0;y<64;y++)for(let x=0;x<64;x++){const i=(y*64+x)*4,r=Math.hypot(x-31.5,y-31.5)/32,n=Math.sin(x*17+y*33)*.08;ashData[i]=ashData[i+1]=ashData[i+2]=255;ashData[i+3]=Math.round(Math.max(0,Math.min(.65,(1-r+n)*2))*255);}
@@ -39,7 +40,7 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
   const d=layout.dock,dock=new THREE.Group();dock.name='wooden-dock';group.add(dock);
   // Individual planks have small deterministic offsets; beams carry their weight.
   const n=24,step=(d.end-d.start)/n;
-  const boards=[wood,...[0x82684c,0x735c44,0x887154].map(color=>{const m=wood.clone();m.color.set(color);materials.add(m);return m;})];
+  const boards=[wood,...[0x8b6b50,0x775b45,0x81644b].map(color=>{const m=wood.clone();m.color.set(color);materials.add(m);return m;})];
   for(let i=0;i<n;i++) {
     const board=p.rounded(dock,[step-.014,.095,d.width+(Math.sin(i*7)*.035)],[d.start+(i+.5)*step,d.deck+Math.sin(i*3)*.006,d.z],boards[i%4],.014);
     board.rotation.y=Math.sin(i*1.7)*.006;

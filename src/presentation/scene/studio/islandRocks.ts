@@ -26,7 +26,7 @@ export function createRockGeometry(rocks: readonly (typeof islandRocks[number] &
       const y=base+crown*rock.height*(.94+.08*px-.06*pz);
       positions.setXYZ(i,rock.x+x*cos-z*sin,y,rock.z+x*sin+z*cos);
       const tone=.88+.12*Math.sin(rock.seed*2.7)+.06*py;
-      const color=new THREE.Color(0x827d70).multiplyScalar(tone);
+      const color=new THREE.Color(0x8b9090).multiplyScalar(tone);
       colors.push(color.r,color.g,color.b);
     }
     geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
@@ -63,11 +63,11 @@ export function createRockMaterial() {
       float strata=rockNoise(rp*vec3(3.0,8.0,3.0));
       float fleck=rockNoise(rp*32.0);
       float wetRock=1.0-smoothstep(${islandAppearance.seaLevel-.04},${islandAppearance.seaLevel+.35},rp.y+strata*.02);
-      diffuseColor.rgb*=(.72+.32*strata+.12*fleck)*mix(1.0,.57,wetRock);`).replace(
-      '#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(.94,.46,wetRock);').replace(
+      diffuseColor.rgb*=(.84+.20*strata+.06*fleck)*mix(1.0,.68,wetRock);`).replace(
+      '#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(.94,.58,wetRock);').replace(
       '#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-      float relief=rockNoise(rp*18.0)*.012+rockNoise(rp*57.0)*.002;
-      vec3 dx=dFdx(vViewPosition),dy=dFdy(vViewPosition);
+      float relief=rockNoise(rp*18.0)*.007+rockNoise(rp*57.0)*.001;
+      vec3 dx=dFdx(-vViewPosition),dy=dFdy(-vViewPosition);
       vec3 r1=cross(dy,normal),r2=cross(normal,dx);
       float det=dot(dx,r1);
       normal=normalize(abs(det)*normal-sign(det)*(dFdx(relief)*r1+dFdy(relief)*r2));`);

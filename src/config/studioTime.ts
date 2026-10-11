@@ -51,9 +51,9 @@ export function environmentAt(date = new Date(), observer: Observer = studioObse
   const foreground=mistLuma<130?0xf4eee5:0x172535;
   const lighting={
     daylight, background:css(mist), foreground:css(foreground), sky, sun,
-    sunIntensity:2.5*daylightPower*smooth(0,4,h),
+    sunIntensity:2.7*daylightPower*smooth(0,4,h),
     moonIntensity:.2*illumination.fraction*smooth(0,12,lunar.altitude)*(1-daylight),
-    ambientIntensity:.23+daylight*.65,
+    ambientIntensity:.23+daylight*.85,
     lampIntensity:7-5.8*daylightPower, screenSpillIntensity:.08*(1-daylight)**2,
     sunDirection:celestialDirection(solar.azimuth,h),moonDirection:celestialDirection(lunar.azimuth,lunar.altitude),
     zenith,horizon,sunset:golden,

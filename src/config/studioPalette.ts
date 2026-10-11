@@ -1,8 +1,10 @@
 // Selected walnut palette. Notebook and journal materials remain independent.
 export const studioPalette = {
-  wood: 0x70513c,
+  wood: 0x806049,
+  woodEnd: 0x6e513e,
+  canvas: 0xeee7d8,
   frame: 0x50514c,
-  upholstery: 0x8b8272,
+  upholstery: 0x938779,
   metal: 0xa39275,
   paper: 0xeeeae2,
   box: 0xb6ad9b,

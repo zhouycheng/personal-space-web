@@ -12,9 +12,9 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
     shader.fragmentShader=`varying vec3 vBark;\n${shader.fragmentShader}`.replace('#include <color_fragment>',`#include <color_fragment>
       float band=sin(vBark.y*83.0+sin(vBark.x*19.0+vBark.z*17.0)*.65);
       float fiber=sin(vBark.x*143.0+vBark.z*131.0+sin(vBark.y*7.0));
-      diffuseColor.rgb*=.87+.11*band+.045*fiber;`);
+      diffuseColor.rgb*=.92+.065*band+.025*fiber;`);
   };
-  const foliage=new THREE.MeshStandardMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.82});
+  const foliage=new THREE.MeshStandardMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:.92});
   foliage.shadowSide=THREE.BackSide;
   const stemMaterial=new THREE.MeshStandardMaterial({color:0x65763a,roughness:.9});
   const time={value:0};
@@ -49,7 +49,7 @@ export function createIslandVegetation(materials:Set<THREE.Material>,geometries:
       float centerVein=exp(-abs(vLeafUv.x-.5)*110.);
       float veins=pow(.5+.5*sin(vLeafUv.y*135.+abs(vLeafUv.x-.5)*35.),14.);
       float mottling=sin(vLeafUv.y*47.+sin(vLeafUv.x*31.))*sin(vLeafUv.x*73.+vLeafUv.y*19.);
-      diffuseColor.rgb*=1.+.055*centerVein-.045*veins+.025*mottling;`);
+      diffuseColor.rgb*=1.+.035*centerVein-.025*veins+.015*mottling;`);
   };
   const details=data.details.map(levels=>{
     const mesh=new THREE.Mesh(levels[0].geometry,foliage);

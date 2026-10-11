@@ -109,8 +109,8 @@ test('astronomical lighting follows Shanghai daylight and remains continuous at 
     [at(0).sunIntensity, at(0).ambientIntensity, at(0).lampIntensity, at(0).screenSpillIntensity],
     [0, 0.23, 7, 0.08],
   );
-  assert.equal(at(12).sunIntensity, 2.5);
-  assert.ok(Math.abs(at(12).ambientIntensity - 0.88) < 1e-12);
+  assert.equal(at(12).sunIntensity, 2.7);
+  assert.ok(Math.abs(at(12).ambientIntensity - 1.08) < 1e-12);
   assert.ok(Math.abs(at(12).lampIntensity - 1.2) < 1e-12);
   assert.equal(at(12).screenSpillIntensity, 0);
   assert.ok(at(5, 30).daylight < at(6).daylight);
@@ -127,7 +127,7 @@ test('astronomical lighting follows Shanghai daylight and remains continuous at 
   for (let hour = 0; hour < 24; hour++) {
     const light = at(hour, 30);
     assert.ok(light.daylight >= 0 && light.daylight <= 1);
-    assert.ok(light.sunIntensity >= 0 && light.sunIntensity <= 2.5);
+    assert.ok(light.sunIntensity >= 0 && light.sunIntensity <= 2.7);
     assert.ok(light.ambientIntensity >= 0.18 && light.ambientIntensity <= 1.18);
     assert.ok(Math.abs(Math.hypot(...light.sunDirection)-1)<1e-10);
     assert.ok(Math.abs(Math.hypot(...light.moonDirection)-1)<1e-10);
