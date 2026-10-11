@@ -7,6 +7,7 @@ import { indexedCopy } from './indexedGeometry.ts';
 import { dressingProps } from '../../../config/islandDressing.ts';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
 import { workspaceAppearance } from '../../../config/workspaceAppearance.ts';
+import { studioPalette as palette } from '../../../config/studioPalette.ts';
 import { createWorkspaceMaterials } from './workspaceMaterials.ts';
 import { createDressingMaterials } from './dressingMaterials.ts';
 import { breezeGLSL } from '../../../animation/studio/breeze.ts';
@@ -214,7 +215,7 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   vase(desktop,.29,0,-.02,.48);
   for(let i=0;i<3;i++) {const pen=p.cylinder(desktop,.007,.22,[.28+i*.012,.2,-.023+i*.012],i===1?dark:timber);pen.rotation.z=(i-1)*.13;}
 
-  const livingCloth=new THREE.MeshPhysicalMaterial({color:0xeee3cd,map:canvas.map,bumpMap:canvas.bumpMap,bumpScale:.00035,
+  const livingCloth=new THREE.MeshPhysicalMaterial({color:palette.canvas,map:canvas.map,bumpMap:canvas.bumpMap,bumpScale:.0002,
     roughness:.93,sheen:.38,sheenColor:0xfff5df,sheenRoughness:.85,side:THREE.DoubleSide,shadowSide:THREE.FrontSide});
   materials.add(livingCloth);
   const livingPlacements=createIslandLiving(p,source,{wood:timber,cloth:livingCloth,wicker:cork,ceramic,metal:dark,paper,olive:bagFabric});

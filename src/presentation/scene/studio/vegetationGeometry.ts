@@ -19,7 +19,7 @@ function blade(mesh:LeafMesh,start:THREE.Vector3,end:THREE.Vector3,width:number,
   mesh.blades.push({offset,segments,columns});
   const direction=end.clone().sub(start);
   const side=new THREE.Vector3(-direction.z,0,direction.x).normalize();
-  const green=dry?new THREE.Color(0x786344):new THREE.Color().setHSL(.25+variation(seed)*.045,.48+variation(seed+1)*.15,.23+variation(seed+2)*.09).convertSRGBToLinear();
+  const green=dry?new THREE.Color(0x786344):new THREE.Color().setHSL(.26+variation(seed)*.035,.36+variation(seed+1)*.12,.28+variation(seed+2)*.07).convertSRGBToLinear();
   for(let i=0;i<=segments;i++) {
     const t=i/segments;
     const center=start.clone().addScaledVector(direction,t);
@@ -32,7 +32,7 @@ function blade(mesh:LeafMesh,start:THREE.Vector3,end:THREE.Vector3,width:number,
       mesh.positions.push(point.x,point.y,point.z);
       mesh.uvs.push(j/(columns-1),t);
       mesh.anchors.push(anchor.x,anchor.y,anchor.z);
-      const color=green.clone().multiplyScalar((1-.12*Math.abs(edge))*(1+.1*t)+.025*Math.sin(t*24+seed));
+      const color=green.clone().multiplyScalar((1-.08*Math.abs(edge))*(1+.08*t)+.015*Math.sin(t*24+seed));
       mesh.colors.push(color.r,color.g,color.b);
     }
     if(i<segments) for(let edge=0;edge<columns-1;edge++) {
