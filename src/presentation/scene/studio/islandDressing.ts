@@ -11,6 +11,7 @@ import { createWorkspaceMaterials } from './workspaceMaterials.ts';
 import { createDressingMaterials } from './dressingMaterials.ts';
 import { breezeGLSL } from '../../../animation/studio/breeze.ts';
 import type { StudioPrimitives } from './studioPrimitives';
+import { createIslandLiving } from './islandLiving.ts';
 
 /** Decorations are baked by material; the file cabinet keeps its picking identity. */
 export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Material>,geometries:Set<THREE.BufferGeometry>,textures:Set<THREE.Texture>) {
@@ -176,9 +177,13 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   const propped=new THREE.Group();bookCrate.add(propped);propped.position.set(-.03,0,.34);propped.rotation.x=-.19;propped.rotation.z=.13;
   book(propped,0,0,0,.075,.35,.24,leather);
 
-  // A hanging lamp creates a third warm pocket at the back of the work area.
-  lantern(source,-2.22,2.49,-2.65,.82);
-  tube(source,[[-2.5,3.48,-2.9],[-2.25,3.42,-2.68],[-2.22,3.05,-2.65]],.009,brass);
+  // The lamp bail sits in a steel hook carried by a bolted, triangulated post bracket.
+  lantern(source,-2.1,2.49,-2.61,.82);
+  p.rounded(source,[.042,.39,.10],[-2.441,3.135,-2.9],dark,.006);
+  for(const y of [2.99,3.27]){const bolt=p.cylinder(source,.014,.013,[-2.416,y,-2.9],brass);bolt.rotation.z=Math.PI/2;}
+  tube(source,[[-2.425,3.29,-2.9],[-2.27,3.29,-2.74],[-2.1,3.29,-2.573]],.014,dark);
+  tube(source,[[-2.425,3.00,-2.9],[-2.30,3.15,-2.772],[-2.18,3.29,-2.65]],.011,dark);
+  tube(source,[[-2.1,3.29,-2.573],[-2.1,3.16,-2.573],[-2.125,3.07,-2.573],[-2.10,3.043,-2.573],[-2.077,3.068,-2.573]],.01,dark);
 
   // A low woven mat joins desk, chair and storage visually without moving their floor anchors.
   const matMaterial=createWoolMaterial(materials,0xb49b71);
@@ -208,6 +213,11 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   const desktop=new THREE.Group();source.add(desktop);desktop.position.set(-1.24,workspaceAppearance.tabletop+.008,-1.65);desktop.rotation.y=.08;
   vase(desktop,.29,0,-.02,.48);
   for(let i=0;i<3;i++) {const pen=p.cylinder(desktop,.007,.22,[.28+i*.012,.2,-.023+i*.012],i===1?dark:timber);pen.rotation.z=(i-1)*.13;}
+
+  const livingCloth=new THREE.MeshPhysicalMaterial({color:0xeee3cd,map:canvas.map,bumpMap:canvas.bumpMap,bumpScale:.00035,
+    roughness:.93,sheen:.38,sheenColor:0xfff5df,sheenRoughness:.85,side:THREE.DoubleSide,shadowSide:THREE.FrontSide});
+  materials.add(livingCloth);
+  const livingPlacements=createIslandLiving(p,source,{wood:timber,cloth:livingCloth,wicker:cork,ceramic,metal:dark,paper,olive:bagFabric});
 
   // Grounded feet and bags are aligned after their final rotation, before batching.
   source.updateMatrixWorld(true);
@@ -259,6 +269,7 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
     if(material===drapedCanvas){mesh.customDepthMaterial=clothDepth;geometry.computeBoundingSphere();geometry.boundingSphere!.radius+=.1;}
   }
   group.userData.placements=placements;
+  group.userData.livingPlacements=livingPlacements;
   return {group,cabinet,setWind(seconds:number){windTime.value=seconds;flameMaterial.uniforms.time.value=seconds;},setLighting(daylight:number){
     for(const mat of [metal,brass,ceramic])mat.envMapIntensity=.12+daylight*.6;
     glass.envMapIntensity=.18+daylight*.8;

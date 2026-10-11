@@ -34,7 +34,9 @@ test('decorations are grounded, batched, unpickable and scene-owned; existing fr
   const dressing=createIslandDressing(p,materials,geometries,textures);
   assert.equal(room.children.length,0,'no ornaments in furniture picking group');
   const meshes=dressing.group.children.filter(object=>object.isMesh);
-  assert.ok(meshes.filter(mesh=>!mesh.material.transparent).length<=16,'opaque ornaments remain batched by material');
+  const opaque=meshes.filter(mesh=>!mesh.material.transparent);
+  assert.equal(opaque.length,new Set(opaque.map(mesh=>mesh.material)).size,'one opaque draw per material');
+  assert.ok(opaque.length<=17,'living cloth, firewood and stepping stones share seventeen material batches');
   assert.equal(meshes.filter(mesh=>mesh.material.transparent).length,6,'three flame volumes and three glass chimneys stay independently sortable');
   assert.equal(dressing.cabinet.parent,null,'file cabinet remains separate for the furniture picking tree');
   const wood=dressing.cabinet.children.find(mesh=>mesh.material.vertexColors);
