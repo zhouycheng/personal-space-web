@@ -3,14 +3,15 @@ import { terrainHeight } from '../../../config/islandTerrain.ts';
 import { canopyDistanceOpacity,fadeCanopyOpacity } from '../../../animation/studio/canopyVisibility.ts';
 import type { StudioPrimitives } from './studioPrimitives';
 import { createWorkspaceMaterials } from './workspaceMaterials';
+import { studioPalette as palette } from '../../../config/studioPalette.ts';
 import { canopySurface,canopySurfaceGLSL } from '../../../animation/studio/canopySurface.ts';
 
 export function createWorkspaceCanopy(scene:THREE.Scene,p:StudioPrimitives,materials:Set<THREE.Material>,textures:Set<THREE.Texture>) {
   const group=new THREE.Group();group.name='workspace-canopy';scene.add(group);
   const {timber,canvas:cloth}=createWorkspaceMaterials(materials,textures);
   const canvas=cloth.clone();materials.add(canvas);
-  canvas.color.setHex(0xe8dcc3);canvas.bumpScale=.0001;canvas.roughness=.94;canvas.shadowSide=THREE.DoubleSide;
-  canvas.emissive.setHex(0xc2b697);canvas.emissiveIntensity=.065;
+  canvas.color.setHex(palette.canvas);canvas.bumpScale=.0001;canvas.roughness=.98;canvas.shadowSide=THREE.DoubleSide;
+  canvas.emissive.setHex(0xc2b697);canvas.emissiveIntensity=.025;
   canvas.transparent=true;canvas.depthWrite=false;canvas.forceSinglePass=true;
   const rope=p.material(0xb0a080,.97);
   function point(u:number,v:number,time=0) {

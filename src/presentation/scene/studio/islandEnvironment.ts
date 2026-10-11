@@ -33,9 +33,9 @@ float sandNoise(vec2 p) {
   return mix(mix(sandHash(i),sandHash(i+vec2(1,0)),f.x),
     mix(sandHash(i+vec2(0,1)),sandHash(i+vec2(1,1)),f.x),f.y);
 }
-float sandRelief(vec2 p) {
-  return sandNoise(p*2.4)*0.014 + sandNoise(p*9.0)*0.009 + sandNoise(p*37.0)*0.0015
-    + sin(p.y*25.0+5.0*sandNoise(p*1.7))*0.001;
+float sandWindPhase(vec2 p) { return (p.y+p.x*.24)*57.0+3.0*sandNoise(p*1.7); }
+vec2 sandRelief(vec2 p) {
+  return vec2(sin(sandWindPhase(p))*.0025*(.5+.5*sandNoise(p*1.1)),sandNoise(p*37.0)*.0007);
 }`;
 
 // Ground shading follows every planted center, with irregular soft edges rather than decals.
@@ -70,22 +70,27 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
       float damp=smoothstep(0.86,1.035,sandRadius+0.022*(sandNoise(sandP*3.0)-0.5));
       float grain=sandNoise(sandP*160.0);
       float grainVisibility=1.0-smoothstep(0.004,0.025,max(length(dFdx(sandP)),length(dFdy(sandP))));
-      float mottling=(sandNoise(sandP*.85)-0.5)*0.09+(sandNoise(sandP*11.0)-0.5)*0.035;
-      diffuseColor.rgb *= 1.0+mottling+(grain-0.5)*0.18*grainVisibility;
-      diffuseColor.rgb *= 1.0-0.09*damp;
+      float mottling=(sandNoise(sandP*.85)-0.5)*0.04+(sandNoise(sandP*11.0)-0.5)*0.015;
+      diffuseColor.rgb *= 1.0+mottling+(grain-0.5)*0.07*grainVisibility;
+      diffuseColor.rgb *= 1.0-0.06*damp;
       float rootNoise=(sandNoise(sandP*13.0)-.5)*.2;
       ${plantContactGLSL}`).replace(
       "#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
-      roughnessFactor=mix(0.96,0.48,damp);`).replace(
+      roughnessFactor=mix(0.90+(grain-.5)*.06*grainVisibility,0.52,damp);`).replace(
       "#include <normal_fragment_maps>", `#include <normal_fragment_maps>
-      float sandBump=sandRelief(sandP)*(1.0-0.65*damp);
-      vec3 sandDx=dFdx(vViewPosition),sandDy=dFdy(vViewPosition);
+      vec3 sandBump=vec3(sandRelief(sandP),grain*.0003)*(1.0-0.75*damp);
+      float windVisibility=1.0-smoothstep(1.0,3.14,fwidth(sandWindPhase(sandP)));
+      // Filter slopes after differentiating height; nested screen derivatives are undefined.
+      vec3 sandBands=vec3(windVisibility,1.0,grainVisibility);
+      vec2 sandSlope=vec2(dot(dFdx(sandBump),sandBands),dot(dFdy(sandBump),sandBands));
+      vec3 sandDx=dFdx(-vViewPosition),sandDy=dFdy(-vViewPosition);
       vec3 sandR1=cross(sandDy,normal),sandR2=cross(normal,sandDx);
       float sandDet=dot(sandDx,sandR1);
-      vec3 sandGradient=sign(sandDet)*(dFdx(sandBump)*sandR1+dFdy(sandBump)*sandR2);
+      vec3 sandGradient=sign(sandDet)*(sandSlope.x*sandR1+sandSlope.y*sandR2);
       normal=normalize(abs(sandDet)*normal-sandGradient);`);
   };
   const sand = new THREE.Mesh(sandGeometry, sandMaterial);
+  sand.name = 'island-sand';
   sand.receiveShadow = true;
   group.add(sand);
   const rockGeometry=prepared?.rocks??createRockGeometry(),rockMaterial=createRockMaterial();
@@ -196,50 +201,57 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         vec3 tangentX=mix(vec3(1,0,0),particle.tangentX,coastWeight)+particle.offset*coastGradient.x+vec3(0.,washGradient.x,0.);
         vec3 tangentZ=mix(vec3(0,0,1),particle.tangentZ,coastWeight)+particle.offset*coastGradient.y+vec3(0.,washGradient.y,0.);
         vec3 geometricNormal=normalize(cross(tangentZ,tangentX));
-        float shoreCalm = mix(0.25,1.0,smoothstep(1.0,1.7,radius));
+        float shoreCalm = mix(0.70,1.0,smoothstep(1.0,1.7,radius));
         vec2 windSlopes=vec2(0.0);
         if(normalReady>0.5) {
           vec2 warp=vec2(sin(p.y*0.17+sin(p.x*0.11)),cos(p.x*0.13+sin(p.y*0.09)))*0.035;
-          vec3 a=texture2D(normalMap,p/22.7+warp+vec2(time*0.004,-time*0.003)).xyz*2.0-1.0;
+          vec3 a=texture2D(normalMap,p/16.7+warp+vec2(time*0.004,-time*0.003)).xyz*2.0-1.0;
           vec2 rotated=mat2(0.8,-0.6,0.6,0.8)*p;
-          vec3 b=texture2D(normalMap,rotated/13.1-warp+vec2(-time*0.003,time*0.004)).xyz*2.0-1.0;
+          vec3 b=texture2D(normalMap,rotated/7.1-warp+vec2(-time*0.003,time*0.004)).xyz*2.0-1.0;
           vec2 crossed=mat2(0.34,0.94,-0.94,0.34)*p;
-          vec3 c=texture2D(normalMap,crossed/41.3+warp.yx+vec2(time*0.002,time*0.001)).xyz*2.0-1.0;
+          vec3 c=texture2D(normalMap,crossed/34.3+warp.yx+vec2(time*0.002,time*0.001)).xyz*2.0-1.0;
           float windStrength=0.8+0.2*noise(p*0.18+time*0.015);
-          // Keep fine ripples near the viewer; daylight and distance soften their reflected contrast.
-          float rippleStrength=mix(.55,.22*mix(1.0,.35,smoothstep(.08,.8,footprint)),daylight);
+          // Fade subpixel ripples while retaining the crossed wind pattern in the middle distance.
+          float rippleStrength=mix(.55,1.35*mix(1.0,.55,smoothstep(.08,.8,footprint)),daylight);
           windSlopes=(a.xy*0.50+mat2(0.8,0.6,-0.6,0.8)*b.xy*0.32+mat2(0.34,-0.94,0.94,0.34)*c.xy*0.18)*rippleStrength*windStrength;
         }
         vec3 normal = normalize(geometricNormal+vec3(windSlopes.x,0.0,windSlopes.y)*shoreCalm);
         vec3 view = normalize(cameraPosition - vWorld);
-        // ponytail: bounded daytime reflection approximates rough-water scattering; use a filtered BRDF if optical accuracy is required.
-        float fresnel = 0.02 + mix(.98,.45,daylight) * pow(1.0 - max(dot(view, normal), 0.0), 5.0);
+        float fresnel = 0.02 + .98 * pow(1.0 - max(dot(view, normal), 0.0), 5.0);
         vec3 reflected = reflect(-view,normal);
         vec3 reflectedSky = skyRadiance(reflected,0.0);
+        // shortcut: sky blending approximates reflection blur, use a filtered BRDF for optical accuracy.
+        reflectedSky=mix(reflectedSky,mix(zenith,horizon,.35),daylight*.35);
+        reflectedSky*=mix(1.0,.68,daylight);
         vec3 base = mix(shallow,deep,depth);
         // Thin water lets the sandy bottom show through before turquoise deepens.
-        float shallows=exp(-bedDepth*3.8);
+        float shallows=exp(-bedDepth*.8);
         float caustic=0.;
         if(shallows>.0001){
           shallows*=smoothstep(.0001,.0002,shallows);
-          vec3 seabed=vec3(0.52,0.43,0.29)*(0.94+0.06*noise(p*8.0));
-          vec2 causticP=p+vec2(noise(p*2.3),noise(p*2.1+19.0))*0.7;
-          caustic=pow(1.0-abs(sin(causticP.x*8.0+sin(causticP.y*6.0+time*.25))*sin(causticP.y*7.0-time*.3)),10.0);
-          base=mix(base,seabed,shallows*.78);
+          vec2 bedP=p+windSlopes*.28;
+          float reefPatch=smoothstep(.53,.77,noise(bedP*.65)+.18*noise(bedP*2.7));
+          vec3 seabed=mix(vec3(.40,.42,.28),vec3(.025,.12,.09),reefPatch);
+          seabed*=.82+.18*noise(bedP*8.0);
+          vec2 causticP=bedP+vec2(noise(p*1.3),noise(p*1.1+19.0))*1.8;
+          caustic=pow(1.0-abs(sin(causticP.x*11.7+sin(causticP.y*9.1+time*.25))*sin(causticP.y*10.9-time*.3)),12.0);
+          float causticFootprint=max(length(dFdx(causticP)),length(dFdy(causticP)));
+          caustic*=1.-smoothstep(.03,.18,causticFootprint);
+          base=mix(base,seabed,shallows*.62);
         }
         float submergedRock=(1.0-smoothstep(-0.1,0.25,reefDistance(p+windSlopes*.12)))*exp(-bedDepth*.75);
         base=mix(base,vec3(.095,.15,.14),submergedRock*.7);
-        base+=vec3(0.055,0.065,0.04)*caustic*shallows*daylight;
-        base *= 0.91+0.09*noise(p*1.4);
-        vec3 waterBody=marineWater(base*(0.08+daylight*0.55),windSlopes,
+        base+=vec3(.09,.14,.10)*caustic*shallows*daylight;
+        base *= 0.95+0.05*noise(p*1.4);
+        vec3 waterBody=marineWater(base*(0.08+daylight*0.68),windSlopes,
           length(cameraPosition-vWorld)/max(.01,vWaterDepth));
         vec3 color = mix(waterBody,reflectedSky,fresnel);
-        float specular = pow(max(dot(reflect(-sunDirection,normal),view),0.0),360.0);
-        color += sunColor * specular * (0.01+daylight*(.18+sunset*.65))*smoothstep(0.0,.07,sunDirection.y);
+        float specular = pow(max(dot(reflect(-sunDirection,normal),view),0.0),320.0);
+        color += sunColor * specular * (0.01+daylight*(.22+sunset*.45))*smoothstep(0.0,.07,sunDirection.y);
         if(radius<2.&&footprint<.4) {
-        float shoreBand=(1.-smoothstep(.025,.15,waterDepth))*smoothstep(-.006,.012,waterDepth);
+        float shoreBand=(1.-smoothstep(.02,.18,waterDepth))*smoothstep(-.006,.012,waterDepth);
         float rockEdge=rockDistance(p,vWorld.y);
-        float rockBand=(1.-smoothstep(.018,.19,rockEdge))*smoothstep(-.025,.015,rockEdge);
+        float rockBand=(1.-smoothstep(.018,.13,rockEdge))*smoothstep(-.025,.015,rockEdge);
         if(shoreBand>0.||rockBand>0.) {
         vec2 drift=normalize(p-vec2(0.,${island.centerZ}))*wash.x*2.5;
         float advancing=smoothstep(-.025,.035,wash.w);
@@ -247,10 +259,11 @@ export function createIslandEnvironment(scene: THREE.Scene, materials: Set<THREE
         float fine=mix(.5,noise((p+drift)*18.),1.-smoothstep(.025,.10,footprint));
         float broken=smoothstep(.30,.66,noise((p+drift)*7.)*.7+fine*.3);
         float leading=(1.-smoothstep(.01,.045,waterDepth))*smoothstep(-.006,.008,waterDepth);
-        float foam=shoreBand*broken*patches*(.12+.30*advancing)+leading*patches*.32;
-        foam=max(foam,rockBand*broken*patches*(.16+.38*advancing));
+        float foam=shoreBand*broken*patches*(.24+.60*advancing)+leading*patches*.60;
+        foam=max(foam,rockBand*broken*patches*(.24+.60*advancing));
         foam*=1.-smoothstep(.12,.4,footprint);
         foam*=1.-smoothstep(1.65,2.,radius);
+        foam=clamp(foam,0.,1.);
         color = mix(color, vec3(0.82,0.91,0.87)*(0.06+daylight*0.85), foam);
         }
         }
