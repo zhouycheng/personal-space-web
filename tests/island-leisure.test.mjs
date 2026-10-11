@@ -6,6 +6,7 @@ import { createIslandLeisure } from '../src/presentation/scene/studio/islandLeis
 import { coastRadius,shoreRadius } from '../src/config/islandTerrain.ts';
 import { islandLeisure } from '../src/config/islandLeisure.ts';
 import { surfaceOrbit } from '../src/animation/studio/studioMotion.ts';
+import { islandAppearance } from '../src/config/islandAppearance.ts';
 
 test('expanded beach supports the fire and the dock starts on land and ends in water',()=>{
   assert.ok(shoreRadius(Math.PI/2)>1.25);assert.ok(shoreRadius(0)>1.1);
@@ -17,6 +18,11 @@ test('beach additions are unpickable, own all resources and use the shared anima
   const room=new THREE.Group(),materials=new Set(),geometries=new Set(),textures=new Set();
   const leisure=createIslandLeisure(createStudioPrimitives({},room,materials,geometries,textures),materials,textures);
   assert.equal(room.children.length,0);
+  const rods=[];leisure.group.traverse(object=>{if(object.name==='active-fishing-rod')rods.push(object);});
+  assert.equal(rods.length,1,'one rod is set for fishing at the dock end');
+  const [lineX,lineY,lineZ]=rods[0].userData.lineWater;
+  assert.ok(lineX>islandLeisure.dock.end&&lineY<islandAppearance.seaLevel);
+  assert.ok(lineZ<islandLeisure.dock.z,'the line stays on the seaward side, clear of the boat');
   let flame;leisure.group.traverse(o=>{assert.equal(o.userData.action,undefined);if(o.isMesh){assert.ok(materials.has(o.material));assert.ok(geometries.has(o.geometry));if(o.material.uniforms?.time)flame=o;}});
   leisure.setWind(1.5);assert.equal(flame.material.uniforms.time.value,1.5);
   leisure.setWind(1.5);assert.equal(flame.material.uniforms.time.value,1.5);
