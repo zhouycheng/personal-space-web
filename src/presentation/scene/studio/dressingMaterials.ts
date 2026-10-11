@@ -25,10 +25,10 @@ export function createDressingMaterials(materials:Set<THREE.Material>,textures:S
       map.minFilter=THREE.LinearMipmapLinearFilter;map.magFilter=THREE.LinearFilter;map.needsUpdate=true;textures.add(map);return map;
     }
     const bump=texture(relief,false);
-    const mat=new THREE.MeshStandardMaterial({color,map:texture(colour,true),bumpMap:bump,bumpScale:kind==='wood'?.007:kind==='leather'?.003:.001,roughness,metalness:kind==='metal'?.48:0});
+    const mat=new THREE.MeshStandardMaterial({color,map:texture(colour,true),bumpMap:bump,bumpScale:kind==='wood'?.0014:kind==='leather'?.003:.001,roughness,metalness:kind==='metal'?.48:0});
     mat.userData.workspaceGrain=kind==='wood';materials.add(mat);return mat;
   }
-  const timber=surface('wood',0xb28b60,.76),leather=surface('leather',0x86634a,.73);
+  const timber=surface('wood',0x92704f,.76),leather=surface('leather',0x86634a,.73);
   const metal=surface('metal',0x6c7768,.34),ceramic=surface('ceramic',0xc4b195,.3),paper=surface('paper',0xe8ddc4,.96);
   const brass=new THREE.MeshStandardMaterial({color:0xb29b6b,roughness:.38,metalness:.65});materials.add(brass);
   // A small soft sky reflection gives curved metal/glass readable highlights without a capture pass.

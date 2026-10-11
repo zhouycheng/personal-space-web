@@ -9,7 +9,7 @@ test('room surface labels identify the canvas and portfolio', () => {
   assert.equal(ACTION_LABELS.canvas, '我的画布');
   assert.equal(Object.hasOwn(ACTION_LABELS, 'about'), false);
   assert.equal(Object.hasOwn(ACTION_LABELS, 'contact'), false);
-  assert.equal(ACTION_LABELS.works, '文件木箱');
+  assert.equal(ACTION_LABELS.works, '资料柜');
 });
 
 test('camera faces the fixed screen before approaching; live UI fades in during approach', () => {
