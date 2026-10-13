@@ -7,7 +7,7 @@ const selected = journal.articles.find(a => a.slug === Astro.props.slug) ?? jour
 ---
 <section id="page-journal" class:list={['app-page','journal',Astro.props.active&&'is-active']} aria-label={`${siteIdentity.journalTitle}阅读`} data-journal-root>
   <header class="journal-header">
-    <a href="/home" data-journal-close class="journal-close room-return">← 返回首页</a>
+    <a href="/home" data-journal-close class="journal-close room-return" aria-keyshortcuts="Escape" title="Esc 先合书，再返回首页">← 返回首页</a>
     <h1 class="journal-heading" data-journal-title>{selected?.title ?? siteIdentity.journalTitle}</h1>
   </header>
   <p class="journal-status" data-journal-status role="status">正在翻开日记…</p>
@@ -19,6 +19,6 @@ const selected = journal.articles.find(a => a.slug === Astro.props.slug) ?? jour
   <button class="journal-side journal-side-left" data-journal-direction="-1" aria-label="向左阅读" hidden>‹</button>
   <button class="journal-side journal-side-right" data-journal-direction="1" aria-label="向右阅读" hidden>›</button>
   <p class="journal-hint" data-journal-hint>点击封面打开 · 拖动调整视角</p>
-  <dialog class="journal-image" data-journal-image aria-label="查看插图"><button data-journal-image-close aria-label="关闭图片">×</button><img alt=""/></dialog>
+  <dialog class="journal-image" data-journal-image aria-label="查看插图"><button data-journal-image-close aria-label="关闭图片" aria-keyshortcuts="Escape" title="关闭图片（Esc）">×</button><img alt=""/></dialog>
   <script type="application/json" data-journal-manifest set:html={JSON.stringify(journal).replace(/</g,"\\u003c")} />
 </section>

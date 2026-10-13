@@ -9,7 +9,7 @@ import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
-import type { StudioLighting, EntranceTransition, SurfaceRect } from "../../../contracts/studioPorts";
+import type { StudioLighting, EntranceTransition, SurfaceRect, SceneDebugKeyboardFactory } from "../../../contracts/studioPorts";
 import { createJournalBook } from "../journal/journalBook";
 import { createActiveMotion } from "../../../animation/activeMotion";
 import type { OperationResult } from "../../../contracts/operation";
@@ -27,6 +27,11 @@ import { acceptsIslandFocus,clampIslandFocus } from '../../../animation/studio/i
 import { createScenePerformanceOverlay, type SceneDebugGroup } from './scenePerformanceOverlay.ts';
 import type { StartupProgress } from '../../../contracts/startup.ts';
 import type { PreparedSceneGeometry } from './sceneGeometryData.ts';
+import type { CampfirePort } from '../../../contracts/campfire.ts';
+import type { FishingPort } from '../../../contracts/fishing.ts';
+import { fishingTiming } from '../../../config/fishing.ts';
+import { islandLeisure } from '../../../config/islandLeisure.ts';
+import type { SceneSnapshot } from '../../../contracts/studioPorts.ts';
 import { paintOpportunity } from '../../../infrastructure/client/paintOpportunity.ts';
 import { waitForOptionalResource } from '../../../infrastructure/client/optionalResource.ts';
 export { prepareSceneGeometry } from './prepareSceneGeometry.ts';
@@ -34,7 +39,7 @@ export { disposePreparedGeometry } from './sceneGeometryData.ts';
 
 export type StudioScene = Awaited<ReturnType<typeof createStudioScene>>;
 
-export async function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "", preparation?:{geometry:Promise<PreparedSceneGeometry>;signal:AbortSignal;timings:Record<string,number>}) {
+export async function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, campfire:CampfirePort, fishing:FishingPort, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "", preparation?:{geometry:Promise<PreparedSceneGeometry>;signal:AbortSignal;timings:Record<string,number>;bindDebugKeyboard?:SceneDebugKeyboardFactory<HTMLElement>}) {
   const cleanup: (()=>void)[] = [];
   const canvas = document.createElement("canvas");
   let creationError="";
@@ -58,7 +63,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.18;
   renderer.info.autoReset = false;
-  canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口");
+  canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口；双按 Esc 返回云雾入口");
+  canvas.setAttribute("aria-keyshortcuts", "Escape");
   canvas.tabIndex = -1;
   mount.append(canvas);
   const scene = new THREE.Scene();
@@ -131,6 +137,22 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     chairSeat, steam, deskClock, clockImage, clockTexture,
     lampModel, diffuserMaterial, lamp, sun, ambient, screenGlow, tabletGlow,
   } = createStudioObjects({ renderer, scene, room, studioFiles, computerLabel, materials, geometries, textures, cleanup });
+  cleanup.push(()=>dressing.firewood.dispose(),()=>leisure.fireLogs.dispose(),()=>leisure.flame.dispose());
+  scene.add(leisure.flame.renderer);leisure.flame.load(()=>requestDraw());
+  leisure.fireLogs.load(()=>requestDraw());
+  let fireModelTime=-Infinity,fireStock=-1,fireFrameTime:number|undefined;
+  function syncCampfire(now=performance.now(),force=true) {
+    const state=campfire.snapshot(),view=campfire.view();
+    const modelChanged=force||state.stock!==fireStock||now-fireModelTime>=1000;
+    if(modelChanged){dressing.firewood.setStock(state.stock);fireStock=state.stock;fireModelTime=now;}
+    dressing.firewood.group.userData.label=view.text;
+    // Slow charring needs one model/shadow update per second; flame heat stays smooth.
+    leisure.updateCampfire(state,view.heat,modelChanged,!lightweight&&!reducedMotion.matches);
+    mount.dataset.campfireStock=String(state.stock);mount.dataset.campfireBurning=String(view.burning);
+    mount.dataset.campfireHeat=String(view.heat);mount.dataset.campfireLogs=JSON.stringify(state.logs);
+    return modelChanged;
+  }
+  syncCampfire();
   if(preparation)preparation.timings.furnitureCpu=performance.now()-furnitureStarted;
   const prepared=await preparation?.geometry;
   if(prepared)for(const geometry of [prepared.sand,prepared.water,prepared.rocks,prepared.vegetation.trunkGeometry,prepared.vegetation.stemGeometry,...prepared.vegetation.details.flatMap(levels=>levels.map(l=>l.geometry))])geometries.add(geometry);
@@ -198,11 +220,23 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   }
   function baseLook(zoom:number) {return focus.clone().lerp(new THREE.Vector3(-0.1,1.43,-1.25),smooth((zoom-1)/(ROOM_ZOOM_MAX-1)));}
   function roomLook() {return baseLook(roomZoom).add(focusOffset);}
+  let fishingBlend=0,fishingReturnBlend=1;
+  const fishingLook=new THREE.Vector3(islandLeisure.dock.end+1.4,.45,islandLeisure.dock.z-.45);
+  const fishingPosition=new THREE.Vector3();
+  function poseFishing() {
+    const state=fishing.view();
+    const still=reducedMotion.matches||lightweight;
+    fishingBlend=state.phase==='entering'?(still?1:smooth(state.elapsed/fishingTiming.entering)):
+      state.phase==='leaving'?(still?0:fishingReturnBlend*(1-smooth(state.elapsed/fishingTiming.leaving))):1;
+    fishingPosition.set(-5.3,4.4,6.8).multiplyScalar(Math.max(1,.8/camera.aspect)).add(fishingLook);
+    camera.position.lerpVectors(roomPosition(),fishingPosition,fishingBlend);
+    currentLook.lerpVectors(roomLook(),fishingLook,fishingBlend);camera.up.set(0,1,0);camera.lookAt(currentLook);
+  }
   function constrainOffset() {
     const base=baseLook(targetZoom),point=clampIslandFocus(base.clone().add(targetOffset));
     targetOffset.set(point.x-base.x,point.y-base.y,point.z-base.z);
   }
-  function roomInteractive() {return entranceProgress===undefined&&active&&!failed&&!destroyed&&!motion.running&&!zoomed&&!mount.closest<HTMLElement>("[data-studio]")?.inert;}
+  function roomInteractive() {return fishing.view().phase==='idle'&&entranceProgress===undefined&&active&&!failed&&!destroyed&&!motion.running&&!zoomed&&!mount.closest<HTMLElement>("[data-studio]")?.inert;}
   function setRoomCamera() {camera.up.set(0,1,0);camera.position.copy(roomPosition());currentLook.copy(roomLook());camera.lookAt(currentLook);mount.dataset.cameraZoom=roomZoom.toFixed(4);mount.dataset.cameraAngle=angle.toFixed(4);mount.dataset.cameraElevation=elevation.toFixed(4);}
   function poseEntrance(progress: number) {
     entranceProgress = progress;
@@ -250,7 +284,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     inputFrameTime=previousDrawTime??now-1000/60;previousDrawTime=now;
     processingInput=true;
     try { gestures.flushMove(); } finally { processingInput=false;inputFrameTime=undefined; }
-    const cameraChanged=entranceProgress===undefined&&cameraMoving()&&!motion.running&&!zoomed;
+    const cameraChanged=fishing.view().phase==='idle'&&entranceProgress===undefined&&cameraMoving()&&!motion.running&&!zoomed;
     const objectsChanged=chairRocking.moving||drawers.some(drawer=>drawer.moving);
     if(cameraChanged) {
       const elapsed=cameraFrameTime===undefined?0:now-cameraFrameTime;cameraFrameTime=now;
@@ -293,6 +327,23 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     }
     const transitionChanged=motion.running;
     motion.tick(now);
+    const wasFishing=fishing.view().phase!=='idle';
+    const fishingChanged=fishing.tick(now,!document.hidden&&!zoomed&&!motion.running&&entranceProgress===undefined);
+    const fishingState=fishing.view(),fishingActive=fishingState.phase!=='idle';
+    const fishingTimed=fishingState.phase==='waiting'||fishingState.phase in fishingTiming;
+    const fishingAnimated=fishingTimed&&!lightweight&&!reducedMotion.matches;
+    mount.dataset.fishingPhase=fishingState.phase;
+    if(fishingActive)poseFishing();else if(wasFishing)setRoomCamera();
+    if(fishingChanged||(fishingAnimated&&['casting','nibble','reeling','releasing'].includes(fishingState.phase)))invalidateShadows();
+    const fireRunning=entranceProgress===undefined&&!zoomed&&!motion.running&&!journalActive&&!document.hidden&&!mount.closest<HTMLElement>('[data-studio]')?.inert;
+    const fireChanged=campfire.tick(now,fireRunning);
+    if(fireChanged&&syncCampfire(now,false))invalidateShadows();
+    const fireAnimated=fireRunning&&!lightweight&&!reducedMotion.matches;
+    const fireDelta=fireAnimated&&fireFrameTime!==undefined?Math.min(.1,Math.max(0,now-fireFrameTime)/1000):0;
+    fireFrameTime=fireAnimated?now:undefined;
+    const woodMoving=fireAnimated&&leisure.fireLogs.tick(fireDelta);
+    if(woodMoving)invalidateShadows();
+    const flameMoving=fireAnimated&&leisure.tickCampfire(fireDelta);
     const breezeActive=!lightweight&&!reducedMotion.matches&&(!zoomed||motion.running)&&!(journalActive&&journalAmount===1);
     if(breezeActive){breezeTime+=breezeFrameTime===undefined?0:Math.min(50,Math.max(0,now-breezeFrameTime))/1000;breezeFrameTime=now;}
     else breezeFrameTime=undefined;
@@ -308,22 +359,25 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     poseJournal();
     const oceanMoving=environment.tick(now,!lightweight&&!reducedMotion.matches&&(!zoomed||motion.running)&&!(journalActive&&journalAmount===1));
     leisure.setWaterTime(environment.time);
+    if(fishingAnimated||fishingChanged||drawRequested)leisure.fishing.update(fishingState,environment.time,!lightweight&&!reducedMotion.matches);
     environment.setBoatInverse(leisure.boatInverse);
     mount.dataset.oceanActive=String(oceanMoving);
     const recordVisible=!zoomed||motion.running;
     if(!recordVisible)recordPlayer.pause();
     const recordMotion=recordVisible?recordPlayer.tick(now,reducedMotion.matches||lightweight):{changed:false,shadowChanged:false,moving:false};
     if(recordMotion.shadowChanged)invalidateShadows();
-    const paint=drawRequested||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving||canopyState.changed||recordMotion.changed;
+    const paint=drawRequested||fishingChanged||fishingAnimated||fireChanged||woodMoving||flameMoving||cameraChanged||objectsChanged||steamActive||oceanMoving||transitionChanged||journalMoving||canopyState.changed||recordMotion.changed;
     drawRequested=false;
     if(paint&&!render(now,performance.now()-updateStart))return;
-    if(active&&!frame&&(recordMotion.moving||motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||canopyState.moving||chairRocking.moving||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
+    if(active&&!frame&&(fishingTimed||flameMoving||woodMoving||recordMotion.moving||motion.running||journalMoving||cameraMoving()||steamActive||oceanMoving||canopyState.moving||chairRocking.moving||drawers.some(drawer=>drawer.moving))) frame=requestAnimationFrame(draw);
   }
   function requestInputFrame() {if(!processingInput&&active&&!frame&&!destroyed&&!failed) frame=requestAnimationFrame(draw);}
   function requestDraw() {drawRequested=true;requestInputFrame();}
   function fail(error:StudioFailure) {
     if(destroyed||failed)return;
     failed=true;ready=false;clearHover();cancelAnimationFrame(frame);frame=0;
+    campfire.pause();fireFrameTime=undefined;
+    fishing.reset();
     journalBook?.cancel();
     mount.dataset.renderActive="false";mount.dataset.steamActive="false";
     environment.pause();mount.dataset.oceanActive="false";
@@ -360,7 +414,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     ctx.fillStyle="#101d1d";ctx.fillRect(0,0,clockImage.width,clockImage.height);ctx.fillStyle="#b5edc7";
     ctx.fillText(text,clockImage.width/2,clockImage.height/2,clockImage.width*0.92);clockTexture.needsUpdate=true;
     deskClock.userData.label=`${text} · 点击显示${showDate?"时间":"日期"}`;
-    canvas.setAttribute("aria-label",`工作室场景，电子钟${showDate?"日期":"时间"} ${text}；滚轮缩放，拖动改变视角，Tab 键可访问内容和缩放入口`);requestDraw();
+    canvas.setAttribute("aria-label",`工作室场景，电子钟${showDate?"日期":"时间"} ${text}；滚轮缩放，拖动改变视角，Tab 键可访问内容和缩放入口；双按 Esc 返回云雾入口`);requestDraw();
   }
   function debugClockDate(hour:number) {
     const date=new Date(),minutes=Math.round(hour*60);
@@ -437,7 +491,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     bounds.invalidate();
     const {width:w,height:h}=bounds.mount();if(!w||!h)return;
     renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
-    clearHover();if(entranceProgress!==undefined)poseEntrance(entranceProgress);else if(!zoomed&&!motion.running)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
+    clearHover();if(entranceProgress!==undefined)poseEntrance(entranceProgress);else if(fishing.view().phase!=='idle')poseFishing();else if(!zoomed&&!motion.running)setRoomCamera();journalBook?.resize();poseJournal();requestDraw();
   }
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mount);
   cleanup.push(()=>resizeObserver.disconnect());
@@ -462,6 +516,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   }
   const gestures = createStudioGestureController({
     canvas, camera, room, mount, tooltip, signal: events.signal, bounds,
+    extraPickRoots:[dressing.group,leisure.group,environment.group],
     canInteract: roomInteractive,
     canPickJournal: () => diary.visible,
     onWheel: (deltaY, deltaMode, height,x,y) => changeZoom(wheelZoom(targetZoom, deltaY, deltaMode, height),deltaY<0?anchorAt(x,y):undefined),
@@ -474,7 +529,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     onAction, requestDraw, requestInputFrame,
   });
   const clearHover = gestures.clearHover;
-  reducedMotion.addEventListener("change",()=>{clearHover();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;focusOffset.copy(targetOffset);stopCamera();}if(entranceProgress!==undefined)poseEntrance(entranceProgress);else if(!motion.running&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
+  reducedMotion.addEventListener("change",()=>{clearHover();syncCampfire();if(reducedMotion.matches) {roomZoom=targetZoom;angle=targetAngle;elevation=targetElevation;focusOffset.copy(targetOffset);stopCamera();}if(entranceProgress!==undefined)poseEntrance(entranceProgress);else if(fishing.view().phase!=='idle')poseFishing();else if(!motion.running&&!zoomed)setRoomCamera();requestDraw();},{signal:events.signal});
   canvas.addEventListener("webglcontextlost",event=>{event.preventDefault();fail(new StudioFailure("context-lost",(event as WebGLContextEvent).statusMessage||"WebGL context lost"));},{signal:events.signal});
   canvas.addEventListener("webglcontextrestored",()=>{
     if(destroyed)return;
@@ -485,7 +540,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     render();if(active)requestDraw();
   },{signal:events.signal});
   setRoomCamera();resize();
-  performanceOverlay=createScenePerformanceOverlay({canvas,renderer,scene,camera,details:()=>({
+  performanceOverlay=createScenePerformanceOverlay({canvas,renderer,scene,camera,bindKeyboard:preparation?.bindDebugKeyboard,details:()=>({
     active:active&&!failed&&!destroyed,zoom:targetZoom,angle:targetAngle,elevation:targetElevation,
     camera:[camera.position.x,camera.position.y,camera.position.z],
     ocean:mount.dataset.oceanActive==='true',steam:mount.dataset.steamActive==='true',
@@ -559,6 +614,12 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       }
       return result;
     },
+    async retreatEntrance({duration,onProgress}: EntranceTransition): Promise<OperationResult> {
+      if(failed||destroyed)return {status:'failed',code:'entrance-unavailable',retryable:true};
+      stopCamera();clearHover();zoomed=false;entranceFlight=false;
+      const task=motion.start(duration,progress=>{poseEntrance(1-progress);onProgress(1-progress);});
+      requestDraw();return task;
+    },
     configureJournal(book:JournalManifest,index:number,onReport:(state:BookReport)=>void,onRegion:(region:JournalRegion)=>void,onIntent:(intent:JournalIntent)=>void) {
       journalBook??=createJournalBook(renderer,scene,camera,requestDraw);
       journalBook.configure(book,onReport,onRegion,onIntent);
@@ -568,8 +629,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     setJournalInteractionEnabled(value:boolean){
       journalInteractionEnabled=value;journalBook?.setInteractionEnabled(value);
       canvas.tabIndex=value?0:-1;
-      if(value)canvas.setAttribute("aria-keyshortcuts","Enter Space ArrowLeft ArrowRight PageUp PageDown Escape + - 0");
-      else canvas.removeAttribute("aria-keyshortcuts");
+      if(value)canvas.setAttribute("aria-keyshortcuts","Enter Space ArrowLeft ArrowRight PageUp PageDown Escape + = - 0 Home");
+      else canvas.setAttribute("aria-keyshortcuts","Escape");
     },
     async moveJournal(enter:boolean,duration:number,entrance?:EntranceTransition): Promise<OperationResult> {
       if(!journalBook||failed||destroyed)return {status:"failed",code:"三维书本不可用",retryable:true};
@@ -603,8 +664,10 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     resetJournal(){journalBook?.resetView();},
     turnJournal(direction:1|-1){journalBook?.turn(direction,reducedMotion.matches);},
     zoomJournal(value:number){journalBook?.setZoom(value);poseJournal();},
-    snapshot() {return {view:viewSnapshot(),lampOn,showDate,drawers:drawers.map(drawer=>drawer.open)};},
-    restore(snapshot:{view:RoomView;lampOn:boolean;showDate:boolean;drawers:boolean[]}) {
+    snapshot() {return {view:viewSnapshot(),lampOn,showDate,drawers:drawers.map(drawer=>drawer.open),campfire:campfire.snapshot(),campfireLayout:leisure.fireLogs.snapshot()};},
+    restore(snapshot:SceneSnapshot) {
+      if(snapshot.campfire)campfire.restore(snapshot.campfire);
+      leisure.fireLogs.restore(campfire.snapshot(),snapshot.campfireLayout);syncCampfire();
       resetCameraSpeed();
       roomZoom=targetZoom=snapshot.view.zoom;angle=targetAngle=snapshot.view.angle;elevation=targetElevation=snapshot.view.elevation;
       const offset=(snapshot.view as RoomView).focusOffset;targetOffset.set(offset?.x??0,offset?.y??0,offset?.z??0);constrainOffset();focusOffset.copy(targetOffset);
@@ -614,6 +677,23 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       setRoomCamera();onViewChange(snapshot.view);requestDraw();
     },
     setMusicPlaying(value:boolean) {recordPlayer.setPlaying(value);requestDraw();},
+    addFirewood() {
+      const result=campfire.addFirewood();syncCampfire();invalidateShadows();requestDraw();return result;
+    },
+    startFishing() {
+      if(!roomInteractive())return;
+      stopCamera();gestures.reset();fishing.start();poseFishing();requestDraw();
+    },
+    fishingAction() {
+      if(!active||failed||destroyed||document.hidden)return;
+      const phase=fishing.view().phase;fishing.tick(performance.now(),true);
+      if(phase==='missed'||fishing.view().phase!=='missed')fishing.interact();
+      invalidateShadows();requestDraw();
+    },
+    endFishing() {
+      if(fishing.view().phase==='idle'||fishing.view().phase==='leaving')return;
+      fishingReturnBlend=fishingBlend;fishing.exit();invalidateShadows();requestDraw();
+    },
     setPointerEnabled(value:boolean) {
       gestures.setPointerEnabled(value);
       if(!value) {
@@ -626,6 +706,9 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       mount.dataset.renderActive=String(value&&!failed);
       if(value) {requestDraw();return;}
       motion.pause();
+      campfire.pause();
+      fishing.pause();
+      fireFrameTime=undefined;
       journalBook?.pause();
       // Preserve destinations while the page is hidden; only frame clocks pause.
       cameraFrameTime=undefined;
@@ -640,7 +723,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       chairFrameTime=undefined;breezeFrameTime=undefined;canopy.pause();
       drawers.forEach(drawer=>drawer.frameTime=undefined);
       gestures.reset();
-      if(entranceProgress===undefined&&!zoomed&&!motion.running)setRoomCamera();
+      if(fishing.view().phase!=='idle')poseFishing();else if(entranceProgress===undefined&&!zoomed&&!motion.running)setRoomCamera();
       if(wasActive&&!failed&&!destroyed)render();
     },
     adjustView(action:RoomViewAction) {
@@ -678,6 +761,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     },
     setTime(date:Date) {
       clockDate=debugTimeHour===null?date:debugClockDate(debugTimeHour);updateClock();
+      if(lightweight||reducedMotion.matches)requestDraw();
     },
     moveToSurface(target:"computer"|"canvas",enter:boolean,duration:number,update:(progress:number,rect:{left:number;top:number;width:number;height:number})=>void) {
       stopCamera();motion.cancel("superseded");zoomed=enter;
@@ -707,8 +791,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       if(failed||destroyed)return Promise.resolve<OperationResult>({status:"failed",code:"三维场景不可用",retryable:true});
       const task=motion.start(duration,progress=>sample(enter?progress:1-progress));requestDraw();return task;
     },
-    cancelTransition() {startupVersion++;startupAbort?.abort();entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
-    dispose() {if(destroyed)return;destroyed=true;startupVersion++;settleNormals();mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
+    cancelTransition() {fishing.reset();startupVersion++;startupAbort?.abort();entranceFlight=false;entranceUpdate=undefined;entranceProgress=undefined;delete mount.dataset.entranceProgress;stopCamera();clearHover();journalBook?.cancel();motion.cancel("navigation");zoomed=journalActive;if(journalActive)poseJournal();else setRoomCamera();requestDraw();},
+    dispose() {if(destroyed)return;destroyed=true;campfire.pause();fishing.reset();startupVersion++;settleNormals();mount.dataset.renderActive="false";mount.dataset.steamActive="false";mount.dataset.oceanActive="false";environment.pause();clearHover();motion.cancel("disposed");disposeSafely(cleanup.reverse());},
   };
   } catch(error) {
     disposeSafely(cleanup.reverse());

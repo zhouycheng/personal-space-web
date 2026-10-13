@@ -1,6 +1,7 @@
-import { createFogField } from './fogField';
+import { createFogField, createFogTrail } from './fogField';
 import { entranceTimePalette, paletteHex } from './timePalette';
-export type CloudState = 'loading' | 'ready' | 'revealing' | 'dismissing' | 'error';
+import { getShortcutSystem } from '../../runtime/shortcuts';
+export type CloudState = 'loading' | 'ready' | 'revealing' | 'returning' | 'dismissing' | 'error';
 
 function setPaletteStyles(root:HTMLElement, palette:ReturnType<typeof entranceTimePalette>) {
   root.style.setProperty('--cloud-entrance-background', paletteHex(palette.background));
@@ -18,23 +19,26 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   const error = root.querySelector<HTMLElement>('[data-cloud-error]')!;
   const events = new AbortController();
   const field=createFogField();
+  const trail=createFogTrail();
   let palette=initialPalette??entranceTimePalette(new Date());
   setPaletteStyles(root,palette);
   const surface = document.createElement('canvas');
+  const title = document.createElement('canvas');
   const underneath = document.createElement('canvas');
   const patch = document.createElement('canvas');
   const clouds=document.createElement('canvas');
-  let cloudPixels:ImageData;
-  let lastReveal=-1;
+  const trailMask=document.createElement('canvas');
+  let cloudPixels:ImageData, trailPixels:ImageData;
+  let lastReveal=-1, lastTrail=false;
   let state: CloudState = 'loading', reveal = 0, disposed = false, frame = 0;
-  let width = 1, height = 1, pixelRatio = 1, progress = 0, hover = 0, hoverTarget = 0, previous = 0;
-  let pointer = { x: -1, y: -1 }, down: { x: number; y: number } | undefined;
+  let width = 1, height = 1, pixelRatio = 1, progress = 0, previous = 0;
+  let pointer: { x: number; y: number } | undefined, down: { x: number; y: number } | undefined;
   let dismissal: Animation | undefined, readyFade: Animation | undefined;
   let readyFadePending = false;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   root.toggleAttribute('data-suspended', document.hidden);
   function bake() {
-    surface.width = width; surface.height = height;
+    surface.width = title.width = width; surface.height = title.height = height;
     const ctx = surface.getContext('2d')!;
     clouds.width = Math.max(1, Math.min(384, Math.round(288 * width / height)));
     clouds.height = Math.max(1, Math.min(288, Math.round(clouds.width * height / width)));
@@ -42,6 +46,9 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     field.paint(clouds.width, clouds.height, 0, cloudPixels.data, palette.mist);
     clouds.getContext('2d')!.putImageData(cloudPixels, 0, 0);
     ctx.drawImage(clouds, 0, 0, width, height);
+    trail.resize(clouds.width, clouds.height);
+    trailMask.width = clouds.width; trailMask.height = clouds.height;
+    trailPixels = trailMask.getContext('2d')!.createImageData(clouds.width, clouds.height);
     const fontSize = Math.max(80 * pixelRatio, Math.min(width * .17, 250 * pixelRatio));
     function drawTitle(target: CanvasRenderingContext2D, blur: number, alpha: number) {
       target.save();
@@ -53,25 +60,26 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       target.fillText(root.dataset.title ?? 'Justin', width / 2 - width * 2, height * .5);
       target.restore();
     }
-    drawTitle(ctx, 9 * pixelRatio, .13);
+    drawTitle(title.getContext('2d')!, 9 * pixelRatio, .13);
+    ctx.drawImage(title, 0, 0);
     underneath.width = patch.width = width; underneath.height = patch.height = height;
     const under = underneath.getContext('2d')!;
-    under.drawImage(surface, 0, 0);
-    drawTitle(under, Math.max(2,fontSize * .012), .055);
+    drawTitle(under, 3 * pixelRatio, .3);
     lastReveal = -1;
   }
   const smooth = (value:number) => {const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
-  function drawClouds() {
-    if (reveal !== lastReveal) {
-      const blend = smooth(reveal / .35);
+  function drawClouds(activeTrail: boolean) {
+    const cloudProgress = (state === 'revealing' || state === 'returning') && !reduce.matches ? reveal : 0;
+    if (cloudProgress !== lastReveal || activeTrail || lastTrail) {
+      const blend = smooth(cloudProgress / .35);
       const color = palette.mist.map((channel, index) =>
         channel + (palette.cloud[index] - channel) * blend
       ) as [number, number, number];
-      field.paint(clouds.width, clouds.height, reveal, cloudPixels.data, color);
+      field.paint(clouds.width, clouds.height, cloudProgress, cloudPixels.data, color, activeTrail ? trail : undefined);
       clouds.getContext('2d')!.putImageData(cloudPixels, 0, 0);
     }
     context!.drawImage(clouds, 0, 0, width, height);
-    lastReveal = reveal;
+    lastReveal = cloudProgress; lastTrail = activeTrail;
   }
   function drawStatus(alpha = 1, blur = 0) {
     const text = status.textContent ?? '';
@@ -111,29 +119,28 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   }
   function paint(now = performance.now()) {
     frame = 0;
-    if (disposed || !context || document.hidden || root.hidden) return;
+    if (disposed || !context || document.hidden || root.hidden || root.hasAttribute('data-suspended')) return;
     if (readyFadePending) { readyFadePending = false; readyFade?.play(); }
-    const delta = previous ? Math.min(50, now - previous) : 16; previous = now;
-    hover += (hoverTarget - hover) * (1 - Math.exp(-delta / 160));
-    if (Math.abs(hoverTarget - hover) < .005) hover = hoverTarget;
+    const delta = previous ? Math.max(0, now - previous) : 16; previous = now;
+    const activeTrail = trail.advance(delta);
     context.clearRect(0, 0, width, height);
-    if(state==='revealing'&&!reduce.matches) {
-      drawClouds();
+    if((state==='revealing'||state==='returning')&&!reduce.matches) {
+      drawClouds(false);
       // The identical initial field and title dissolve into advected layers.
       context.globalAlpha=1-smooth(reveal/.18);
       context.drawImage(surface,0,0);context.globalAlpha=1;
+    } else if (activeTrail) {
+      drawClouds(true); context.drawImage(title, 0, 0);
     } else context.drawImage(surface, 0, 0);
-    if (hover > 0 && state !== 'revealing') {
-      // Scatter the upper veil locally; the underlying surface stays opaque.
-      const radius = Math.min(width, height) * .18;
+    if (activeTrail) {
+      for (let i = 0; i < trail.mask.length; i++) trailPixels.data[i * 4 + 3] = Math.round(trail.mask[i] * 255);
+      trailMask.getContext('2d')!.putImageData(trailPixels, 0, 0);
       const ctx=patch.getContext('2d')!;ctx.clearRect(0,0,width,height);
       ctx.drawImage(underneath,0,0);ctx.globalCompositeOperation='destination-in';
-      const gradient = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, radius);
-      gradient.addColorStop(0, `rgba(0,0,0,${hover * .85})`); gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);ctx.globalCompositeOperation='source-over';
+      ctx.drawImage(trailMask,0,0,width,height);ctx.globalCompositeOperation='source-over';
       context.drawImage(patch,0,0);
     }
-    if (state === 'revealing') {
+    if (state === 'revealing' || state === 'returning') {
       if (reduce.matches) {
         context.globalCompositeOperation = 'destination-out'; context.globalAlpha = reveal;
         context.fillRect(0, 0, width, height); context.globalAlpha = 1;
@@ -143,14 +150,15 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     const statusAlpha = state === 'revealing' ? (reduce.matches ? 0 : 1 - smooth(reveal / .14)) : 1;
     if (statusAlpha > 0) drawStatus(statusAlpha, state === 'revealing' ? (1 - statusAlpha) * 4 * pixelRatio : 0);
     root.dataset.painted = 'true';
-    if (hover !== hoverTarget) requestPaint();
+    if (activeTrail) requestPaint(); else previous = 0;
   }
-  function requestPaint() { if (!frame && !disposed && !document.hidden) frame = requestAnimationFrame(paint); }
+  function requestPaint() { if (!frame && !disposed && !document.hidden && !root.hidden && !root.hasAttribute('data-suspended')) frame = requestAnimationFrame(paint); }
   function resize() {
     const rect = root.getBoundingClientRect(), nextRatio = Math.min(devicePixelRatio, 1.25);
     const nextWidth = Math.max(1, Math.round(rect.width * nextRatio)), nextHeight = Math.max(1, Math.round(rect.height * nextRatio));
     if (cloudPixels && canvas.width === nextWidth && canvas.height === nextHeight && pixelRatio === nextRatio) return;
     pixelRatio = nextRatio; width = nextWidth; height = nextHeight;
+    pointer = undefined; trail.clear();
     canvas.width = width; canvas.height = height; bake();
     // ResizeObserver runs after RAF; never leave its cleared canvas until the next frame.
     cancelAnimationFrame(frame); frame = 0; paint();
@@ -159,28 +167,30 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   const observer = new ResizeObserver(resize); observer.observe(root); resize();
   function excluded(target: EventTarget | null) { return target instanceof Element && Boolean(target.closest('a,button,input,textarea,select,[contenteditable],[data-cloud-no-enter]')); }
   root.addEventListener('pointermove', event => {
-    if (state === 'revealing' || reduce.matches || event.pointerType === 'touch') return;
-    const rect = root.getBoundingClientRect(); pointer = { x: (event.clientX - rect.left) * width / rect.width, y: (event.clientY - rect.top) * height / rect.height };
-    hoverTarget = 1; requestPaint();
+    if (!['loading', 'ready'].includes(state) || reduce.matches || event.pointerType === 'touch' || document.hidden || root.hasAttribute('data-suspended')) return;
+    const rect = root.getBoundingClientRect();
+    const next = { x: (event.clientX - rect.left) * clouds.width / rect.width, y: (event.clientY - rect.top) * clouds.height / rect.height };
+    if (pointer && pointer.x === next.x && pointer.y === next.y) return;
+    const radius = Math.max(64, Math.min(120, Math.min(rect.width, rect.height) * .12)) * clouds.width / rect.width;
+    trail.stroke(pointer ?? next, next, radius); pointer = next; requestPaint();
   }, { signal: events.signal });
-  root.addEventListener('pointerleave', () => { hoverTarget = 0; requestPaint(); }, { signal: events.signal });
+  root.addEventListener('pointerleave', () => { pointer = undefined; }, { signal: events.signal });
+  reduce.addEventListener('change', () => { trail.clear(); pointer = undefined; requestPaint(); }, { signal: events.signal });
   root.addEventListener('pointerdown', event => { down = { x: event.clientX, y: event.clientY }; }, { signal: events.signal });
   root.addEventListener('click', event => {
     if (state !== 'ready' || excluded(event.target) || window.getSelection()?.toString() || (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6)) return;
     event.stopPropagation(); onEnter();
   }, { signal: events.signal });
-  root.addEventListener('keydown', event => {
-    if (state !== 'ready' || excluded(event.target) || !['Enter', ' '].includes(event.key)) return;
-    event.preventDefault(); event.stopPropagation(); onEnter();
-  }, { signal: events.signal });
+  const keys = getShortcutSystem(root.ownerDocument).createScope({ id: 'cloud-entrance', owner: root, kind: 'startup', signal: events.signal, enabled: () => state === 'ready' && !root.hasAttribute('data-suspended') });
+  keys.register({ id: 'enter', description: '进入网站', keys: ['Enter', 'Space'], when: event => !excluded(event.target) && event.target instanceof Node && root.contains(event.target), run: onEnter });
   root.querySelector('[data-cloud-retry]')!.addEventListener('click', onRetry, { signal: events.signal });
   document.addEventListener('visibilitychange', () => {
     root.toggleAttribute('data-suspended', document.hidden);
-    cancelAnimationFrame(frame); frame = 0; previous = 0;
+    cancelAnimationFrame(frame); frame = 0; previous = 0; pointer = undefined;
     if (document.hidden) { dismissal?.pause(); if (readyFade?.playState === 'running') readyFade.pause(); }
     else { dismissal?.play(); if (!readyFadePending && readyFade?.playState === 'paused') readyFade.play(); updatePalette(); requestPaint(); }
   }, { signal: events.signal });
-  window.addEventListener('pagehide', () => { root.setAttribute('data-suspended', ''); cancelAnimationFrame(frame); frame = 0; previous = 0; dismissal?.pause(); if (readyFade?.playState === 'running') readyFade.pause(); }, { signal: events.signal });
+  window.addEventListener('pagehide', () => { root.setAttribute('data-suspended', ''); cancelAnimationFrame(frame); frame = 0; previous = 0; pointer = undefined; dismissal?.pause(); if (readyFade?.playState === 'running') readyFade.pause(); }, { signal: events.signal });
   window.addEventListener('pageshow', () => { root.toggleAttribute('data-suspended', document.hidden); if (!document.hidden) { dismissal?.play(); if (!readyFadePending && readyFade?.playState === 'paused') readyFade.play(); } updatePalette(); requestPaint(); }, { signal: events.signal });
   return {
     setPalette(next:ReturnType<typeof entranceTimePalette>) {
@@ -195,12 +205,12 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       }
       root.toggleAttribute('data-dismiss-progress', value === 'dismissing' && (state === 'loading' || root.hasAttribute('data-dismiss-progress')));
       state = value; root.dataset.state = value; root.setAttribute('aria-busy', String(value === 'loading'));
-      root.inert = value === 'revealing' || value === 'dismissing';
+      root.inert = value === 'revealing' || value === 'returning' || value === 'dismissing';
       root.tabIndex = value === 'ready' ? 0 : -1;
       root.setAttribute('role', 'region');
       root.setAttribute('aria-label', value === 'ready' ? `${root.dataset.title}，${root.dataset.readyText}` : value === 'dismissing' ? '工作室已准备' : `${root.dataset.title}，网站准备页`);
       if(value==='ready')root.setAttribute('aria-keyshortcuts','Enter Space');else root.removeAttribute('aria-keyshortcuts');
-      if(value!=='revealing'&&value!=='dismissing')status.textContent = message ?? (value === 'ready' ? root.dataset.readyText! : root.dataset.loadingText!);
+      if(value!=='revealing'&&value!=='dismissing')status.textContent = message ?? (value === 'ready' || value === 'returning' ? root.dataset.readyText! : root.dataset.loadingText!);
       if (value === 'ready') { progress = 1; root.style.setProperty('--cloud-progress', '1'); }
       if (fadeProgress && progressBar && !reduce.matches) {
         readyFade = progressBar.animate([
@@ -212,7 +222,8 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       }
       syncProgressSemantics();
       error.hidden = value !== 'error';
-      if (value === 'revealing' || value === 'dismissing') { hover = hoverTarget = 0; down = undefined; }
+      if (value !== 'loading' && value !== 'ready') { trail.clear(); pointer = undefined; down = undefined; }
+      if (value === 'revealing' || value === 'returning' || value === 'dismissing') { lastReveal = -1; }
       else { reveal = 0;lastReveal=-1;clouds.getContext('2d')!.clearRect(0,0,clouds.width,clouds.height); }
       if (value === 'ready' && document.activeElement === document.body) root.focus({ preventScroll: true });
       requestPaint();
@@ -240,9 +251,9 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     dispose() {
       if (disposed) return; disposed = true; events.abort(); observer.disconnect(); cancelAnimationFrame(frame); window.clearInterval(paletteTimer);
       dismissal?.cancel(); readyFade?.cancel();
-      canvas.width = canvas.height = surface.width = surface.height = underneath.width = underneath.height = patch.width = patch.height = 0;
-      clouds.width=clouds.height=0;
-      cloudPixels=new ImageData(1,1);field.dispose();
+      canvas.width = canvas.height = surface.width = surface.height = title.width = title.height = underneath.width = underneath.height = patch.width = patch.height = 0;
+      clouds.width=clouds.height=trailMask.width=trailMask.height=0;
+      cloudPixels=trailPixels=new ImageData(1,1);field.dispose();trail.dispose();
       root.hidden = true;
     },
   };

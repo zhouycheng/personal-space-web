@@ -13,7 +13,9 @@ import CloudEntrance from './CloudEntrance.astro';
 </CloudEntrance>
 ```
 
-由宿主创建 `createCloudEntrance(root, onEnter, onRetry, initialPalette?)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`setPalette(palette)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
+由宿主创建 `createCloudEntrance(root, onEnter, onRetry, initialPalette?)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'returning' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`setPalette(palette)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
+
+`returning` 接收从 1 到 0 的揭幕进度，使云雾回拢；底部持续绘制 `readyText`，进度条保持隐藏。宿主完成返回后切换 `ready` 并交接焦点。已经 `dispose()` 的组件需要重新创建；云雾入口的 Enter／Space 通过 Justin Kit 共享快捷键系统注册。
 
 默认加载文字为「正在加载场景」。宿主可通过 `setState('loading', message)` 替换当前阶段文字；阶段定义、耗时记录和错误重试由宿主持有。`setProgress` 表示宿主任务的完成节点，不自动推算下载字节或剩余时间。
 
@@ -25,7 +27,11 @@ import CloudEntrance from './CloudEntrance.astro';
 
 `loading` 和 `ready` 使用同一个底部状态节点作为无障碍文案，Canvas 负责可见文字。文字坐标按画布自身尺寸换算，整层缩放期间重绘不会再次引入缩放位移。状态文字使用昼夜调色板中的高对比前景色；阶段文案只在真实阶段切换时更新，进度条平滑过渡到宿主给出的阶段值，并在等待期间持续流动。进度条不推算下载量或剩余时间。就绪时进度条淡出，提示原位替换。首次进入使用 `ready` 等待用户点击，再由场景时钟驱动 `revealing`。已完成标签页刷新时，宿主继续传入真实准备进度，准备完成后调用 `dismiss(duration)` 自动淡出云雾，不增加完成等待时间，也不启动相机开场动画。错误状态显示重试和注入的 `fallback` 插槽；错误说明由 Canvas 绘制，按钮和链接仍由 DOM 承载。按钮、链接、表单、`contenteditable`、`data-cloud-no-enter`、文字选区和移动超过 6px 的拖动均不会触发进入；就绪根节点支持 Enter / Space。
 
-`fogField.ts` 将多尺度平滑噪声和坐标扭曲预计算为数值密度缓冲；横向拉伸的三层云纱以不同尺度与速度采样，不计算凸起表面法线。准备页使用揭幕进度为零的同一画面，字形在尺寸改变时烘焙。悬停只揭开另一层不透明雾面；点击前不会暴露底层内容。
+`fogField.ts` 将多尺度平滑噪声和坐标扭曲预计算为数值密度缓冲；横向拉伸的三层云纱以不同尺度与速度采样，不计算凸起表面法线。准备页使用揭幕进度为零的同一画面，字形在尺寸或配色改变时烘焙。
+
+加载与就绪阶段，鼠标扫过的连续轨迹让局部雾纹沿移动方向偏移、变薄，并用同一遮罩显露附近标题笔画。作用半径为视口短边的 12%，限制在 64–120 CSS px；轨迹约一秒内仍可辨认，停止移动或离开后在 1.6 秒前台活动时间内回拢。低分辨率数值遮罩按最近笔触更新强度，反复划过只延续尾迹；文字增强层保留 3 CSS px 柔化，最高透明度 0.3。雾面保持不透明，底部状态与进度条保持原有清晰度。
+
+加载切换为就绪和配色更新保留尾迹，揭幕、自动淡出、错误、实际尺寸变化或减少动态效果设置变化时清理尾迹。页面隐藏与 BFCache 暂停尾迹时钟，恢复后继续回拢；轨迹结束后停止 RAF。触屏和减少动态效果模式保持静态雾面，销毁时释放轨迹和遮罩缓冲。
 
 标题使用离屏字形的原生 Canvas 柔化阴影烘焙，兼容不支持 Canvas `filter` 的 Safari；不依赖浏览器滤镜。尺寸未变时忽略重复 ResizeObserver 通知，实际尺寸变化时在同一回调中完成重绘，避免清空画布后等待下一帧产生闪白。
 
@@ -33,4 +39,4 @@ import CloudEntrance from './CloudEntrance.astro';
 
 揭幕时三层云纱缓慢错位漂移，中央先变薄，扰动后的柔软边缘逐渐向外围退散。透明度由叠加光学厚度计算，明暗采用低对比透射光。低分辨率计算画布按视口比例生成，最大 384×288，复用像素缓冲并平滑缩放；不叠加上一帧残影。采样由宿主的相机进度驱动，静置无持续 RAF。隐藏页面暂停，BFCache 保留；`dispose()` 解除观察器/监听器、取消帧、清空 Canvas、像素与数值场缓冲并隐藏组件。
 
-独立预览由 `tests/e2e/entrance.spec.ts` 的 standalone 检查生成在 `.workspace/entrance-validation/standalone.html`，可直接打开，无需海岛。该预览的模拟状态只用于组件验证；站点由 `src/app/entranceRuntime.ts` 接入真实准备流程。
+独立预览由 `tests/e2e/entrance.spec.ts` 的 standalone 检查生成在 `.workspace/entrance-validation/standalone.html`，可直接打开，无需海岛。`standalone hover trail` 用例检查日夜雾面、局部文字、回拢、静置停帧、后台暂停、resize、触屏、减少动态效果和销毁，并保存划过前、散雾、文字显露、尾迹和恢复画面。该预览的模拟状态只用于组件验证；站点由 `src/app/entranceRuntime.ts` 接入真实准备流程。

@@ -7,7 +7,7 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
 ---
 <section class="studio-gallery" data-studio-gallery aria-label="资料柜文件集合">
   <header class="gallery-header">
-    <button class="room-return" data-gallery-return>← 返回首页</button>
+    <button class="room-return" data-gallery-return aria-keyshortcuts="Escape" title="返回首页（Esc）">← 返回首页</button>
     <div><p>来自资料柜</p><h1>文件夹</h1></div>
   </header>
   <div class="gallery-viewport" tabindex="0" aria-label="文件卡片，滑动或使用左右方向键浏览" data-gallery-viewport>
@@ -27,7 +27,7 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
   </div>
   <footer class="gallery-footer"><p>{studioFiles.length} 个文件</p><span>滑动浏览 · 点击阅读</span></footer>
   <dialog class="gallery-detail" data-gallery-detail aria-labelledby="gallery-detail-title">
-    <div class="gallery-detail-toolbar"><h2 id="gallery-detail-title" tabindex="-1" autofocus></h2><button class="gallery-detail-close" aria-label="关闭文件详情">✕</button></div>
+    <div class="gallery-detail-toolbar"><h2 id="gallery-detail-title" tabindex="-1" autofocus></h2><button class="gallery-detail-close" aria-label="关闭文件详情" aria-keyshortcuts="Escape" title="关闭文件详情（Esc）">✕</button></div>
     {studioFiles.map(file=><section data-gallery-content={file.id} hidden>
       <p class="gallery-tags">{file.tags.join(" · ")}</p>
       {file.kind==="resume"?<div class="resume-body">

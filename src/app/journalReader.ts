@@ -28,6 +28,7 @@ export function createJournalReader(root: HTMLElement, scene: () => ScenePort | 
     book,
     enter(path: string, duration: number, entrance?: EntranceTransition) { return controller.enter(request(path), duration, entrance); },
     get ready() { return controller.$session.get().availability==='ready'; },
+    get active() { return controller.$session.get().active; },
     fallback(message = "三维书本暂不可用，请重试或返回首页。") { controller.failed(message, "unsupported"); },
     select(path: string) { return controller.select(request(path)); },
     async leave(duration: number) { binding.closeImage(); await controller.leave(duration); },

@@ -24,7 +24,7 @@ export function createStudioObjects({ renderer, scene, room, studioFiles, comput
   const canopy=createWorkspaceCanopy(scene,primitives,materials,textures);
   const dressing=createIslandDressing(primitives,materials,geometries,textures);
   scene.add(dressing.group);cleanup.push(()=>scene.remove(dressing.group));
-  const leisure=createIslandLeisure(primitives,materials,textures);
+  const leisure=createIslandLeisure(primitives,materials,textures,geometries);
   scene.add(leisure.group);cleanup.push(()=>scene.remove(leisure.group));
   cleanup.push(()=>scene.remove(canopy.group));
   const { drawerActions, drawers, diary, chair, chairSeat, recordPlayer } =

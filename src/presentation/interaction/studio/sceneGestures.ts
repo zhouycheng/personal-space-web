@@ -8,6 +8,7 @@ type GestureOptions = {
   canvas: HTMLCanvasElement;
   camera: THREE.PerspectiveCamera;
   room: THREE.Group;
+  extraPickRoots?: readonly THREE.Object3D[];
   mount: HTMLElement;
   tooltip: HTMLElement;
   signal: AbortSignal;
@@ -24,7 +25,8 @@ type GestureOptions = {
 export function createStudioGestureController(options: GestureOptions) {
   const { canvas, camera, room, mount, tooltip, signal, bounds, canInteract, canPickJournal,
     onWheel, orbit, onAction, requestDraw, requestInputFrame } = options;
-  const pick = createStudioPicker(canvas, camera, room, canPickJournal, bounds.canvas);
+  const pick = createStudioPicker(canvas, camera, room, canPickJournal, bounds.canvas, options.extraPickRoots);
+  signal.addEventListener('abort', () => pick.dispose(), { once: true });
   const hover = createStudioHover({ canvas, mount, tooltip, signal, bounds: bounds.mount, requestDraw });
   const clearHover = hover.clear;
   let pointerEnabled = true;

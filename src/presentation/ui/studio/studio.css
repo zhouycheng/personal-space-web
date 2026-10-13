@@ -9,11 +9,14 @@
 .studio-scene canvas[hidden] {display:none}
 .studio-loading {position:absolute;top:48%;width:100%;text-align:center;color:inherit;font-size:14px}
 .studio-tooltip {position:absolute;pointer-events:none;z-index:3;padding:4px 0;color:#fff;font:500 14px var(--sans);letter-spacing:.04em;white-space:nowrap}
+.studio-action-announcement {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .studio-signature {position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + var(--home-edge-y));left:0;right:0;display:flex;align-items:center;justify-content:center;height:var(--home-hit);margin:0;text-align:center;transform:none;rotate:0deg;white-space:nowrap;font:16px var(--mono);font-style:normal;letter-spacing:3px;pointer-events:none}
 .studio-signature button {height:44px;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-shadow:inherit;pointer-events:auto}
 .studio-mobile-signature {display:none}
 @media(max-width:640px) {.studio-signature {display:block;height:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}.studio-signature button {display:none}.studio-mobile-signature {display:inline}}
 .studio:not([data-state="room"]) .studio-signature {visibility:hidden}
+.studio[data-fishing-active] .studio-signature {visibility:hidden;pointer-events:none}
+.studio[data-fishing-active] .studio-topbar {display:none}
 .studio-signature {color:var(--home-ink);text-shadow:var(--home-text-shadow)}
 .alpha-shell .app-dock[hidden] {display:none}
 .studio button:focus-visible,.alpha-shell button:focus-visible {outline:2px solid var(--home-focus);outline-offset:4px}

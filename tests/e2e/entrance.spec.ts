@@ -1,4 +1,4 @@
-import { expect, test, type Page } from 'playwright/test';
+import { expect, test, type Page, type APIRequestContext } from 'playwright/test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import ts from 'typescript';
 import { phase } from './helpers/journal';
@@ -206,25 +206,32 @@ test('WebGL denial exposes independent retry and usable content exits',async({pa
   expect(await page.evaluate(()=>sessionStorage.getItem('justin-entrance-completed'))).toBeNull();
 });
 
-test('standalone component needs no scene, slots are safe and disposed canvas releases its buffers',async({page,request},info)=>{
-  test.setTimeout(90_000);
+async function mountStandaloneCloud(page: Page, request: APIRequestContext) {
   const body=await (await request.get('/home')).text();
   const html=await page.evaluate(body=>new DOMParser().parseFromString(body,'text/html').querySelector('[data-cloud-entrance]')!.outerHTML,body);
   const css=await readFile('src/justin-kit/components/cloud-entrance/cloud-entrance.css','utf8');
   const timePalette=await readFile('src/justin-kit/components/cloud-entrance/timePalette.ts','utf8');
   const field=await readFile('src/justin-kit/components/cloud-entrance/fogField.ts','utf8');
+  const shortcuts=await readFile('src/justin-kit/runtime/shortcuts.ts','utf8');
   const runtime=(await readFile('src/justin-kit/components/cloud-entrance/runtime.ts','utf8'))
-    .replace("import { createFogField } from './fogField';",'')
-    .replace("import { entranceTimePalette, paletteHex } from './timePalette';",'');
+    .replace("import { createFogField, createFogTrail } from './fogField';",'')
+    .replace("import { entranceTimePalette, paletteHex } from './timePalette';",'')
+    .replace("import { getShortcutSystem } from '../../runtime/shortcuts';",'');
   const paletteSource=ts.transpileModule(timePalette,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
+  const shortcutsSource=ts.transpileModule(shortcuts,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-  const demo=`${paletteSource}\n${fieldSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
+  const demo=`${paletteSource}\n${fieldSource}\n${shortcutsSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
     // Exercise the same renderer even when Canvas filters are unavailable.
     Object.defineProperty(CanvasRenderingContext2D.prototype,'filter',{configurable:true,get(){return undefined;},set(){throw new Error('Canvas filter is unavailable');}});
     const NativeResizeObserver=window.ResizeObserver;
     window.ResizeObserver=class extends NativeResizeObserver {constructor(callback){super(callback);window.cloudResize=()=>callback([],this);}};
     window.cloudCanvasText=[];window.cloudCanvasStatus=[];const originalFillText=CanvasRenderingContext2D.prototype.fillText;
+    window.cloudFrames=0;const originalClearRect=CanvasRenderingContext2D.prototype.clearRect;
+    CanvasRenderingContext2D.prototype.clearRect=function(...args){
+      if(this.canvas.matches('[data-cloud-canvas]'))window.cloudFrames++;
+      return Reflect.apply(originalClearRect,this,args);
+    };
     CanvasRenderingContext2D.prototype.fillText=function(text,...args){
       window.cloudCanvasText.push(String(text));
       if(this.canvas.matches('[data-cloud-canvas]'))window.cloudCanvasStatus.push({state:this.canvas.closest('[data-cloud-entrance]').dataset.state,y:args[1]*this.canvas.clientHeight/this.canvas.height});
@@ -237,6 +244,122 @@ test('standalone component needs no scene, slots are safe and disposed canvas re
   await page.clock.setFixedTime(new Date(2026,9,5,1));
   await mkdir('.workspace/entrance-validation',{recursive:true});await writeFile('.workspace/entrance-validation/standalone.html',htmlDocument);
   await page.setContent(htmlDocument);
+}
+
+test('standalone hover trail reveals soft local lettering and recovers through entrance lifecycle', async ({ page, request }, info) => {
+  test.setTimeout(90_000);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.install({ time: new Date(2026, 9, 5, 1) });
+  await page.clock.pauseAt(new Date(2026, 9, 5, 1, 0, 1));
+  await mountStandaloneCloud(page, request);
+  const entrance = overlay(page);
+  const frames = () => page.evaluate(() => Reflect.get(window, 'cloudFrames') as number);
+  const captureBaseline = () => page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-cloud-canvas]')!;
+    Reflect.set(window, 'cloudBaseline', canvas.getContext('2d')!.getImageData(0, 0, canvas.width, Math.floor(canvas.height * .75)));
+  });
+  const difference = () => page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-cloud-canvas]')!;
+    const baseline = Reflect.get(window, 'cloudBaseline') as ImageData;
+    const current = canvas.getContext('2d')!.getImageData(0, 0, baseline.width, baseline.height).data;
+    let changed = 0, distant = 0, opaque = true;
+    for (let i = 0; i < current.length; i += 4) {
+      opaque &&= current[i + 3] === 255;
+      if (current[i] !== baseline.data[i] || current[i + 1] !== baseline.data[i + 1] || current[i + 2] !== baseline.data[i + 2]) {
+        changed++;
+        if (i / 4 % baseline.width > baseline.width * .8) distant++;
+      }
+    }
+    return { changed, distant, opaque };
+  });
+  const sweep = async (y = .5) => {
+    const { width, height } = page.viewportSize()!;
+    await entrance.dispatchEvent('pointerleave');
+    await page.mouse.move(width * .32, height * y);
+    await page.clock.runFor(48);
+    await page.mouse.move(width * .45, height * y, { steps: 6 });
+    await page.clock.runFor(120);
+  };
+  for (const [label, hour] of [['night', 1], ['day', 12]] as const) {
+    await page.clock.setFixedTime(new Date(2026, 9, 5, hour));
+    await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); Reflect.get(window, 'cloud').setState('loading'); });
+    await page.clock.runFor(32);
+    await captureBaseline();
+    await page.screenshot({ path: info.outputPath(`trail-${label}-before.png`) });
+    await sweep(.25);
+    const empty = await difference();
+    expect(empty.changed).toBeGreaterThan(20); expect(empty.distant).toBe(0); expect(empty.opaque).toBe(true);
+    await page.screenshot({ path: info.outputPath(`trail-${label}-mist.png`) });
+    await page.evaluate(() => Reflect.get(window, 'cloud').setState('ready'));
+    await page.clock.runFor(32);
+    expect((await difference()).changed).toBeGreaterThan(0);
+    await page.clock.runFor(1700);
+    expect((await difference()).changed).toBe(0);
+    await sweep();
+    const lettering = await difference();
+    expect(lettering.changed).toBeGreaterThan(20); expect(lettering.distant).toBe(0); expect(lettering.opaque).toBe(true);
+    await page.screenshot({ path: info.outputPath(`trail-${label}-lettering.png`) });
+    await page.clock.runFor(800);
+    expect((await difference()).changed).toBeGreaterThan(0);
+    await page.screenshot({ path: info.outputPath(`trail-${label}-tail.png`) });
+    await page.clock.runFor(900);
+    expect((await difference()).changed).toBe(0);
+    const idleFrames = await frames();
+    await page.clock.runFor(200);
+    expect(await frames()).toBe(idleFrames);
+    await page.screenshot({ path: info.outputPath(`trail-${label}-recovered.png`) });
+  }
+  await sweep();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const paused = await frames(), pausedDifference = await difference();
+  await page.clock.runFor(2500);
+  expect(await frames()).toBe(paused); expect(await difference()).toEqual(pausedDifference);
+  await page.evaluate(() => { delete (document as unknown as Record<string, unknown>).hidden; document.dispatchEvent(new Event('visibilitychange')); });
+  await page.clock.runFor(32);
+  expect((await difference()).changed).toBeGreaterThan(0);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  const cachedFrames = await frames();
+  await page.clock.runFor(2500); expect(await frames()).toBe(cachedFrames);
+  await page.evaluate(() => window.dispatchEvent(new Event('pageshow')));
+  await page.clock.runFor(1700); expect((await difference()).changed).toBe(0);
+
+  await sweep();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  // WebKit delivers the media change on its native rendering cycle, outside the paused clock.
+  await expect.poll(async () => { await page.clock.runFor(32); return (await difference()).changed; }, { timeout: 1000, intervals: [50, 100, 250] }).toBe(0);
+  await sweep(); expect((await difference()).changed).toBe(0);
+  await page.emulateMedia({ reducedMotion: 'no-preference' }); await page.clock.runFor(32);
+  await entrance.dispatchEvent('pointermove', { pointerType: 'touch', clientX: 100, clientY: 100 });
+  await page.clock.runFor(120); expect((await difference()).changed).toBe(0);
+  for (const state of ['error', 'revealing', 'dismissing']) {
+    await page.evaluate(() => Reflect.get(window, 'cloud').setState('ready')); await page.clock.runFor(32);
+    await sweep(); expect((await difference()).changed).toBeGreaterThan(0);
+    await page.evaluate(state => Reflect.get(window, 'cloud').setState(state), state);
+    await page.clock.runFor(32); expect((await difference()).changed).toBe(0);
+    await sweep(); expect((await difference()).changed).toBe(0);
+  }
+  await page.evaluate(() => Reflect.get(window, 'cloud').setState('ready')); await page.clock.runFor(32);
+  await sweep();
+  const originalSize = page.viewportSize()!;
+  await page.setViewportSize({ width: Math.max(320, originalSize.width - 80), height: originalSize.height - 40 });
+  await page.clock.runFor(32); await captureBaseline();
+  await sweep(); expect((await difference()).changed).toBeGreaterThan(0); expect((await difference()).opaque).toBe(true);
+  await page.clock.runFor(1700); expect((await difference()).changed).toBe(0);
+  await entrance.focus(); await page.keyboard.press('Enter');
+  expect(await page.evaluate(() => Reflect.get(window, 'enterCount'))).toBe(1);
+  await sweep();
+  await page.evaluate(() => Reflect.get(window, 'cloud').dispose());
+  const disposedFrames = await frames();
+  await page.clock.runFor(2000); expect(await frames()).toBe(disposedFrames);
+  expect(await entrance.locator('canvas').evaluate(canvas => (canvas as HTMLCanvasElement).width)).toBe(0);
+});
+
+test('standalone component needs no scene, slots are safe and disposed canvas releases its buffers',async({page,request},info)=>{
+  test.setTimeout(90_000);
+  await mountStandaloneCloud(page, request);
   await expect(overlay(page)).toHaveAttribute('data-state','loading');
   await expect(overlay(page)).toHaveAttribute('data-painted','true');
   await expect(overlay(page).locator('.cloud-entrance__fallback')).toHaveCount(0);

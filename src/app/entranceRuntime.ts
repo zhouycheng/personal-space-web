@@ -11,6 +11,7 @@ const stageLabels:Record<StartupStage,string>={module:'正在加载场景',geome
 export function createEntranceRuntime(root: HTMLElement, options: {
   prepare(progress: (value: StartupProgress) => void): Promise<OperationResult>;
   play(duration: number, progress: (value: number) => void): Promise<OperationResult>;
+  retreat(duration: number, progress: (value: number) => void): Promise<OperationResult>;
   cancel(): void;
   sync(): void;
   complete(): void;
@@ -22,7 +23,8 @@ export function createEntranceRuntime(root: HTMLElement, options: {
   let covered = true;
   let playing = false, ready = false, failedState = false, disposed = false, version = 0;
   const cloudStart=performance.now();
-  const view = createCloudEntrance(root, enter, () => void start(), options.palette);
+  let palette = options.palette;
+  let view = createCloudEntrance(root, enter, () => void start(), palette);
   const cloudCpu=performance.now()-cloudStart;
   const lifetime=new AbortController();
   root.hidden = false;
@@ -80,16 +82,32 @@ export function createEntranceRuntime(root: HTMLElement, options: {
       complete();
     } catch { if (token === version && !disposed) failed(); }
   }
+  async function retreat() {
+    if (covered || disposed) return;
+    const token = ++version;
+    blocking = covered = playing = true; ready = failedState = false;
+    root.hidden = false; root.style.removeProperty('opacity');
+    view = createCloudEntrance(root, enter, () => void start(), palette);
+    view.setState('returning'); view.setRevealProgress(1); options.sync();
+    try {
+      const result = await options.retreat(options.reducedMotion.matches ? 240 : ENTRANCE_DURATION, value => {
+        if (token === version && !disposed) view.setRevealProgress(value);
+      });
+      if (token !== version || disposed) return;
+      if (result.status !== 'completed') { failed(); return; }
+      playing = false; ready = true; view.setState('ready'); options.sync(); root.focus({ preventScroll: true });
+    } catch { if (token === version && !disposed) failed(); }
+  }
   return {
     get blocking() { return blocking; },
     get covered() { return covered; },
     get playing() { return playing; },
-    start, failed,
+    start, failed, retreat,
     exit() {
       if (!covered || !failedState || disposed) return;
       version++; options.cancel(); blocking = false; complete();
     },
-    setPalette(palette:EnvironmentPalette) { view.setPalette(palette); },
+    setPalette(next:EnvironmentPalette) { palette = next; view.setPalette(next); },
     dispose() { disposed = true; version++; lifetime.abort(); options.cancel(); view.dispose(); },
   };
 }

@@ -1,6 +1,7 @@
 import { detectDownloadPlatform, selectDefaultDownload } from "../../../data/selectors/downloadPlatform.mjs";
 import { createDomInstances } from '../../../justin-kit/runtime/domInstances';
 import { observeElementActivity } from '../../../justin-kit/runtime/elementActivity';
+import { getShortcutSystem } from '../../../justin-kit/runtime/shortcuts';
 
 type DownloadData = {
   version?: string;
@@ -18,6 +19,8 @@ createDomInstances('[data-project-download]', root => {
   const events = new AbortController();
   const options = { signal: events.signal };
   const projectTitle = root.dataset.projectTitle ?? "项目";
+  const keys = getShortcutSystem(root.ownerDocument).createScope({ id: 'download-menu', owner: menu, kind: 'overlay', active: false, signal: events.signal, enabled: () => !menu.hidden });
+  keys.register({ id: 'dismiss', description: '关闭下载菜单', keys: ['Escape'], allowInEditable: true, run: () => { setOpen(false); toggle.focus(); } });
 
   let downloads: DownloadData;
   try {
@@ -48,6 +51,7 @@ createDomInstances('[data-project-download]', root => {
 
   function setOpen(open: boolean) {
     menu!.hidden = !open;
+    keys.setActive(open);
     root.classList.toggle("is-open", open);
     if (!primary!.dataset.downloadHref) primary!.setAttribute("aria-expanded", String(open));
     toggle!.setAttribute("aria-expanded", String(open));
@@ -62,11 +66,6 @@ createDomInstances('[data-project-download]', root => {
   menu.querySelectorAll("a").forEach(link => link.addEventListener("click", () => setOpen(false), options));
   document.addEventListener("click", event => {
     if (!menu.hidden && event.target instanceof Node && !root.contains(event.target)) setOpen(false);
-  }, options);
-  document.addEventListener("keydown", event => {
-    if (event.key !== "Escape" || menu.hidden) return;
-    setOpen(false);
-    toggle.focus();
   }, options);
   const stopActivity = observeElementActivity(root, active => { if (!active) setOpen(false); });
   return () => { stopActivity(); events.abort(); delete root.dataset.downloadReady; };

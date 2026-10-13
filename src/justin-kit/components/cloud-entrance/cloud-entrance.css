@@ -19,8 +19,8 @@
 .cloud-entrance:not([data-state="loading"]):not([data-dismiss-progress]) .cloud-entrance__progress { opacity: 0; visibility: hidden; }
 .cloud-entrance[data-state="ready"] { cursor: pointer; }
 .cloud-entrance[data-state="ready"]:focus-visible { outline: 2px solid var(--cloud-entrance-focus, #71868c); outline-offset: -8px; }
-.cloud-entrance[data-state="revealing"] { background: transparent; cursor: default; }
-.cloud-entrance[data-state="revealing"] :is(.cloud-entrance__footer,.cloud-entrance__information) { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.cloud-entrance:is([data-state="revealing"],[data-state="returning"]) { background: transparent; cursor: default; }
+.cloud-entrance:is([data-state="revealing"],[data-state="returning"]) :is(.cloud-entrance__footer,.cloud-entrance__information) { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .cloud-entrance[data-state="dismissing"] { pointer-events: none; }
 .cloud-entrance__error { margin-top: 12px; font-size: 13px; }
 .cloud-entrance__error[hidden] { display: none; }

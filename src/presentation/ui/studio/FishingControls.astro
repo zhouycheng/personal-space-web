@@ -1,0 +1,29 @@
+<dialog class="fishing" data-fishing aria-labelledby="fishing-title">
+  <header class="fishing-header">
+    <button class="room-return" type="button" data-fishing-exit aria-label="退出钓鱼" aria-keyshortcuts="Escape" title="退出钓鱼（Esc）">退出</button>
+    <h2 id="fishing-title">码头钓鱼</h2>
+  </header>
+  <div class="fishing-controls">
+    <p class="fishing-status" data-fishing-status role="status" aria-live="polite" aria-atomic="true"></p>
+    <button class="fishing-primary" type="button" data-fishing-action aria-describedby="fishing-hint">抛竿</button>
+    <p class="fishing-hint" id="fishing-hint">浮标沉入水中时收线<span class="fishing-keyboard-hint"> · Esc 返回海岛</span></p>
+  </div>
+</dialog>
+
+<style>
+  .fishing { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; color: #fff9eb; overflow: hidden; }
+  .fishing::backdrop { background: transparent; }
+  .fishing::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg,rgba(15,32,33,.25),transparent 22%,transparent 60%,rgba(15,32,33,.65)); }
+  .fishing-header { position: absolute; inset: 0 0 auto; height: 80px; pointer-events: none; text-shadow: var(--home-text-shadow); }
+  .fishing-header .room-return { pointer-events: auto; }
+  .fishing-header h2 { position: absolute; top: max(20px,env(safe-area-inset-top)); right: max(24px,env(safe-area-inset-right)); display: flex; align-items: center; min-height: 44px; margin: 0; padding: 0 8px; font: 14px var(--sans); }
+  .fishing button { min-height: 44px; cursor: pointer; touch-action: manipulation; }
+  .fishing-controls { position: absolute; left: 20px; right: 20px; bottom: max(32px,calc(env(safe-area-inset-bottom) + 20px)); text-align: center; }
+  .fishing-status { margin: 0 0 18px; font-size: clamp(17px,2vw,21px); font-weight: 500; text-shadow: 0 2px 10px #183334; }
+  .fishing-primary { min-width: 168px; padding: 12px 32px; border: 1px solid #fff7e2; border-radius: 28px; background: #fff7e2; color: #233b39; font: inherit; font-weight: 600 !important; }
+  .fishing-primary[aria-disabled=true] { opacity: .65; cursor: default; }
+  .fishing[data-phase=bite] .fishing-primary { background: #ffde93; border-color: #ffde93; }
+  .fishing-hint { margin: 12px 0 0; font-size: 12px; opacity: .8; }
+  .fishing button:focus-visible { outline: 2px solid #fff; outline-offset: 5px; }
+  @media(max-width:640px) { .fishing-header { height: 72px; } .fishing-header h2 { top: max(12px,env(safe-area-inset-top)); right: max(12px,env(safe-area-inset-right)); } .fishing-controls { bottom: max(24px,calc(env(safe-area-inset-bottom) + 16px)); } .fishing-keyboard-hint { display: none; } }
+</style>

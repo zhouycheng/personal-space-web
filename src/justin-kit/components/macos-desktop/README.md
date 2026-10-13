@@ -37,6 +37,8 @@ import MacOsWindowFrame from "/src/justin-kit/components/macos-desktop/MacOsWind
 
 自有 iframe 接收 `{ type: "justin-kit:activity", active: boolean }` 消息。接收方必须同时验证 `event.source === parent` 和同源 `event.origin`；最小化与离开桌面暂停任务，恢复复用同一文档。未知 HTML 不因闲置被刷新或卸载。
 
+文件夹 Enter 激活通过共享快捷键 runtime 注册。同源 HTML 文档通过 `attachFrame` 转发未处理的 Esc，宿主负责返回首页并保留窗口；内部控件和原生弹层优先处理按键。内容暂停时停止转发，重新加载断开旧文档，销毁时释放连接。
+
 ## 桌面目录
 
 默认扫描器读取：

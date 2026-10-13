@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {createWoolMaterial,addWoolPile} from './woolRug.ts';
-import {createCampfireWood} from './campfireWood.ts';
 import {createCampfireFlame} from './campfireFlame.ts';
 import {createCampChair} from './campChair.ts';
 import { mergeIndexed } from './indexedGeometry.ts';
@@ -9,20 +8,20 @@ import { createWorkspaceMaterials } from './workspaceMaterials.ts';
 import { studioPalette as palette } from '../../../config/studioPalette.ts';
 import { terrainHeight } from '../../../config/islandTerrain.ts';
 import { islandLeisure as layout } from '../../../config/islandLeisure.ts';
-import { breezeAt } from '../../../animation/studio/breeze.ts';
 import { createLoungeShell,loungePanel } from './leisureGeometry.ts';
 import { createDockBoat } from './dockBoat.ts';
 import { createHurricaneLantern,createLanternFlameMaterial } from './hurricaneLantern.ts';
 import { restControllerOnLounge } from './loungeSupport.ts';
 import { createDockFishing } from './dockFishing.ts';
+import { createCampfireLogs } from './campfireLogs.ts';
+import type { CampfireState } from '../../../contracts/campfire.ts';
 
-/** Decorative beach objects; intentionally independent of the furniture picking tree. */
-export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Material>,textures:Set<THREE.Texture>) {
+/** Beach objects keep their own interaction roots outside the furniture tree. */
+export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Material>,textures:Set<THREE.Texture>,geometries:Set<THREE.BufferGeometry>) {
   const group=new THREE.Group();group.name='island-leisure';
   const {timber,canvas,cork,end}=createWorkspaceMaterials(materials,textures);
   const wood=timber.clone();wood.color.set(palette.wood);materials.add(wood);
   const stone=p.material(0x858580,.98),charcoal=p.material(0x25221f,1),metal=p.material(0x383c37,.6);
-  const bark=createCampfireWood(materials,textures);
   const fabric=canvas.clone();fabric.color.set(palette.upholstery);fabric.bumpScale=.00012;materials.add(fabric);
   const seam=p.material(0x827566,.98);
   const sand=p.material(0x5a5145,1);sand.transparent=true;sand.depthWrite=false;
@@ -62,7 +61,7 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
   }
   const fire=root('stone-campfire',layout.campfire.x,layout.campfire.z);
   const ash=p.mesh(fire,new THREE.CircleGeometry(.83,48),sand,0,.015,0);ash.rotation.x=-Math.PI/2;
-  const ember=p.material(0x542310);ember.emissive.set(0xed3903);ember.emissiveIntensity=1.4;
+  const ember=p.material(0x241910);ember.emissive.set(0x8c2606);ember.emissiveIntensity=.15;
   for(let i=0;i<80;i++){const a=i*2.39996,r=.12+Math.sqrt(i/80)*.58;
     const coal=p.mesh(fire,new THREE.IcosahedronGeometry(.045+(i%3)*.014,1),i%4?charcoal:ember,Math.cos(a)*r,.035,Math.sin(a)*r);coal.scale.y=.45;}
   stone.vertexColors=true;
@@ -80,18 +79,9 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
     const rock=p.mesh(fire,geo,stone,Math.cos(a)*r,.105,Math.sin(a)*r);
     rock.scale.set(.18+(i%4)*.024,.145+(i%3)*.035,.20+Math.sin(i*2)*.035);rock.rotation.y=i*1.73;
   }
-  const logs=[[-.65,.11,-.25,.47,.12,-.39,.095],[-.55,.12,.42,.64,.16,.10,.11],[-.39,.20,-.60,.17,.29,.46,.10],[.49,.14,-.44,-.12,.36,.49,.085],[-.68,.09,.12,-.15,.13,.30,.065],[.19,.10,.52,.68,.09,.37,.075],[-.24,.30,-.34,.45,.37,.21,.08]];
-  for(const [i,spec] of logs.entries()) {
-    const a=new THREE.Vector3(...spec.slice(0,3) as [number,number,number]),b=new THREE.Vector3(...spec.slice(3,6) as [number,number,number]),radius=spec[6],length=a.distanceTo(b);
-    const geo=new THREE.CylinderGeometry(radius*.76,radius,length,13,8),pos=geo.attributes.position;
-    for(let j=0;j<pos.count;j++){const x=pos.getX(j),y=pos.getY(j),z=pos.getZ(j),angle=Math.atan2(z,x);const rough=1+.07*Math.sin(angle*7+y*37+i);pos.setXYZ(j,x*rough,y,z*rough);}
-    geo.computeVertexNormals();const log=p.mesh(fire,geo,bark,...a.clone().add(b).multiplyScalar(.5).toArray() as [number,number,number]);log.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());
-    for(const tip of [-1,1]){const cap=p.mesh(log,new THREE.CircleGeometry(radius*(tip>0?.75:.98),24),end,0,tip*(length/2+.001),0);cap.rotation.x=tip<0?Math.PI/2:-Math.PI/2;}
-    for(let j=0;j<4;j++){const angle=j*2.4+i;
-      piping(log,Array.from({length:5},(_,k)=>{const y=-length*.22+j*.026+k*length*.055,r=radius*(.88-y/length*.22);return new THREE.Vector3(Math.cos(angle+Math.sin(k*2+i)*.018)*r,y,Math.sin(angle+Math.sin(k*2+i)*.018)*r);}),.0013,ember);}
-  }
-  const flames=[createCampfireFlame(p,fire,materials)];
-  const glow=new THREE.PointLight(0xffa044,3.2,7,1.7);glow.position.set(0,.65,0);fire.add(glow);
+  const fireLogs=createCampfireLogs(p,fire,materials,textures,geometries);
+  const flame=createCampfireFlame(p,fire,materials,textures,geometries);
+  const glow=new THREE.PointLight(0xffa044,.12,4,2);glow.position.set(0,.35,0);fire.add(glow);
 
   function seat(x:number,z:number,angle:number) {
     const g=root('canvas-camp-chair',x,z,angle);
@@ -170,11 +160,13 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
     const lantern=lamp.clone(true);lantern.position.set(x,d.deck+.07,d.z-d.width*.32);dock.add(lantern);
     const light=new THREE.PointLight(0xffc78b,1.3,3.1,1.5);light.position.copy(lantern.position).y+=.4;dock.add(light);dockLights.push(light);
   }
-  createDockFishing(p,dock,metal,cork);
+  const fishing=createDockFishing(p,dock,metal,cork);
   // Keep the many deck fixings and chair joints from becoming separate draw calls.
   group.updateMatrixWorld(true);
+  const movingLogs=new Set<THREE.Object3D>([fireLogs.debris]);fireLogs.group.traverse(object=>movingLogs.add(object));
+  fishing.group.traverse(object=>movingLogs.add(object));
   const batches=new Map<string,THREE.Mesh[]>();
-  group.traverse(object=>{if(object instanceof THREE.Mesh&&object.material instanceof THREE.MeshStandardMaterial&&!object.material.transparent){
+  group.traverse(object=>{if(!movingLogs.has(object)&&object instanceof THREE.Mesh&&object.material instanceof THREE.MeshStandardMaterial&&!object.material.transparent){
     const key=`${object.material.uuid}:${object.castShadow}:${object.receiveShadow}`;
     const list=batches.get(key)??[];list.push(object);batches.set(key,list);
   }});
@@ -183,12 +175,17 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
     const merged=mergeIndexed(objects.map(object=>({geometry:object.geometry,matrix:object.matrixWorld})));
     if(merged){objects.forEach(object=>object.removeFromParent());const mesh=p.mesh(group,merged,material,0,0,0);mesh.castShadow=first.castShadow;mesh.receiveShadow=first.receiveShadow;}
   }
-  let daylight=1;
+  let daylight=1,heat=0,fireTime=0;
+  function updateFireLight(){
+    const minimum=.12-.04*daylight,maximum=1.6-.6*daylight;
+    const flicker=1+.05*Math.sin(fireTime*7.3)+.025*Math.sin(fireTime*13.1);
+    glow.intensity=minimum+(maximum-minimum)*Math.min(1,heat*flicker);
+    ember.emissiveIntensity=.008+heat*.18;
+    flame.setHeat(heat);
+  }
   const boat=createDockBoat(p,materials,textures);group.add(boat.group);
-  return {group,boatInverse:boat.inverse,setWaterTime:boat.update,setLighting(value:number){daylight=value;gameLight.intensity=.8+(1-value)*1.7;dockLights.forEach(light=>light.intensity=.35+(1-value)*1.3);},setWind(seconds:number){
+  return {group,fireLogs,flame,fishing,tickCampfire(seconds:number){fireTime+=seconds;const moving=flame.tick(seconds);updateFireLight();return moving;},updateCampfire(state:CampfireState,value:number,updateLogs=true,animate=false){if(updateLogs)fireLogs.update(state,animate);heat=value;updateFireLight();},boatInverse:boat.inverse,setWaterTime:boat.update,setLighting(value:number){daylight=value;updateFireLight();gameLight.intensity=.8+(1-value)*1.7;dockLights.forEach(light=>light.intensity=.35+(1-value)*1.3);},setWind(seconds:number){
     wick.uniforms.time.value=seconds;
-    const gust=breezeAt(layout.campfire.x,layout.campfire.z,seconds);
-    for(const flame of flames){(flame.material as THREE.ShaderMaterial).uniforms.time.value=seconds;flame.rotation.z=-gust*.0765;flame.rotation.x=gust*.0477;}
-    glow.intensity=(2.4+(1-daylight)*1.8)*(1+.075*Math.sin(seconds*7.3)+.035*Math.sin(seconds*13.1));
+    updateFireLight();
   }};
 }
