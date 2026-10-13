@@ -1,7 +1,7 @@
 <p align="center"><strong>JustinSpace 是一个以交互式 3D 工作室为入口的个人空间网站</strong></p>
 
 <p align="center">
-  <img src="docs/images/justinspace-homepage.png" alt="JustinSpace 三维工作室首页" width="100%">
+  <img src="docs/images/justinspace-homepage.webp" alt="JustinSpace 海岛工作室下午全景" width="100%">
 </p>
 
 <p align="center">
