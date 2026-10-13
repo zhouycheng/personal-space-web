@@ -6,6 +6,9 @@ export const islandLeisure = {
   boat: { offsetFromEnd: .65, sideGap: .95 },
 } as const;
 
+export const campfireFuel = { stock: 12, capacity: 7, burnSeconds: 180, ignitionSeconds: 8, refillSeconds: 10 } as const;
+export const campfireLogOrder = [0, 1, 4, 5, 2, 3, 6] as const;
+
 const dock=islandLeisure.dock,rodZ=dock.z-dock.width*.5-.035;
 export const fishingRodPoints = [
   [dock.end-.72,dock.deck+.18,rodZ],[dock.end-.18,dock.deck+.59,rodZ],

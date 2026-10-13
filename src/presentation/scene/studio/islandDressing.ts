@@ -13,6 +13,7 @@ import { createDressingMaterials } from './dressingMaterials.ts';
 import { breezeGLSL } from '../../../animation/studio/breeze.ts';
 import type { StudioPrimitives } from './studioPrimitives';
 import { createIslandLiving } from './islandLiving.ts';
+import { createCampfireWood } from './campfireWood.ts';
 
 /** Decorations are baked by material; the file cabinet keeps its picking identity. */
 export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Material>,geometries:Set<THREE.BufferGeometry>,textures:Set<THREE.Texture>) {
@@ -218,7 +219,8 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   const livingCloth=new THREE.MeshPhysicalMaterial({color:palette.canvas,map:canvas.map,bumpMap:canvas.bumpMap,bumpScale:.0002,
     roughness:.93,sheen:.38,sheenColor:0xfff5df,sheenRoughness:.85,side:THREE.DoubleSide,shadowSide:THREE.FrontSide});
   materials.add(livingCloth);
-  const livingPlacements=createIslandLiving(p,source,{wood:timber,cloth:livingCloth,wicker:cork,ceramic,metal:dark,paper,olive:bagFabric});
+  const {placements:livingPlacements,firewood}=createIslandLiving(p,source,{wood:timber,cloth:livingCloth,wicker:cork,ceramic,metal:dark,paper,olive:bagFabric},geometries,createCampfireWood(materials,textures).createSurface().material);
+  source.updateMatrixWorld(true);group.attach(firewood.group);
 
   // Grounded feet and bags are aligned after their final rotation, before batching.
   source.updateMatrixWorld(true);
@@ -271,7 +273,7 @@ export function createIslandDressing(p:StudioPrimitives,materials:Set<THREE.Mate
   }
   group.userData.placements=placements;
   group.userData.livingPlacements=livingPlacements;
-  return {group,cabinet,setWind(seconds:number){windTime.value=seconds;flameMaterial.uniforms.time.value=seconds;},setLighting(daylight:number){
+  return {group,cabinet,firewood,setWind(seconds:number){windTime.value=seconds;flameMaterial.uniforms.time.value=seconds;},setLighting(daylight:number){
     for(const mat of [metal,brass,ceramic])mat.envMapIntensity=.12+daylight*.6;
     glass.envMapIntensity=.18+daylight*.8;
     for(const light of lanternLights)light.intensity=.3+(1-daylight)*2.4;

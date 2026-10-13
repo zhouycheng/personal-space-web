@@ -16,7 +16,7 @@ test('expanded beach supports the fire and the dock starts on land and ends in w
 });
 test('beach additions are unpickable, own all resources and use the shared animation time',()=>{
   const room=new THREE.Group(),materials=new Set(),geometries=new Set(),textures=new Set();
-  const leisure=createIslandLeisure(createStudioPrimitives({},room,materials,geometries,textures),materials,textures);
+  const leisure=createIslandLeisure(createStudioPrimitives({},room,materials,geometries,textures),materials,textures,geometries);
   assert.equal(room.children.length,0);
   const rods=[];leisure.group.traverse(object=>{if(object.name==='active-fishing-rod')rods.push(object);});
   assert.equal(rods.length,1,'one rod is set for fishing at the dock end');

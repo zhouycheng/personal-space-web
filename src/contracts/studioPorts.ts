@@ -2,10 +2,11 @@ import type { BookReport, JournalManifest, JournalRegion, JournalIntent } from "
 import type { OperationResult } from "./operation";
 import type { RoomView, RoomViewAction } from "./studio";
 import type { StartupProgress } from './startup';
+import type { CampfireState, CampfireLayout, FirewoodResult } from './campfire';
 
 export type DrawerId = "drawer-top" | "drawer-middle" | "drawer-bottom";
 export type StudioTargets = { view: RoomView; lampOn: boolean; showDate: boolean; drawers: boolean[] };
-export type SceneSnapshot = StudioTargets;
+export type SceneSnapshot = StudioTargets & { campfire?: CampfireState; campfireLayout?: CampfireLayout };
 export type StudioLighting = {
   daylight: number;
   background: string;
@@ -44,6 +45,7 @@ export interface ScenePort extends TransitionPort {
   setTime(date: Date): void;
   adjustView(action: RoomViewAction): void;
   spinChair(reducedMotion?: boolean): void;
+  addFirewood(): FirewoodResult;
   setLampEnabled(enabled: boolean): void;
   setClockMode(mode: "time" | "date"): void;
   setDrawerOpen(action: DrawerId, open: boolean): void;
