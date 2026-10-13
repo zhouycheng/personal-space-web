@@ -34,3 +34,14 @@ test('dense zoom picking retains native hits, material sides, transforms, visibi
     picker.dispose();geometry.dispose();if(!indexed)original.dispose();material.dispose();
   }
 });
+
+test('dynamic proxy acceptance preserves the nearest eligible solid hit',()=>{
+  const geometry=new THREE.BoxGeometry(),material=new THREE.MeshBasicMaterial();
+  const solid=new THREE.Mesh(geometry,material),proxy=new THREE.Mesh(geometry,material);proxy.position.z=2;proxy.userData.hitProxy=true;
+  solid.updateMatrixWorld();proxy.updateMatrixWorld();let acceptProxy=false;
+  const picker=createZoomPicker([solid,proxy],object=>!object.userData.hitProxy||acceptProxy);
+  const ray=new THREE.Raycaster(new THREE.Vector3(0,0,5),new THREE.Vector3(0,0,-1));
+  assert.equal(picker.intersect(ray).object,solid);acceptProxy=true;assert.equal(picker.intersect(ray).object,proxy);
+  proxy.visible=false;assert.equal(picker.intersect(ray).object,solid);
+  picker.dispose();geometry.dispose();material.dispose();
+});

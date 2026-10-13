@@ -1,5 +1,6 @@
 import { canOpenFile, snapFileIndex, type FileGesture } from "../../interaction/studio/fileGesture.ts";
 import { createDomInstances } from '../../../justin-kit/runtime/domInstances.ts';
+import { getShortcutSystem } from '../../../justin-kit/runtime/shortcuts.ts';
 
 const mounted = new WeakMap<HTMLElement, () => void>();
 
@@ -28,6 +29,14 @@ export function setupStudioGallery(root: HTMLElement) {
   let disposed = false;
   const active = () => !disposed && !suspended && page.classList.contains("is-active") && !document.hidden;
   const browsing = () => active() && !dialog.open;
+  const shortcuts = getShortcutSystem(root.ownerDocument);
+  const browseKeys = shortcuts.createScope({ id: 'gallery-browse', owner: viewport, signal: events.signal, enabled: browsing });
+  const detailKeys = shortcuts.createScope({ id: 'gallery-detail', owner: dialog, kind: 'modal', active: false, signal: events.signal, enabled: () => active() && dialog.open });
+  detailKeys.register({ id: 'dismiss', description: '关闭作品详情', keys: ['Escape'], allowInEditable: true, run: () => close() });
+  browseKeys.register({ id: 'browse', description: '切换文件', keys: ['ArrowLeft', 'ArrowRight', 'Home', 'End'], repeat: true,
+    when: event => event.target instanceof Node && viewport.contains(event.target),
+    run: event => { stop(); snap(event.key === 'Home' ? 0 : event.key === 'End' ? cards.length - 1 : selectedIndex + (event.key === 'ArrowRight' ? 1 : -1)); },
+  });
   const fileAt = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLButtonElement>("[data-gallery-file]") : null;
   // Measure the untransformed layout once, before changing card styles. The
   // page's entrance scale must not become part of the cached scroll distance.
@@ -113,15 +122,6 @@ export function setupStudioGallery(root: HTMLElement) {
     clearTimeout(wheelTimer);
     wheelTimer = window.setTimeout(() => { wheelTimer = 0; settle(wheelDisplacement); wheelDisplacement = 0; }, 140);
   }, { ...options, passive: false });
-  viewport.addEventListener("keydown", event => {
-    if (!browsing()) return;
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      event.preventDefault(); stop(); snap(selectedIndex + (event.key === "ArrowLeft" ? -1 : 1));
-    }
-    if (event.key === "Home" || event.key === "End") {
-      event.preventDefault(); stop(); snap(event.key === "Home" ? 0 : cards.length - 1);
-    }
-  }, options);
   viewport.addEventListener("focusin", event => {
     const card = fileAt(event.target)?.closest<HTMLElement>(".gallery-item");
     if (!card || !browsing() || gesture) return;
@@ -138,6 +138,7 @@ export function setupStudioGallery(root: HTMLElement) {
     }
     if (token !== closeToken) return;
     dialog.close();
+    detailKeys.setActive(false);
     dialog.classList.remove("is-closing");
   }
   root.addEventListener("click", event => {
@@ -157,12 +158,13 @@ export function setupStudioGallery(root: HTMLElement) {
       closeToken++;
       dialog.classList.remove("is-closing");
       dialog.showModal();
+      detailKeys.setActive(true);
       dialog.scrollTop = 0;
     }
     if (event.target instanceof Element && event.target.closest(".gallery-detail-close")) void close();
   }, options);
   dialog.addEventListener("cancel", event => { event.preventDefault(); void close(); }, options);
-  dialog.addEventListener("close", () => { if (active()) trigger?.focus({ preventScroll: true }); }, options);
+  dialog.addEventListener("close", () => { detailKeys.setActive(false); if (active()) trigger?.focus({ preventScroll: true }); }, options);
   let pageActive = active();
   const observer = new MutationObserver(() => {
     const nextActive = active();

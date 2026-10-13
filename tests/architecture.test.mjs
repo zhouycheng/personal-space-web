@@ -31,6 +31,7 @@ test("scene and HTML controls produce the same user intent command", () => {
   assert.deepEqual(resolveStudioIntent("computer"), { kind: "navigate", page: "os" });
   assert.deepEqual(resolveStudioIntent("diary"), { kind: "navigate", page: "journal" });
   assert.deepEqual(resolveStudioIntent("lamp"), { kind: "scene", action: "lamp" });
+  assert.deepEqual(resolveStudioIntent("firewood"), { kind: "scene", action: "firewood" });
 });
 
 test("application target rules preserve independent drawers and make journal preparation idempotent", () => {

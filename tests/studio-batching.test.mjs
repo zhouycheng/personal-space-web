@@ -40,7 +40,7 @@ test('referenced surfaces and shader-local geometry keep their object identities
 test('leisure batching leaves wool fibres out of the shadow pass', () => {
   const materials = new Set(), geometries = new Set(), textures = new Set(), root = new THREE.Group();
   const p = createStudioPrimitives({}, root, materials, geometries, textures);
-  const { group } = createIslandLeisure(p, materials, textures);
+  const { group } = createIslandLeisure(p, materials, textures, geometries);
   const wool = group.children.filter(mesh => mesh.isMesh && mesh.material.customProgramCacheKey() === 'wool-loop-pile-v1');
   const pile = wool.filter(mesh => !mesh.castShadow);
   assert.equal(pile.length, 1); assert.ok(pile[0].geometry.attributes.position.count > 120000);

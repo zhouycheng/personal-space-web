@@ -4,7 +4,7 @@ import * as THREE from 'three';
  * Each view shares the original attributes and indices, but tests a short face range.
  * Native raycasting still determines the exact hit, including material sidedness.
  */
-export function createZoomPicker(candidates: readonly THREE.Object3D[]) {
+export function createZoomPicker(candidates: readonly THREE.Object3D[], accept: (object: THREE.Object3D) => boolean = () => true) {
   const views = new Map<THREE.BufferGeometry, THREE.BufferGeometry[]>();
   const versions = new Map<THREE.BufferGeometry, {position:number;index:number;start:number;count:number}>();
   const proxy = new THREE.Mesh();
@@ -40,6 +40,7 @@ export function createZoomPicker(candidates: readonly THREE.Object3D[]) {
     intersect(ray: THREE.Raycaster) {
       hits.length = 0;
       for (const object of candidates) {
+        if (!accept(object)) continue;
         let visible = true;
         for (let parent: THREE.Object3D | null = object; parent; parent = parent.parent) {
           if (!parent.visible) { visible = false; break; }

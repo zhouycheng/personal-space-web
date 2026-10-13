@@ -2,11 +2,32 @@ import type { ScenePort } from "../../../contracts/studioPorts";
 import type { JournalManifest, JournalRegion, JournalSession } from "../../../contracts/journal";
 import type { createJournalController } from "../../../application/journal/readerController";
 import { spreadFor } from "../../../data/selectors/journalPages";
+import { getShortcutSystem } from '../../../justin-kit/runtime/shortcuts';
 
 export function bindJournalReader(root: HTMLElement, book: JournalManifest, controller: ReturnType<typeof createJournalController>, scene: () => ScenePort | undefined, navigate: (path: string) => void, formatTitle: (title: string) => string) {
   const q = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const status = q('[data-journal-status]'), image = q<HTMLDialogElement>('[data-journal-image]');
   const events = new AbortController();
+  const shortcuts = getShortcutSystem(root.ownerDocument);
+  const readerKeys = shortcuts.createScope({ id: 'journal', owner: root, signal: events.signal, enabled: () => controller.$session.get().active });
+  const imageKeys = shortcuts.createScope({ id: 'journal-image', owner: image, kind: 'modal', active: false, signal: events.signal, enabled: () => image.open });
+  imageKeys.register({ id: 'dismiss', description: '关闭日记插图', keys: ['Escape'], allowInEditable: true, run: () => image.close() });
+  readerKeys.register({ id: 'escape', description: '合书或返回首页', keys: ['Escape'], allowInEditable: true, run: () => controller.escape() });
+  readerKeys.register({ id: 'open', description: '打开日记', keys: ['Enter', 'Space'],
+    when: event => controller.$session.get().availability === 'ready' && controller.$session.get().phase === 'observing' && event.target instanceof HTMLCanvasElement,
+    run: () => controller.open(true),
+  });
+  const reading = () => controller.$session.get().availability === 'ready' && ['reading', 'turning'].includes(controller.$session.get().phase);
+  readerKeys.register({ id: 'turn', description: '翻动日记书页', keys: ['ArrowRight', 'PageDown', 'ArrowLeft', 'PageUp'], repeat: true,
+    when: reading, run: event => controller.intent({ kind: 'turn', direction: ['ArrowRight', 'PageDown'].includes(event.key) ? 1 : -1 }),
+  });
+  readerKeys.register({ id: 'zoom', description: '缩放日记', keys: [{ key: '+', shift: 'any' }, '=', '-'], repeat: true,
+    when: () => reading() && !controller.$session.get().busy,
+    run: event => scene()?.zoomJournal(controller.$session.get().zoom + (event.key === '-' ? -.25 : .25)),
+  });
+  readerKeys.register({ id: 'reset', description: '重置日记视角', keys: ['0', 'Home'],
+    when: () => reading() && !controller.$session.get().busy, run: () => scene()?.resetJournal(),
+  });
   function syncInteraction() {
     const state = controller.$session.get();
     scene()?.setJournalInteractionEnabled(state.active && state.availability === "ready" && !image.open);
@@ -44,7 +65,7 @@ export function bindJournalReader(root: HTMLElement, book: JournalManifest, cont
   function openRegion(item: JournalRegion) {
     if (item.kind === "image") {
       const target = q<HTMLImageElement>('[data-journal-image] > img');
-      target.src = item.href; target.alt = item.label; image.showModal(); syncInteraction(); return;
+      target.src = item.href; target.alt = item.label; image.showModal(); imageKeys.setActive(true); syncInteraction(); return;
     }
     const url = new URL(item.href, location.href);
     if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) return;
@@ -60,30 +81,9 @@ export function bindJournalReader(root: HTMLElement, book: JournalManifest, cont
     if (target.matches('[data-journal-image-close]')) image.close();
   }, { signal: events.signal });
   image.addEventListener('close', () => {
-    q<HTMLImageElement>('[data-journal-image] > img').removeAttribute('src'); syncInteraction();
+    imageKeys.setActive(false); q<HTMLImageElement>('[data-journal-image] > img').removeAttribute('src'); syncInteraction();
   }, { signal: events.signal });
-  window.addEventListener('keydown', event => {
-    const state = controller.$session.get();
-    if (root.inert || !state.active || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      if (image.open) image.close();
-      else controller.escape();
-      return;
-    }
-    if (image.open || state.availability !== "ready") return;
-    if (state.phase === "observing" && (event.key === "Enter" || event.key === " ") && event.target instanceof HTMLCanvasElement) {
-      event.preventDefault(); void controller.open(true); return;
-    }
-    if (!["reading", "turning"].includes(state.phase)) return;
-    if (['ArrowRight', 'PageDown', 'ArrowLeft', 'PageUp'].includes(event.key)) {
-      event.preventDefault(); controller.intent({ kind: "turn", direction: event.key === "ArrowRight" || event.key === "PageDown" ? 1 : -1 });
-    }
-    if (state.busy) return;
-    if (event.key === "+" || event.key === "=") { event.preventDefault(); scene()?.zoomJournal(state.zoom + .25); }
-    if (event.key === "-") { event.preventDefault(); scene()?.zoomJournal(state.zoom - .25); }
-    if (event.key === "0" || event.key === "Home") { event.preventDefault(); scene()?.resetJournal(); }
-  }, { signal: events.signal });
+  image.addEventListener('cancel', event => { event.preventDefault(); image.close(); }, { signal: events.signal });
   const unsubscribe = controller.$session.subscribe(update);
   return {
     openRegion,

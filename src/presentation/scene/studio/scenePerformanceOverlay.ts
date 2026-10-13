@@ -47,7 +47,7 @@ function formatDegrees(radians:number){return ((Math.round(radians*180/Math.PI+1
 
 export function createScenePerformanceOverlay(options:{
   canvas:HTMLCanvasElement; renderer:THREE.WebGLRenderer; scene:THREE.Scene; camera:THREE.PerspectiveCamera;
-  details:()=>SceneDetails; controls:Controls;
+  details:()=>SceneDetails; controls:Controls; bindKeyboard?: import('../../../contracts/studioPorts').SceneDebugKeyboardFactory<HTMLElement>;
 }){
   const {canvas,renderer,scene,controls}=options;
   const pinned=import.meta.env.DEV&&import.meta.env.PUBLIC_SCENE_DEBUG_PANEL?.trim().toLowerCase()==='true';
@@ -302,12 +302,12 @@ export function createScenePerformanceOverlay(options:{
     if(pinned&&!value)return;
     if(visible===value)return;
     visible=value;root.hidden=!visible;root.style.display=visible?'flex':'none';
+    keyboard?.setActive(visible&&!pinned);
     if(visible)startObservers();else stopObservers();
   }
-  function modifierChord(event:KeyboardEvent){return event.shiftKey&&(mac?event.metaKey:event.ctrlKey);}
-  const chordDown={mac:false,other:false};
+  let chordDown=false;
   function trigger(){
-    const matches=insideCorner&&(mac?chordDown.mac:chordDown.other);
+    const matches=insideCorner&&chordDown;
     if(!matches){armed=false;return;}
     if(!armed){armed=true;show(true);}
   }
@@ -316,19 +316,13 @@ export function createScenePerformanceOverlay(options:{
     if(visible&&!pinned&&event.pointerType!=='touch'&&!root.contains(document.elementFromPoint(event.clientX,event.clientY)))show(false);
     trigger();
   };
-  const onKeyDown=(event:KeyboardEvent)=>{
-    const down=modifierChord(event);if(mac)chordDown.mac=down;else chordDown.other=down;
-    if(event.key==='Escape'&&visible&&!pinned){show(false);return;}
-    trigger();
-  };
-  const onKeyUp=(event:KeyboardEvent)=>{const down=modifierChord(event);if(mac)chordDown.mac=down;else chordDown.other=down;trigger();};
-  const onBlur=()=>{insideCorner=false;chordDown.mac=chordDown.other=false;armed=false;if(!pinned)show(false);};
+  const keyboard=options.bindKeyboard?.({owner:root,dismiss:()=>show(false),modifiers(mod,shift){chordDown=mod&&shift;trigger();}});
+  const onBlur=()=>{insideCorner=false;chordDown=false;armed=false;if(!pinned)show(false);};
   const onPanelLeave=()=>{if(!pinned)show(false);};
   const onError=(event:ErrorEvent)=>{errors.push((event.message||'运行时错误').slice(0,180));if(errors.length>12)errors.shift();};
   const onRejection=(event:PromiseRejectionEvent)=>{errors.push(String(event.reason??'未处理的 Promise 错误').slice(0,180));if(errors.length>12)errors.shift();};
   closeButton.addEventListener('click',()=>show(false));root.addEventListener('pointerleave',onPanelLeave);
   window.addEventListener('pointermove',onPointerMove,{passive:true});
-  window.addEventListener('keydown',onKeyDown,{passive:true});window.addEventListener('keyup',onKeyUp,{passive:true});
   window.addEventListener('blur',onBlur);window.addEventListener('error',onError);window.addEventListener('unhandledrejection',onRejection);
   show(pinned);
   return {
@@ -342,7 +336,7 @@ export function createScenePerformanceOverlay(options:{
     recordInput(time:number){if(visible)pendingInputTime=time;},
     dispose(){
       stopObservers();resizeObserver.disconnect();root.removeEventListener('pointerleave',onPanelLeave);
-      window.removeEventListener('pointermove',onPointerMove);window.removeEventListener('keydown',onKeyDown);window.removeEventListener('keyup',onKeyUp);
+      window.removeEventListener('pointermove',onPointerMove);keyboard?.dispose();
       window.removeEventListener('blur',onBlur);window.removeEventListener('error',onError);window.removeEventListener('unhandledrejection',onRejection);root.remove();
     },
   };

@@ -5,7 +5,7 @@ import { createRockGeometry, createRockMaterial } from './islandRocks.ts';
 import { createIslandGeometry } from './islandGeometry.ts';
 import { createMarineAnimal, createMarineCoral, createHorizonGeometry } from './marineGeometry.ts';
 
-const underwaterLayer = 1;
+export const underwaterLayer = 1;
 
 export const marineWaterGLSL = `
   uniform sampler2D marineColor, marineDepth;

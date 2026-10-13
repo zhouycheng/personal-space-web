@@ -4,7 +4,7 @@ import { entrancePose, entranceBlend, entranceContentProgress, ENTRANCE_PITCH, E
 import { islandEntranceDistance, islandViewDistance } from '../src/animation/studio/islandFraming.ts';
 import { DEFAULT_ROOM_VIEW } from '../src/contracts/studio.ts';
 import { completeEntrance, entranceCompleted } from '../src/infrastructure/client/entranceSession.ts';
-import { createFogField } from '../src/justin-kit/components/cloud-entrance/fogField.ts';
+import { createFogField, createFogTrail } from '../src/justin-kit/components/cloud-entrance/fogField.ts';
 import { entranceTimePalette } from '../src/justin-kit/components/cloud-entrance/timePalette.ts';
 
 test('entrance palette follows local night, dawn, day and dusk with soft transitions',()=>{
@@ -97,4 +97,55 @@ test('fog sampling is deterministic, continuous in time and valid across aspect 
     }
   }
   field.dispose();
+});
+
+test('fog trail covers fast strokes locally, stays bounded and recovers after 1600 active milliseconds', () => {
+  const trail = createFogTrail(), width = 96, height = 60;
+  trail.resize(width, height);
+  const from = { x: 20, y: 30 }, to = { x: 76, y: 30 };
+  for (let i = 0; i < 100; i++) trail.stroke(from, to, 8);
+  assert.equal(trail.advance(100), true);
+  for (let x = 20; x <= 76; x++) {
+    const index = 30 * width + x;
+    assert.ok(trail.mask[index] > .65 && trail.mask[index] <= 1, 'the swept path has no holes or accumulated opacity');
+    assert.equal(trail.flowX[index], 1); assert.equal(trail.flowY[index], 0);
+  }
+  assert.equal(trail.mask[20 * width + 48], 0);
+  assert.equal(trail.mask[30 * width + 10], 0);
+  const peak = trail.mask[30 * width + 48];
+  trail.resize(width, height);
+  assert.equal(trail.mask[30 * width + 48], peak, 'a palette rebake keeps the live trail');
+  assert.equal(trail.advance(900), true);
+  assert.ok(trail.mask[30 * width + 48] > .3 && trail.mask[30 * width + 48] < peak);
+  assert.equal(trail.advance(600), false);
+  assert.ok(trail.mask.every(value => value === 0));
+  trail.stroke(to, from, 8); trail.advance(100);
+  assert.equal(trail.flowX[30 * width + 48], -1);
+  trail.clear();
+  assert.equal(trail.advance(16), false);
+  trail.resize(39, 84); trail.stroke({ x: 0, y: 0 }, { x: 38, y: 83 }, 6); trail.advance(100);
+  assert.ok(trail.mask.every(value => Number.isFinite(value) && value >= 0 && value <= 1));
+  trail.dispose(); assert.equal(trail.mask.length, 0); assert.equal(trail.flowX.length, 0); assert.equal(trail.flowY.length, 0);
+});
+
+test('fog trail moves and thins only its local veil while retaining opaque loading cover', () => {
+  const field = createFogField(), trail = createFogTrail(), width = 96, height = 60;
+  trail.resize(width, height);
+  const baseline = new Uint8ClampedArray(width * height * 4), swept = new Uint8ClampedArray(baseline.length);
+  field.paint(width, height, 0, baseline);
+  trail.stroke({ x: 25, y: 30 }, { x: 65, y: 30 }, 10); trail.advance(120);
+  field.paint(width, height, 0, swept, undefined, trail);
+  let changed = 0;
+  for (let i = 0; i < baseline.length; i += 4) {
+    assert.equal(swept[i + 3], 255);
+    if (trail.mask[i / 4] === 0) assert.deepEqual(swept.subarray(i, i + 4), baseline.subarray(i, i + 4));
+    else if (swept[i] !== baseline[i]) changed++;
+  }
+  assert.ok(changed > 100);
+  trail.advance(1480); field.paint(width, height, 0, swept, undefined, trail);
+  assert.deepEqual(swept, baseline);
+  trail.stroke({ x: 25, y: 30 }, { x: 65, y: 30 }, 10); trail.advance(120);
+  field.paint(width, height, .43, baseline); field.paint(width, height, .43, swept, undefined, trail);
+  assert.deepEqual(swept, baseline, 'the host reveal remains independent of hover');
+  field.dispose(); trail.dispose();
 });

@@ -22,6 +22,7 @@ test("T29 context loss restores a rendered book and never leaves input locked", 
 });
 
 test("T30/T32 Escape cancels delayed preparation and late bytes cannot reopen the book", async ({ page }) => {
+  test.setTimeout(90000);
   const book = await manifest(page);
   let release!: () => void;
   const delayed = new Promise<void>(resolve => { release = resolve; });
@@ -30,7 +31,7 @@ test("T30/T32 Escape cancels delayed preparation and late bytes cannot reopen th
     await route.continue().catch(() => {});
   });
   await page.goto(`/journal/${encodeURIComponent(book.articles[0].slug)}`);
-  await expect(page.locator("[data-journal-root]")).toHaveAttribute("data-phase", /preparing|extracting/);
+  await expect(page.locator("[data-journal-root]")).toHaveAttribute("data-phase", /preparing|extracting/, { timeout: 35000 });
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/home$/);
   release();

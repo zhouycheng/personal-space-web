@@ -2,10 +2,11 @@ import type { BookReport, JournalManifest, JournalRegion, JournalIntent } from "
 import type { OperationResult } from "./operation";
 import type { RoomView, RoomViewAction } from "./studio";
 import type { StartupProgress } from './startup';
+import type { CampfireState, CampfireLayout, FirewoodResult } from './campfire';
 
 export type DrawerId = "drawer-top" | "drawer-middle" | "drawer-bottom";
 export type StudioTargets = { view: RoomView; lampOn: boolean; showDate: boolean; drawers: boolean[] };
-export type SceneSnapshot = StudioTargets;
+export type SceneSnapshot = StudioTargets & { campfire?: CampfireState; campfireLayout?: CampfireLayout };
 export type StudioLighting = {
   daylight: number;
   background: string;
@@ -25,6 +26,11 @@ export type StudioLighting = {
 };
 export type SurfaceRect = { left: number; top: number; width: number; height: number };
 export type EntranceTransition = { duration:number; onProgress:(progress:number)=>void };
+export type SceneDebugKeyboardFactory<Owner> = (handlers: {
+  owner: Owner;
+  dismiss: () => void;
+  modifiers: (mod: boolean, shift: boolean) => void;
+}) => { setActive: (active: boolean) => void; dispose: () => void };
 
 export interface TransitionPort {
   moveToSurface(target: "computer" | "canvas", enter: boolean, duration: number, update: (progress: number, rect: SurfaceRect) => void): Promise<OperationResult>;
@@ -35,6 +41,7 @@ export interface TransitionPort {
 export interface ScenePort extends TransitionPort {
   prepareStartup(options: { entrance: boolean; onProgress: (progress: StartupProgress) => void }): Promise<OperationResult>;
   playEntrance(options: EntranceTransition & { target?: 'computer' | 'canvas' | 'works'; onSurfaceProgress?: (progress:number,rect:SurfaceRect)=>void }): Promise<OperationResult>;
+  retreatEntrance(options: EntranceTransition): Promise<OperationResult>;
   snapshot(): SceneSnapshot;
   restore(snapshot: SceneSnapshot): void;
   setPointerEnabled(value: boolean): void;
@@ -44,6 +51,10 @@ export interface ScenePort extends TransitionPort {
   setTime(date: Date): void;
   adjustView(action: RoomViewAction): void;
   spinChair(reducedMotion?: boolean): void;
+  addFirewood(): FirewoodResult;
+  startFishing(): void;
+  fishingAction(): void;
+  endFishing(): void;
   setLampEnabled(enabled: boolean): void;
   setClockMode(mode: "time" | "date"): void;
   setDrawerOpen(action: DrawerId, open: boolean): void;
