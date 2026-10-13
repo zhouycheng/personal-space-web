@@ -28,7 +28,7 @@ test('new ground ornaments clear guy ropes, furniture, drawer travel and the fro
   for(const rock of dressingRocks)assert.ok(Math.abs(terrainHeight(rock.x,rock.z)-rockBase(rock)-rock.height/3)<1e-10);
 });
 
-test('decorations are grounded, batched, unpickable and scene-owned; existing framing contains them',()=>{
+test('decorations are grounded and scene-owned; the firewood rack keeps its explicit picking action',()=>{
   const room=new THREE.Group(),materials=new Set(),geometries=new Set(),textures=new Set();
   const p=createStudioPrimitives({},room,materials,geometries,textures);
   const dressing=createIslandDressing(p,materials,geometries,textures);
@@ -46,10 +46,12 @@ test('decorations are grounded, batched, unpickable and scene-owned; existing fr
   assert.ok(cabinetBounds.min.x>1.8,'cabinet clears the desk');
   assert.ok(cabinetBounds.max.z>-.7,'cabinet front reaches beyond the desk front');
   const lamps=dressing.group.children.filter(object=>object.isLight);assert.equal(lamps.length,3);
+  assert.equal(dressing.firewood.group.parent,dressing.group);
+  assert.equal(dressing.firewood.group.userData.action,'firewood');
   for(const placement of dressing.group.userData.placements)
     assert.ok(Math.abs(placement.bounds.min.y-terrainHeight(placement.x,placement.z))<1e-8);
   for(const root of [dressing.group,dressing.cabinet])root.traverse(object=>{
-    assert.equal(object.userData.action,undefined);
+    assert.equal(object.userData.action,object===dressing.firewood.group?'firewood':undefined);
     if(object.isLight)assert.equal(object.castShadow,false,'local lantern light adds no shadow pass');
     if(object.isMesh){assert.ok(geometries.has(object.geometry));assert.ok(materials.has(object.material));}
   });
