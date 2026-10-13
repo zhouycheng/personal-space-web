@@ -25,6 +25,8 @@ import { createHomeProfile } from '../presentation/ui/music/homeProfile';
 import { createHomeMenu } from '../presentation/ui/studio/homeMenu';
 import { createOceanAudioControls } from '../presentation/ui/music/oceanAudioRuntime';
 import { createCampfireController } from '../application/studio/campfire';
+import { createFishingController } from '../application/studio/fishing';
+import { createFishingControls } from '../presentation/ui/studio/fishingControls';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -46,6 +48,7 @@ function init(shell: HTMLElement) {
   let historyPending = false;
   let scene: ScenePort | undefined;
   const campfire = createCampfireController();
+  const fishing = createFishingController(state => fishingControls.update(state));
   let sceneLoading: Promise<void> | undefined;
   let preparationAbort:AbortController|undefined;
   let scenePrepared = false;
@@ -65,6 +68,9 @@ function init(shell: HTMLElement) {
   const explore = panelController.explore;
   const openExplore = panelController.open;
   const closeExplore = panelController.close;
+  const fishingControls = createFishingControls(studio, events.signal, () => scene?.fishingAction(), () => scene?.endFishing(), () => {
+    if (!disposed && !sceneBlocked && model.page === 'home') focusRoute();
+  });
   const syncView:typeof panelController.syncView = view => { model.targets={...model.targets,view};panelController.syncView(view); };
   const sceneAvailability = panelController.sceneAvailability;
   const panelStatus = panelController.status;
@@ -112,6 +118,7 @@ function init(shell: HTMLElement) {
     const state=campfire.snapshot(),view=campfire.view();
     const button=panel.querySelector<HTMLButtonElement>('[data-studio-action="firewood"]')!;
     button.disabled=view.result!=='added'||sceneBlocked||!scene;
+    panel.querySelector<HTMLButtonElement>('[data-studio-action="fishing"]')!.disabled=sceneBlocked||!scene;
     panel.querySelector<HTMLElement>('[data-firewood-stock]')!.textContent=`${state.stock}/12`;
     panel.querySelector<HTMLElement>('[data-firewood-status]')!.textContent=`燃烧 ${view.burning}/7 · ${view.label}`;
   }
@@ -290,7 +297,7 @@ function init(shell: HTMLElement) {
       await workerStarted;
       if(disposed||abort.signal.aborted){void geometry.then(disposePreparedGeometry,()=>{});return;}
       scenePrepared=false;
-      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, campfire, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
+      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, campfire, fishing, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
       catch(error){void geometry.then(disposePreparedGeometry,()=>{});throw error;}
       if(disposed||abort.signal.aborted){scene.dispose();scene=undefined;return;}
       mount.dataset.startupTimings=JSON.stringify(timings);
@@ -381,6 +388,10 @@ function init(shell: HTMLElement) {
     if (command.kind === "navigate") { navigate(command.page); return; }
     if (action === "chair") { scene?.spinChair(reduce.matches); return; }
     if (!scene) return;
+    if (action === 'fishing') {
+      if (sceneBlocked) return;
+      closeExplore(false,true);scene.startFishing();return;
+    }
     if (action === 'firewood') {
       if(sceneBlocked)return;
       const result=scene.addFirewood();syncFirewood();

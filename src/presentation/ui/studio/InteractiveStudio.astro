@@ -1,6 +1,7 @@
 ---
 import "./studio.css";
 import StudioNavigation from "./StudioNavigation.astro";
+import FishingControls from './FishingControls.astro';
 import { siteIdentity } from '../../../data/repositories/siteIdentity';
 ---
 <div class="studio" data-studio data-state="room">
@@ -14,4 +15,5 @@ import { siteIdentity } from '../../../data/repositories/siteIdentity';
     <span class="studio-mobile-signature">{siteIdentity.signature}</span>
   </p>
   <StudioNavigation />
+  <FishingControls />
 </div>
