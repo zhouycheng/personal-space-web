@@ -1,4 +1,5 @@
 import { stepRoomView, DEFAULT_ROOM_VIEW, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
+import { getShortcutSystem } from '../../../justin-kit/runtime/shortcuts';
 
 type ExplorePanelOptions = {
   studio: HTMLElement;
@@ -23,6 +24,17 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   let closeTimer = 0;
   let backdropDown: { x: number; y: number } | undefined;
   let ready = false;
+  const keys = getShortcutSystem(studio.ownerDocument).createScope({ id: 'explore', owner: panel, kind: 'modal', active: false, signal, enabled: () => panel.open && isRoom() });
+  keys.register({ id: 'dismiss', description: '关闭探索面板', keys: ['Escape'], allowInEditable: true, run: () => close() });
+  keys.register({ id: 'tab', description: '切换探索页签', keys: ['ArrowLeft', 'ArrowRight', 'Home', 'End'], repeat: true,
+    when: event => event.target instanceof Element && Boolean(event.target.closest('[data-studio-tab]')),
+    run: event => {
+      const tab = (event.target as Element).closest<HTMLButtonElement>('[data-studio-tab]')!;
+      const visible = tabs.filter(item => !item.hidden), index = visible.indexOf(tab);
+      const next = visible[event.key === 'Home' ? 0 : event.key === 'End' ? visible.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length];
+      selectTab(next.dataset.studioTab!); next.focus();
+    },
+  });
 
   function selectTab(id: string) {
     const directory = id === 'places';
@@ -47,6 +59,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     panel.querySelectorAll("details").forEach(detail => { detail.open = false; });
     setSceneInputEnabled(false);
     if (!panel.open) panel.showModal();
+    keys.setActive(true);
     explore.setAttribute("aria-expanded", "true");
     title.focus({ preventScroll: true });
   }
@@ -57,6 +70,7 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
     const finish = () => {
       panel.classList.remove("is-closing");
       panel.close();
+      keys.setActive(false);
       explore.setAttribute("aria-expanded", "false");
       setSceneInputEnabled(isRoom());
       if (restoreFocus && isRoom()) explore.focus({ preventScroll: true });
@@ -125,16 +139,6 @@ export function createExplorePanel({ studio, reducedMotion, signal, setSceneInpu
   }, { signal });
   for (const tab of tabs) {
     tab.addEventListener("click", () => selectTab(tab.dataset.studioTab!), { signal });
-    tab.addEventListener("keydown", event => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      const visible = tabs.filter(item => !item.hidden);
-      const index = visible.indexOf(tab);
-      const next = visible[event.key === "Home" ? 0 : event.key === "End" ? visible.length - 1 :
-        (index + (event.key === "ArrowRight" ? 1 : -1) + visible.length) % visible.length];
-      selectTab(next.dataset.studioTab!);
-      next.focus();
-    }, { signal });
   }
   syncView(DEFAULT_ROOM_VIEW);
 

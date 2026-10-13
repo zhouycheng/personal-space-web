@@ -1,9 +1,12 @@
 import type { FishingState } from '../../../contracts/fishing';
+import { getShortcutSystem } from '../../../justin-kit/runtime/shortcuts';
 
 export function createFishingControls(studio: HTMLElement, signal: AbortSignal, interact: () => void, exit: () => void, restoreFocus: () => void) {
   const dialog = studio.querySelector<HTMLDialogElement>('[data-fishing]')!;
   const status = dialog.querySelector<HTMLElement>('[data-fishing-status]')!;
   const action = dialog.querySelector<HTMLButtonElement>('[data-fishing-action]')!;
+  const keys = getShortcutSystem(studio.ownerDocument).createScope({ id: 'fishing', owner: dialog, kind: 'modal', active: false, signal, enabled: () => dialog.open });
+  keys.register({ id: 'exit', description: '结束钓鱼', keys: ['Escape'], allowInEditable: true, run: exit });
   dialog.addEventListener('cancel', event => { event.preventDefault(); exit(); }, { signal });
   dialog.querySelector('[data-fishing-exit]')!.addEventListener('click', exit, { signal });
   action.addEventListener('click', () => { if (action.getAttribute('aria-disabled') !== 'true') interact(); }, { signal });
@@ -16,6 +19,7 @@ export function createFishingControls(studio: HTMLElement, signal: AbortSignal, 
       dialog.dataset.phase = phase;
       studio.toggleAttribute('data-fishing-active', phase !== 'idle');
       if (phase === 'idle') {
+        keys.setActive(false);
         if (dialog.open) { dialog.close(); restoreFocus(); }
         return;
       }
@@ -36,6 +40,7 @@ export function createFishingControls(studio: HTMLElement, signal: AbortSignal, 
       status.textContent = message; action.textContent = label;
       action.setAttribute('aria-disabled', String(!enabled));
       if (!dialog.open) { dialog.showModal(); action.focus({ preventScroll: true }); }
+      keys.setActive(true);
     },
   };
 }

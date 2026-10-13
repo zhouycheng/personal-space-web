@@ -7,7 +7,7 @@
 - `src/justin-kit/components/cloud-entrance/`：云雾、文字、悬停、插槽和输入过滤。可独立使用，未导入 Three.js 或本站数据；个人信息只改插槽与组件。
 - `src/app/entranceRuntime.ts`：准备/就绪/揭幕/错误的协调、异步代次、点击锁和成功记录。
 - `src/app/studioAppRuntime.ts`：组装场景、目标内容预加载、异常恢复及原地址续接。
-- `src/contracts/studioPorts.ts`：`prepareStartup()` 和 `playEntrance()` 只返回 `OperationResult` 并报告进度，不暴露相机或 renderer。
+- `src/contracts/studioPorts.ts`：`prepareStartup()`、`playEntrance()` 和 `retreatEntrance()` 只返回 `OperationResult` 并报告进度，不暴露相机或 renderer。
 - `src/contracts/startup.ts`：准备阶段及阶段完成进度；应用层负责文案，云雾组件不导入业务类型。
 - `src/presentation/scene/studio/prepareSceneGeometry.ts`：单个 Worker 与主线程回退；共享生成函数产出植被、LOD、岩石和海岸几何，传输时共享属性缓冲只转移一次。
 - `src/animation/studio/entranceMotion.ts`：时长 3000ms、真实向下俯角 60°、相对总览右偏 55°、取景占比 .3。`islandFraming.ts` 共用树冠、岛岸、码头和船的边界；普通浏览取景按视口适配这些边界。
@@ -31,6 +31,8 @@
 只有首次揭幕成功落定才写 `sessionStorage['justin-entrance-completed']='1'`。已完成标签页刷新或重新加载文档时仍显示同一云雾页，底部复用相同阶段文案并按真实准备进度从左向右填色；准备完成后云雾与文字自动淡出，不等待点击，也不启动相机开场动画。不再使用单独的「正在布置工作室」占位页。刷新保留当前路由；日记在遮罩淡出前重新准备书页并恢复阅读视角，沿用 URL 的 slug、锚点和兼容书签。书页失败时显示日记独立的错误、重试和返回入口。准备或恢复期间的新导航取消旧任务并为新目标重新准备。站内返回、后退/前进、BFCache 不重播开场或刷新遮罩。恢复旧标签页可能保留会话标记。存储拒绝时仅保留当前文档内成功状态，下次完整刷新可能重播。
 
 OS、文件集合、画布和日记进入完成后不主动聚焦左上角的返回入口。键盘 Tab 导航仍保留可见焦点；返回首页后恢复场景键盘入口。
+
+3D 首页在 400ms 内双按 Esc，沿同一开场轨迹推远镜头并回拢云雾，底部持续显示「点击拨开云雾」，进度条保持隐藏。单按 Esc、长按重复和关闭弹层的 Esc 不触发这一回退。返回后焦点交给就绪入口，点击或 Enter／Space 再次进入；复用当前场景与首页地址，不重新准备资源。减少动态效果使用 240ms 淡入淡出。云雾组件按需重新创建，进入完成后照常释放。
 
 自动进入时，云雾在 900ms 内缓入缓出地淡去，并轻微放大 3.5%，让场景逐渐显露。过渡结束前内容保持不可交互；首次点击拨云的相机与云雾时间线不受影响，减少动态效果时自动过渡立即完成。
 

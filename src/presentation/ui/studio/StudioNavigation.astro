@@ -26,7 +26,7 @@ const destinations = [
   <dialog class="studio-panel" id="studio-explore-panel" aria-labelledby="studio-panel-title">
     <header class="studio-panel-header">
       <h2 id="studio-panel-title" tabindex="-1">目录</h2>
-      <button class="studio-panel-close" data-studio-close aria-label="关闭面板">×</button>
+      <button class="studio-panel-close" data-studio-close aria-label="关闭面板" aria-keyshortcuts="Escape" title="关闭面板（Esc）">×</button>
     </header>
     <div class="studio-panel-tabs" role="tablist" aria-label="场景设置" hidden>
       {[["places","去逛逛"],["view","视角"],["objects","摆件"],["music","音乐"]].map(([id,label]) =>

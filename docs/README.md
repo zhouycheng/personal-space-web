@@ -15,6 +15,7 @@
 - [工作室环境](features/studio-environment.md)：篝火、羊毛地毯、真实时间和天体方位。
 - [画布](features/canvas.md)：发布内容、访客位置保存和交互边界。
 - [3D 日记](features/journal.md)：写作、书页包、阅读交互和资源验证。
+- [快捷键系统](features/shortcuts.md)：作用域、命令注册、分层退出与 iframe 接入。
 
 ## 项目说明与授权
 

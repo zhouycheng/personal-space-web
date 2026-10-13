@@ -26,6 +26,11 @@ export type StudioLighting = {
 };
 export type SurfaceRect = { left: number; top: number; width: number; height: number };
 export type EntranceTransition = { duration:number; onProgress:(progress:number)=>void };
+export type SceneDebugKeyboardFactory<Owner> = (handlers: {
+  owner: Owner;
+  dismiss: () => void;
+  modifiers: (mod: boolean, shift: boolean) => void;
+}) => { setActive: (active: boolean) => void; dispose: () => void };
 
 export interface TransitionPort {
   moveToSurface(target: "computer" | "canvas", enter: boolean, duration: number, update: (progress: number, rect: SurfaceRect) => void): Promise<OperationResult>;
@@ -36,6 +41,7 @@ export interface TransitionPort {
 export interface ScenePort extends TransitionPort {
   prepareStartup(options: { entrance: boolean; onProgress: (progress: StartupProgress) => void }): Promise<OperationResult>;
   playEntrance(options: EntranceTransition & { target?: 'computer' | 'canvas' | 'works'; onSurfaceProgress?: (progress:number,rect:SurfaceRect)=>void }): Promise<OperationResult>;
+  retreatEntrance(options: EntranceTransition): Promise<OperationResult>;
   snapshot(): SceneSnapshot;
   restore(snapshot: SceneSnapshot): void;
   setPointerEnabled(value: boolean): void;

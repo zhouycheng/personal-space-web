@@ -1,3 +1,5 @@
+import { getShortcutSystem } from '../../../runtime/shortcuts.ts';
+
 export function createDesktopContentRenderer(context) {
   const { makeFileIcon, openWindow, ICON_SIZE_RANGE, LABEL_SIZE_RANGE, DEFAULT_VIEW_SETTINGS, applyViewSettings, flushViewSettingsSave, clampNumber } = context;
   function renderWindowContent(state) {
@@ -8,6 +10,7 @@ export function createDesktopContentRenderer(context) {
     let generation = 0;
     let controller = null;
     let iframe = null;
+    let stopShortcuts = () => {};
     function notifyFrame() {
       if (iframe && new URL(iframe.src, location.href).origin === location.origin) {
         iframe.contentWindow?.postMessage({ type: "justin-kit:activity", active: active && !disposed }, location.origin);
@@ -31,6 +34,7 @@ export function createDesktopContentRenderer(context) {
         if (disposed) return;
         instance.pause();
         disposed = true;
+        stopShortcuts();
         iframe?.removeEventListener("load", notifyFrame);
         state.body.replaceChildren();
       },
@@ -39,7 +43,7 @@ export function createDesktopContentRenderer(context) {
     state.body.replaceChildren();
 
     if (entry.window.renderer === "folder") {
-      renderFolderWindow(state);
+      stopShortcuts = renderFolderWindow(state, () => active && !disposed);
       return instance;
     }
 
@@ -56,6 +60,7 @@ export function createDesktopContentRenderer(context) {
       iframe.loading = "eager";
       iframe.addEventListener("load", notifyFrame);
       state.body.append(iframe);
+      stopShortcuts = getShortcutSystem(state.body.ownerDocument).attachFrame(iframe, { enabled: () => active && !disposed });
       return instance;
     }
 
@@ -91,10 +96,15 @@ export function createDesktopContentRenderer(context) {
     return instance;
   }
 
-  function renderFolderWindow(state) {
+  function renderFolderWindow(state, enabled) {
     state.body.classList.add("macos-window-body--folder");
     const grid = document.createElement("div");
     grid.className = "macos-folder-grid";
+    const keys = getShortcutSystem(state.body.ownerDocument).createScope({ id: 'desktop-folder', owner: grid, enabled });
+    keys.register({ id: 'open', description: '打开桌面文件', keys: ['Enter'],
+      when: event => event.target instanceof Element && Boolean(event.target.closest('[data-folder-entry]')) && grid.contains(event.target),
+      run: event => openWindow(event.target.closest('[data-folder-entry]').dataset.folderEntry),
+    });
 
     (state.entry.children || []).forEach((child) => {
       const item = document.createElement("button");
@@ -109,15 +119,11 @@ export function createDesktopContentRenderer(context) {
         item.classList.add("is-selected");
       });
       item.addEventListener("dblclick", () => openWindow(child.id));
-      item.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        openWindow(child.id);
-      });
       grid.append(item);
     });
 
     state.body.append(grid);
+    return keys.dispose;
   }
 
   function renderDisplayControlsWindow(state) {
