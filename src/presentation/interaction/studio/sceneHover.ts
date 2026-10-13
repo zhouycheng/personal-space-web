@@ -27,6 +27,8 @@ export function createStudioHover({ canvas, mount, tooltip, bounds, requestDraw,
     if (!material) {
       material = original.clone(); cache.set(original, material); materialCreated++;
     } else material.copy(original);
+    material.onBeforeCompile = original.onBeforeCompile;
+    material.customProgramCacheKey = original.customProgramCacheKey;
     // Original lamp colors and textures can change between hover visits.
     if (material instanceof THREE.MeshStandardMaterial && original instanceof THREE.MeshStandardMaterial && original.emissive.getHex() === 0) {
       material.emissive.copy(original.color);

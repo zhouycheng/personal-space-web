@@ -7,11 +7,12 @@ import { createDrapedCloth } from './drapedCloth.ts';
 import { islandPalms,palmTrunkCenter } from '../../../config/islandVegetation.ts';
 import { hammockLayout } from '../../../config/islandLiving.ts';
 import type { StudioPrimitives } from './studioPrimitives.ts';
+import { createFirewoodRack } from './firewoodRack.ts';
 
 type Skin={wood:THREE.Material;cloth:THREE.Material;wicker:THREE.Material;ceramic:THREE.Material;metal:THREE.Material;paper:THREE.Material;olive:THREE.Material};
 
 /** Static living details join the dressing material batches and scene resource owner. */
-export function createIslandLiving(p:StudioPrimitives,source:THREE.Group,skin:Skin) {
+export function createIslandLiving(p:StudioPrimitives,source:THREE.Group,skin:Skin,geometries:Set<THREE.BufferGeometry>,firewoodMaterial:THREE.Material) {
   const {wood,cloth,wicker,ceramic,metal,paper,olive}=skin;
   const roots:THREE.Group[]=[];
   const v=(x:number,y:number,z:number)=>new THREE.Vector3(x,y,z);
@@ -170,18 +171,7 @@ export function createIslandLiving(p:StudioPrimitives,source:THREE.Group,skin:Sk
     vessel(g,[[0,0],[r*.65,0],[r,.13],[r*.96,spec.base*.8],[r*.73,spec.base],[r*.64,spec.base],[r*.69,spec.base-.035],[r*.86,spec.base*.75],[r*.79,.07],[0,.045]],[0,0,0],metal);
     p.cylinder(g,r*.65,.025,[0,spec.base-.035,0],wicker);
   }
-  const firewood=prop('firewood');
-  for(const x of [-.55,.55])for(const z of [-.25,.25])p.rounded(firewood,[.055,.68,.055],[x,.34,z],wood,.007);
-  for(const y of [.12,.64])for(const z of [-.25,.25])p.rounded(firewood,[1.14,.05,.045],[0,y,z],wood,.005);
-  const bark=p.material(0x514334,.96),endGrain=p.material(0xb38c59,.92);
-  for(let row=0;row<3;row++)for(let i=0;i<5-row%2;i++) {
-    const x=-.42+i*.205+(row%2)*.09,y=.22+row*.175,r=.085+.012*Math.sin(i*13+row*7);
-    const log=p.cylinder(firewood,r,.49,[x,y,0],bark,r*.88);log.rotation.x=Math.PI/2;log.rotation.z=.05*Math.sin(i+row);
-    for(const z of [-.251,.251]) {
-      const face=p.mesh(firewood,new THREE.CircleGeometry(r*.89,14),endGrain,x,y,z);if(z<0)face.rotation.y=Math.PI;
-      for(const rr of [.4,.72]){const ring=p.mesh(face,new THREE.TorusGeometry(r*rr,.0015,4,16),bark,0,0,.001);ring.scale.y=.92;}
-    }
-  }
+  const firewood=createFirewoodRack(p,prop('firewood'),wood,geometries,firewoodMaterial);
   const pail=prop('pail');vessel(pail,[[0,0],[.12,0],[.16,.3],[.147,.305],[.11,.025],[0,.025]],[0,0,0],metal);ring(pail,.157,.297,.007,metal);
   tube(pail,[v(-.15,.23,0),v(-.19,.4,0),v(0,.47,0),v(.19,.4,0),v(.15,.23,0)],.007,metal);
 
@@ -219,5 +209,5 @@ export function createIslandLiving(p:StudioPrimitives,source:THREE.Group,skin:Sk
   });
   hammock.updateMatrixWorld(true);
   placements.push({name:'hammock',x:(anchors[0].x+anchors[1].x)/2,z:(anchors[0].z+anchors[1].z)/2,bounds:new THREE.Box3().setFromObject(hammock)});
-  return placements;
+  return {placements,firewood};
 }

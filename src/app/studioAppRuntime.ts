@@ -24,6 +24,7 @@ import { createBgmPlayer } from '../presentation/ui/music/bgmRuntime';
 import { createHomeProfile } from '../presentation/ui/music/homeProfile';
 import { createHomeMenu } from '../presentation/ui/studio/homeMenu';
 import { createOceanAudioControls } from '../presentation/ui/music/oceanAudioRuntime';
+import { createCampfireController } from '../application/studio/campfire';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -44,6 +45,7 @@ function init(shell: HTMLElement) {
   const model = createStudioClientStore(needsEntrance ? 'home' : initialPage, needsEntrance ? 'room' : studioStateForPage(initialPage));
   let historyPending = false;
   let scene: ScenePort | undefined;
+  const campfire = createCampfireController();
   let sceneLoading: Promise<void> | undefined;
   let preparationAbort:AbortController|undefined;
   let scenePrepared = false;
@@ -104,6 +106,14 @@ function init(shell: HTMLElement) {
   let appliedBackground = "", appliedForeground = "";
   function updateLighting() {
     applyEnvironment(environmentNow());
+    syncFirewood();
+  }
+  function syncFirewood() {
+    const state=campfire.snapshot(),view=campfire.view();
+    const button=panel.querySelector<HTMLButtonElement>('[data-studio-action="firewood"]')!;
+    button.disabled=view.result!=='added'||sceneBlocked||!scene;
+    panel.querySelector<HTMLElement>('[data-firewood-stock]')!.textContent=`${state.stock}/12`;
+    panel.querySelector<HTMLElement>('[data-firewood-status]')!.textContent=`燃烧 ${view.burning}/7 · ${view.label}`;
   }
   function applyEnvironment(environment:EnvironmentSnapshot) {
     const now = new Date(environment.timestamp);
@@ -167,7 +177,7 @@ function init(shell: HTMLElement) {
   async function rebuildScene(restoreJournal=true) {
     await sceneLoading;
     if(disposed)return;
-    stopRecovery();savedScene=model.targets;scene?.dispose();scene=undefined;scenePrepared=false;
+    stopRecovery();savedScene={...(scene?.snapshot()??savedScene),...model.targets};scene?.dispose();scene=undefined;scenePrepared=false;
     oceanAudio.setAvailable(false,true);
     sceneBlocked=false;
     retry.hidden=true;status.hidden=false;status.textContent="正在恢复工作室…";
@@ -280,7 +290,7 @@ function init(shell: HTMLElement) {
       await workerStarted;
       if(disposed||abort.signal.aborted){void geometry.then(disposePreparedGeometry,()=>{});return;}
       scenePrepared=false;
-      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
+      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, campfire, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
       catch(error){void geometry.then(disposePreparedGeometry,()=>{});throw error;}
       if(disposed||abort.signal.aborted){scene.dispose();scene=undefined;return;}
       mount.dataset.startupTimings=JSON.stringify(timings);
@@ -371,6 +381,13 @@ function init(shell: HTMLElement) {
     if (command.kind === "navigate") { navigate(command.page); return; }
     if (action === "chair") { scene?.spinChair(reduce.matches); return; }
     if (!scene) return;
+    if (action === 'firewood') {
+      if(sceneBlocked)return;
+      const result=scene.addFirewood();syncFirewood();
+      const message=result==='added'?'添了一根柴，火势正在逐渐增强':result==='full'?'火塘已满，等待木柴烧完再添':'柴架已空，等待补充';
+      shell.querySelectorAll<HTMLElement>('[data-firewood-feedback]').forEach(element=>{element.textContent=message;});
+      return;
+    }
     model.targets=studioTargetsForIntent(model.targets,action);
     if (action === "zoom-in" || action === "zoom-out" || action === "reset-view" || action === "view-left" || action === "view-right" || action === "view-up" || action === "view-down") { scene.adjustView(action); return; }
     const button = studio.querySelector<HTMLButtonElement>(`[data-studio-action="${action}"]`);
