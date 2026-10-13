@@ -1,6 +1,7 @@
 import { createFogField, createFogTrail } from './fogField';
 import { entranceTimePalette, paletteHex } from './timePalette';
-export type CloudState = 'loading' | 'ready' | 'revealing' | 'dismissing' | 'error';
+import { getShortcutSystem } from '../../runtime/shortcuts';
+export type CloudState = 'loading' | 'ready' | 'revealing' | 'returning' | 'dismissing' | 'error';
 
 function setPaletteStyles(root:HTMLElement, palette:ReturnType<typeof entranceTimePalette>) {
   root.style.setProperty('--cloud-entrance-background', paletteHex(palette.background));
@@ -68,7 +69,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
   }
   const smooth = (value:number) => {const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
   function drawClouds(activeTrail: boolean) {
-    const cloudProgress = state === 'revealing' && !reduce.matches ? reveal : 0;
+    const cloudProgress = (state === 'revealing' || state === 'returning') && !reduce.matches ? reveal : 0;
     if (cloudProgress !== lastReveal || activeTrail || lastTrail) {
       const blend = smooth(cloudProgress / .35);
       const color = palette.mist.map((channel, index) =>
@@ -123,7 +124,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     const delta = previous ? Math.max(0, now - previous) : 16; previous = now;
     const activeTrail = trail.advance(delta);
     context.clearRect(0, 0, width, height);
-    if(state==='revealing'&&!reduce.matches) {
+    if((state==='revealing'||state==='returning')&&!reduce.matches) {
       drawClouds(false);
       // The identical initial field and title dissolve into advected layers.
       context.globalAlpha=1-smooth(reveal/.18);
@@ -139,7 +140,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       ctx.drawImage(trailMask,0,0,width,height);ctx.globalCompositeOperation='source-over';
       context.drawImage(patch,0,0);
     }
-    if (state === 'revealing') {
+    if (state === 'revealing' || state === 'returning') {
       if (reduce.matches) {
         context.globalCompositeOperation = 'destination-out'; context.globalAlpha = reveal;
         context.fillRect(0, 0, width, height); context.globalAlpha = 1;
@@ -180,10 +181,8 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
     if (state !== 'ready' || excluded(event.target) || window.getSelection()?.toString() || (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6)) return;
     event.stopPropagation(); onEnter();
   }, { signal: events.signal });
-  root.addEventListener('keydown', event => {
-    if (state !== 'ready' || excluded(event.target) || !['Enter', ' '].includes(event.key)) return;
-    event.preventDefault(); event.stopPropagation(); onEnter();
-  }, { signal: events.signal });
+  const keys = getShortcutSystem(root.ownerDocument).createScope({ id: 'cloud-entrance', owner: root, kind: 'startup', signal: events.signal, enabled: () => state === 'ready' && !root.hasAttribute('data-suspended') });
+  keys.register({ id: 'enter', description: '进入网站', keys: ['Enter', 'Space'], when: event => !excluded(event.target) && event.target instanceof Node && root.contains(event.target), run: onEnter });
   root.querySelector('[data-cloud-retry]')!.addEventListener('click', onRetry, { signal: events.signal });
   document.addEventListener('visibilitychange', () => {
     root.toggleAttribute('data-suspended', document.hidden);
@@ -206,12 +205,12 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       }
       root.toggleAttribute('data-dismiss-progress', value === 'dismissing' && (state === 'loading' || root.hasAttribute('data-dismiss-progress')));
       state = value; root.dataset.state = value; root.setAttribute('aria-busy', String(value === 'loading'));
-      root.inert = value === 'revealing' || value === 'dismissing';
+      root.inert = value === 'revealing' || value === 'returning' || value === 'dismissing';
       root.tabIndex = value === 'ready' ? 0 : -1;
       root.setAttribute('role', 'region');
       root.setAttribute('aria-label', value === 'ready' ? `${root.dataset.title}，${root.dataset.readyText}` : value === 'dismissing' ? '工作室已准备' : `${root.dataset.title}，网站准备页`);
       if(value==='ready')root.setAttribute('aria-keyshortcuts','Enter Space');else root.removeAttribute('aria-keyshortcuts');
-      if(value!=='revealing'&&value!=='dismissing')status.textContent = message ?? (value === 'ready' ? root.dataset.readyText! : root.dataset.loadingText!);
+      if(value!=='revealing'&&value!=='dismissing')status.textContent = message ?? (value === 'ready' || value === 'returning' ? root.dataset.readyText! : root.dataset.loadingText!);
       if (value === 'ready') { progress = 1; root.style.setProperty('--cloud-progress', '1'); }
       if (fadeProgress && progressBar && !reduce.matches) {
         readyFade = progressBar.animate([
@@ -224,7 +223,7 @@ export function createCloudEntrance(root: HTMLElement, onEnter: () => void, onRe
       syncProgressSemantics();
       error.hidden = value !== 'error';
       if (value !== 'loading' && value !== 'ready') { trail.clear(); pointer = undefined; down = undefined; }
-      if (value === 'revealing' || value === 'dismissing') { lastReveal = -1; }
+      if (value === 'revealing' || value === 'returning' || value === 'dismissing') { lastReveal = -1; }
       else { reveal = 0;lastReveal=-1;clouds.getContext('2d')!.clearRect(0,0,clouds.width,clouds.height); }
       if (value === 'ready' && document.activeElement === document.body) root.focus({ preventScroll: true });
       requestPaint();

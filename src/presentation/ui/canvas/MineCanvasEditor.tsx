@@ -8,6 +8,7 @@ import { createEdgeDeriver } from './derivedEdges';
 import { applyPositions, parsePositions, POSITION_KEY, type Positions } from '../../../infrastructure/client/canvasPositions';
 import type { CanvasSession } from './canvasSession';
 import { CanvasViewControls } from './CanvasViewControls';
+import { getShortcutSystem, type ShortcutScope } from '../../../justin-kit/runtime/shortcuts';
 
 const Card = memo(function Card({ data }: NodeProps<MineCanvasNode>) {
   return <article className={`canvas-card canvas-card--${data.kind}`} style={{ '--card-accent': data.accent } as CSSProperties}>
@@ -33,6 +34,9 @@ export default function MineCanvasEditor({ active, session }: { active: boolean;
   const wrap = useRef<HTMLDivElement>(null);
   const contentButton = useRef<HTMLButtonElement>(null), sidebar = useRef<HTMLElement>(null);
   const dragging = useRef(false);
+  const draggedId = useRef<string | null>(null);
+  const latestNodes = useRef(nodes); latestNodes.current = nodes;
+  const drawerKeys = useRef<ShortcutScope | null>(null);
   const dragTimer = useRef(0);
   const [deriveEdges]=useState(()=>createEdgeDeriver(mineCanvasSeed.edges));
   const {nodeById,edges}=useMemo(()=>deriveEdges(nodes),[nodes,deriveEdges]);
@@ -73,11 +77,41 @@ export default function MineCanvasEditor({ active, session }: { active: boolean;
     try { localStorage.setItem(POSITION_KEY, JSON.stringify(overrides.current)); setStorageMessage(''); }
     catch { setStorageMessage('浏览器无法保存位置，本次仍可浏览。'); }
   }, [session]);
-  const startDrag = useCallback(() => { dragging.current = true; }, []);
+  const startDrag = useCallback((_: unknown, node: MineCanvasNode) => { dragging.current = true; draggedId.current = node.id; }, []);
   const stopDrag = useCallback((_: unknown, node: MineCanvasNode) => {
-    savePosition(node);
+    if (draggedId.current === node.id) savePosition(node);
+    draggedId.current = null;
     dragTimer.current = window.setTimeout(() => { dragging.current = false; }, 0);
   }, [savePosition]);
+  useEffect(() => {
+    const page = wrap.current?.closest('#page-canvas');
+    const finishDrag = () => {
+      const node = latestNodes.current.find(node => node.id === draggedId.current);
+      if (node) savePosition(node);
+      draggedId.current = null;
+    };
+    page?.addEventListener('canvas:finish-drag', finishDrag);
+    return () => { page?.removeEventListener('canvas:finish-drag', finishDrag); finishDrag(); };
+  }, [savePosition]);
+  const shortcutActions = useRef({ closeDrawer, focus, nodeById });
+  shortcutActions.current = { closeDrawer, focus, nodeById };
+  useEffect(() => {
+    if (!active || !wrap.current || !sidebar.current) return;
+    const shortcuts = getShortcutSystem(wrap.current.ownerDocument);
+    const nodeKeys = shortcuts.createScope({ id: 'canvas-node', owner: wrap.current });
+    const contents = shortcuts.createScope({ id: 'canvas-contents', owner: sidebar.current, kind: 'overlay', active: false });
+    drawerKeys.current = contents;
+    nodeKeys.register({ id: 'focus', description: '聚焦画布卡片', keys: ['Enter', 'Space'],
+      when: event => event.target instanceof HTMLElement && event.target.classList.contains('react-flow__node'),
+      run: event => {
+        const node = shortcutActions.current.nodeById.get((event.target as HTMLElement).dataset.id!);
+        if (node) shortcutActions.current.focus(node);
+      },
+    });
+    contents.register({ id: 'dismiss', description: '关闭画布内容列表', keys: ['Escape'], allowInEditable: true, run: () => shortcutActions.current.closeDrawer() });
+    return () => { nodeKeys.dispose(); contents.dispose(); drawerKeys.current = null; };
+  }, [active]);
+  useEffect(() => { drawerKeys.current?.setActive(drawer); }, [drawer, active]);
   const doubleClickNode = useCallback((event: ReactMouseEvent, node: MineCanvasNode) => {
     event.stopPropagation();
     if (!dragging.current) focus(node);
@@ -96,7 +130,6 @@ export default function MineCanvasEditor({ active, session }: { active: boolean;
     <div className="canvas-topbar"><strong>我的画布</strong><button ref={contentButton} aria-expanded={drawer} aria-controls="canvas-contents" onClick={() => setDrawer(!drawer)}>内容</button></div>
     {drawer && <button className="canvas-sidebar-backdrop" aria-label="关闭内容列表" onClick={closeDrawer} />}
     <aside id="canvas-contents" ref={sidebar} className={`canvas-sidebar ${drawer ? 'is-open' : ''}`} aria-label="画布内容" onKeyDown={event => {
-      if (event.key === 'Escape') closeDrawer();
       if (event.key === 'Tab' && drawer && matchMedia('(max-width: 640px)').matches) {
         const buttons = [...sidebar.current!.querySelectorAll<HTMLButtonElement>('button')];
         const first = buttons[0], last = buttons.at(-1);
@@ -104,7 +137,7 @@ export default function MineCanvasEditor({ active, session }: { active: boolean;
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
       }
     }}>
-      <header><h2>内容</h2><button className="canvas-sidebar-close" onClick={closeDrawer} aria-label="关闭内容列表">×</button></header>
+      <header><h2>内容</h2><button className="canvas-sidebar-close" onClick={closeDrawer} aria-label="关闭内容列表" aria-keyshortcuts="Escape" title="关闭内容列表（Esc）">×</button></header>
       <nav>{nodes.map(node => <button key={node.id} onClick={() => focus(node)}>{node.data.title}<span>↗</span></button>)}</nav>
       <p>直接拖动卡片调整位置，位置仅保存在当前浏览器。双击卡片聚焦，双击空白处查看全图。</p><button onClick={reset}>恢复默认布局</button>
     </aside>
@@ -117,13 +150,6 @@ export default function MineCanvasEditor({ active, session }: { active: boolean;
         onNodeDragStop={stopDrag}
         onNodeDoubleClick={doubleClickNode}
         nodeDragThreshold={5}
-        onKeyDown={event => {
-          const element = (event.target as HTMLElement).closest<HTMLElement>('.react-flow__node');
-          if (element?.dataset.id && (event.key === 'Enter' || event.key === ' ')) {
-            const node = nodeById.get(element.dataset.id);
-            if (node) { event.preventDefault(); focus(node); }
-          }
-        }}
         onMove={rememberViewport}
         nodesConnectable={false} edgesReconnectable={false} connectionMode={ConnectionMode.Loose}
         deleteKeyCode={null} nodesFocusable nodesDraggable={active} autoPanOnNodeDrag={active} panOnDrag={active} zoomOnPinch={active} zoomOnScroll={active} zoomOnDoubleClick={false}

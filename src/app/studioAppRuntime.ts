@@ -27,6 +27,8 @@ import { createOceanAudioControls } from '../presentation/ui/music/oceanAudioRun
 import { createCampfireController } from '../application/studio/campfire';
 import { createFishingController } from '../application/studio/fishing';
 import { createFishingControls } from '../presentation/ui/studio/fishingControls';
+import { getShortcutSystem } from '../justin-kit/runtime/shortcuts';
+import type { SceneDebugKeyboardFactory } from '../contracts/studioPorts';
 
 const instances = createDomInstances(".alpha-shell", init);
 instances.init();
@@ -40,6 +42,7 @@ function init(shell: HTMLElement) {
   const returnButton = shell.querySelector<HTMLButtonElement>("[data-studio-return]")!;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const events = new AbortController();
+  const shortcuts = getShortcutSystem(shell.ownerDocument);
   const initialPage = pageForPath(location.pathname);
   const needsEntrance = !entranceCompleted();
   let pendingPage = initialPage;
@@ -83,7 +86,32 @@ function init(shell: HTMLElement) {
   diagnostics.hidden=!diagnosticMode;
   const diagnosticEntries:string[]=[];
   let disposed = false;
+  const pageShortcuts = shortcuts.createScope({ id: 'app-page', owner: shell, signal: events.signal,
+    enabled: () => !disposed && !entrance?.covered && model.page !== 'home',
+  });
+  pageShortcuts.register({ id: 'return-home', description: '返回首页', keys: ['Escape'], allowInEditable: true,
+    when: () => model.page !== 'journal' || !journal.active, run: returnHome,
+  });
+  const startupShortcuts = shortcuts.createScope({ id: 'app-startup', owner: shell, kind: 'startup', signal: events.signal,
+    enabled: () => !disposed && Boolean(entrance?.covered) && pendingPage !== 'home',
+  });
+  startupShortcuts.register({ id: 'return-home', description: '取消内页准备并返回首页', keys: ['Escape'], allowInEditable: true, run: returnHome });
+  const homeShortcuts = shortcuts.createScope({ id: 'app-home', owner: shell, signal: events.signal,
+    enabled: () => !disposed && !entrance?.covered && model.page === 'home' && model.state === 'room' && scenePrepared && !sceneBlocked,
+  });
+  homeShortcuts.register({ id: 'return-entrance', description: '双按 Esc 返回云雾入口', keys: ['Escape'], presses: 2,
+    run: () => { pendingPage = 'home'; return entrance.retreat(); },
+  });
+  const bindDebugKeyboard: SceneDebugKeyboardFactory<HTMLElement> = handlers => {
+    const scope = shortcuts.createScope({ id: 'scene-debug', owner: handlers.owner, kind: 'overlay', active: false, signal: events.signal });
+    scope.register({ id: 'dismiss', description: '关闭场景调试面板', keys: ['Escape'], allowInEditable: true, run: handlers.dismiss });
+    const stopModifiers = shortcuts.observeModifiers(({ mod, shift }) => {
+      handlers.modifiers(mod && !shell.querySelector('dialog:modal') && !entrance?.covered, shift);
+    }, events.signal);
+    return { setActive: scope.setActive, dispose() { stopModifiers(); scope.dispose(); } };
+  };
   let transition = 0;
+  let focusFrame = 0;
   let clock = 0;
   let previewHour:number|null=null;
   mount.addEventListener('studio-time-preview',event=>{
@@ -297,7 +325,7 @@ function init(shell: HTMLElement) {
       await workerStarted;
       if(disposed||abort.signal.aborted){void geometry.then(disposePreparedGeometry,()=>{});return;}
       scenePrepared=false;
-      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, campfire, fishing, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings});}
+      try {scene = await createStudioScene(mount, action => void act(action), sceneFailed, campfire, fishing, syncView,sceneReady,lightweight,sceneFiles,siteIdentity.brand,{geometry,signal:abort.signal,timings,bindDebugKeyboard});}
       catch(error){void geometry.then(disposePreparedGeometry,()=>{});throw error;}
       if(disposed||abort.signal.aborted){scene.dispose();scene=undefined;return;}
       mount.dataset.startupTimings=JSON.stringify(timings);
@@ -321,10 +349,14 @@ function init(shell: HTMLElement) {
     }).catch(error=>{if(!disposed&&!abort.signal.aborted)sceneFailed(studioFailure(error,"initialization"));abort.abort();}).finally(()=>{sceneLoading=undefined;if(preparationAbort===abort)preparationAbort=undefined;});
     return sceneLoading;
   }
+  function returnHome() {
+    personalCanvas.dispatchEvent(new Event('canvas:finish-drag'));
+    navigate('home');
+  }
   function navigate(next: AppPage) {
     closeExplore(false,true);
     if (historyPending) return;
-    const action = historyAction(model.page, next, history.state);
+    const action = historyAction(entrance?.covered ? pendingPage : model.page, next, history.state);
     if (action === "none") return;
     if (action === "back") { historyPending = true; history.back(); return; }
     const path = pathForPage(next);
@@ -380,7 +412,18 @@ function init(shell: HTMLElement) {
     focusRoute();
   }
   function focusRoute() {
-    if (model.page === "home") (mount.querySelector<HTMLCanvasElement>("canvas:not([hidden])") ?? explore).focus();
+    cancelAnimationFrame(focusFrame);
+    if (model.page !== 'home') return;
+    const token = transition;
+    // Inherited visibility must settle after the projection before restoring focus.
+    const restore = () => {
+      focusFrame = 0;
+      if (disposed || document.hidden || entrance?.covered || token !== transition || model.page !== 'home' || shell.querySelector('dialog:modal')) return;
+      const target = mount.querySelector<HTMLCanvasElement>('canvas:not([hidden])') ?? explore;
+      if (!target.checkVisibility({ visibilityProperty: true })) { focusFrame = requestAnimationFrame(restore); return; }
+      target.focus({ preventScroll: true });
+    };
+    focusFrame = requestAnimationFrame(restore);
   }
   async function act(action: StudioAction) {
     if (entrance?.covered || model.page !== "home" || model.state !== "room") return;
@@ -443,11 +486,10 @@ function init(shell: HTMLElement) {
       void act(action as StudioAction);
     }
     if(target.dataset.studioClock&&target.getAttribute("aria-pressed")!=="true")void act("clock");
-    if (target === returnButton || target.matches("[data-canvas-return]")) navigate("home");
-    if (target.matches("[data-gallery-return]")) navigate("home");
+    if (target === returnButton || target.matches("[data-canvas-return],[data-gallery-return]")) returnHome();
     if (target.matches("[data-journal-close]")) {
       if(event instanceof MouseEvent&&(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey))return;
-      event.preventDefault();navigate('home');
+      event.preventDefault();returnHome();
     }
     const command = target.dataset.desktopCommand;
     if (command === "open-display-controls" || command === "arrange-icons") window.dispatchEvent(new CustomEvent(`justin-os-desktop:${command}`));
@@ -483,6 +525,7 @@ function init(shell: HTMLElement) {
       delete shell.dataset.entranceTarget;clearProjection();scene?.cancelTransition();
     },
     sync,
+    retreat: (duration,onProgress) => scene?.retreatEntrance({duration,onProgress}) ?? Promise.resolve({status:'failed',code:'scene-missing',retryable:true}),
     async prepare(onProgress) {
       await sceneLoading;
       if(disposed)return {status:'cancelled',reason:'disposed'};
@@ -546,7 +589,7 @@ function init(shell: HTMLElement) {
   void entrance.start();
   function dispose() {
     if(disposed)return;
-    disposed=true;transition++;preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
+    disposed=true;transition++;cancelAnimationFrame(focusFrame);preparationAbort?.abort();clearInterval(clock);stopRecovery();events.abort();
     for(const cleanup of [stopHomeProfile,()=>music.dispose(),()=>oceanAudio.dispose(),()=>entrance.dispose(),()=>closeExplore(false,true),()=>panelController.dispose(),()=>scene?.cancelTransition(),
       clearProjection,()=>journal.dispose(),()=>scene?.dispose()]) {
       try{cleanup();}catch(error){console.error("Application cleanup failed",error);}

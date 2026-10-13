@@ -13,7 +13,9 @@ import CloudEntrance from './CloudEntrance.astro';
 </CloudEntrance>
 ```
 
-由宿主创建 `createCloudEntrance(root, onEnter, onRetry, initialPalette?)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`setPalette(palette)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
+由宿主创建 `createCloudEntrance(root, onEnter, onRetry, initialPalette?)`，调用 `setProgress(0..1)`、`setState('loading' | 'ready' | 'revealing' | 'returning' | 'dismissing' | 'error', message?)`、`setRevealProgress(0..1)`、`setPalette(palette)`、`dismiss(duration)`、`dispose()`。组件会同步生成自己的噪声与画布，不会自行判断场景就绪或启动场景动画；宿主必须单独防止重复进入、传入活动时钟进度，并在成功后交接焦点。
+
+`returning` 接收从 1 到 0 的揭幕进度，使云雾回拢；底部持续绘制 `readyText`，进度条保持隐藏。宿主完成返回后切换 `ready` 并交接焦点。已经 `dispose()` 的组件需要重新创建；云雾入口的 Enter／Space 通过 Justin Kit 共享快捷键系统注册。
 
 默认加载文字为「正在加载场景」。宿主可通过 `setState('loading', message)` 替换当前阶段文字；阶段定义、耗时记录和错误重试由宿主持有。`setProgress` 表示宿主任务的完成节点，不自动推算下载字节或剩余时间。
 

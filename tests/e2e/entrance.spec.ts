@@ -212,13 +212,16 @@ async function mountStandaloneCloud(page: Page, request: APIRequestContext) {
   const css=await readFile('src/justin-kit/components/cloud-entrance/cloud-entrance.css','utf8');
   const timePalette=await readFile('src/justin-kit/components/cloud-entrance/timePalette.ts','utf8');
   const field=await readFile('src/justin-kit/components/cloud-entrance/fogField.ts','utf8');
+  const shortcuts=await readFile('src/justin-kit/runtime/shortcuts.ts','utf8');
   const runtime=(await readFile('src/justin-kit/components/cloud-entrance/runtime.ts','utf8'))
     .replace("import { createFogField, createFogTrail } from './fogField';",'')
-    .replace("import { entranceTimePalette, paletteHex } from './timePalette';",'');
+    .replace("import { entranceTimePalette, paletteHex } from './timePalette';",'')
+    .replace("import { getShortcutSystem } from '../../runtime/shortcuts';",'');
   const paletteSource=ts.transpileModule(timePalette,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const fieldSource=ts.transpileModule(field,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace('const smooth =','const fieldSmooth =').replaceAll('smooth(', 'fieldSmooth(');
+  const shortcutsSource=ts.transpileModule(shortcuts,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
   const source=ts.transpileModule(runtime,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-  const demo=`${paletteSource}\n${fieldSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
+  const demo=`${paletteSource}\n${fieldSource}\n${shortcutsSource}\n${source}\nconst root=document.querySelector('[data-cloud-entrance]');
     // Exercise the same renderer even when Canvas filters are unavailable.
     Object.defineProperty(CanvasRenderingContext2D.prototype,'filter',{configurable:true,get(){return undefined;},set(){throw new Error('Canvas filter is unavailable');}});
     const NativeResizeObserver=window.ResizeObserver;

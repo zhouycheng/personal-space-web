@@ -9,7 +9,7 @@ import { clockText } from "../../../config/studioTime";
 import { stepRoomView, type RoomView, type RoomViewAction } from "../../../animation/studio/studioMotion";
 import { StudioFailure, studioFailure } from "../../../contracts/studioFailure";
 import type { StudioSceneFile } from "../../../contracts/studio";
-import type { StudioLighting, EntranceTransition, SurfaceRect } from "../../../contracts/studioPorts";
+import type { StudioLighting, EntranceTransition, SurfaceRect, SceneDebugKeyboardFactory } from "../../../contracts/studioPorts";
 import { createJournalBook } from "../journal/journalBook";
 import { createActiveMotion } from "../../../animation/activeMotion";
 import type { OperationResult } from "../../../contracts/operation";
@@ -39,7 +39,7 @@ export { disposePreparedGeometry } from './sceneGeometryData.ts';
 
 export type StudioScene = Awaited<ReturnType<typeof createStudioScene>>;
 
-export async function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, campfire:CampfirePort, fishing:FishingPort, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "", preparation?:{geometry:Promise<PreparedSceneGeometry>;signal:AbortSignal;timings:Record<string,number>}) {
+export async function createStudioScene(mount: HTMLElement, onAction: (action: StudioAction) => void, onFailure: (error:StudioFailure) => void, campfire:CampfirePort, fishing:FishingPort, onViewChange: (view:RoomView)=>void = ()=>{}, onReady:()=>void = ()=>{}, lightweight=false, studioFiles: readonly StudioSceneFile[] = [], computerLabel = "", preparation?:{geometry:Promise<PreparedSceneGeometry>;signal:AbortSignal;timings:Record<string,number>;bindDebugKeyboard?:SceneDebugKeyboardFactory<HTMLElement>}) {
   const cleanup: (()=>void)[] = [];
   const canvas = document.createElement("canvas");
   let creationError="";
@@ -63,7 +63,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.18;
   renderer.info.autoReset = false;
-  canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口");
+  canvas.setAttribute("aria-label", "工作室场景，滚轮缩放，拖动改变视角，点击物件探索；Tab 键可访问内容和缩放入口；双按 Esc 返回云雾入口");
+  canvas.setAttribute("aria-keyshortcuts", "Escape");
   canvas.tabIndex = -1;
   mount.append(canvas);
   const scene = new THREE.Scene();
@@ -413,7 +414,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     ctx.fillStyle="#101d1d";ctx.fillRect(0,0,clockImage.width,clockImage.height);ctx.fillStyle="#b5edc7";
     ctx.fillText(text,clockImage.width/2,clockImage.height/2,clockImage.width*0.92);clockTexture.needsUpdate=true;
     deskClock.userData.label=`${text} · 点击显示${showDate?"时间":"日期"}`;
-    canvas.setAttribute("aria-label",`工作室场景，电子钟${showDate?"日期":"时间"} ${text}；滚轮缩放，拖动改变视角，Tab 键可访问内容和缩放入口`);requestDraw();
+    canvas.setAttribute("aria-label",`工作室场景，电子钟${showDate?"日期":"时间"} ${text}；滚轮缩放，拖动改变视角，Tab 键可访问内容和缩放入口；双按 Esc 返回云雾入口`);requestDraw();
   }
   function debugClockDate(hour:number) {
     const date=new Date(),minutes=Math.round(hour*60);
@@ -539,7 +540,7 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     render();if(active)requestDraw();
   },{signal:events.signal});
   setRoomCamera();resize();
-  performanceOverlay=createScenePerformanceOverlay({canvas,renderer,scene,camera,details:()=>({
+  performanceOverlay=createScenePerformanceOverlay({canvas,renderer,scene,camera,bindKeyboard:preparation?.bindDebugKeyboard,details:()=>({
     active:active&&!failed&&!destroyed,zoom:targetZoom,angle:targetAngle,elevation:targetElevation,
     camera:[camera.position.x,camera.position.y,camera.position.z],
     ocean:mount.dataset.oceanActive==='true',steam:mount.dataset.steamActive==='true',
@@ -613,6 +614,12 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
       }
       return result;
     },
+    async retreatEntrance({duration,onProgress}: EntranceTransition): Promise<OperationResult> {
+      if(failed||destroyed)return {status:'failed',code:'entrance-unavailable',retryable:true};
+      stopCamera();clearHover();zoomed=false;entranceFlight=false;
+      const task=motion.start(duration,progress=>{poseEntrance(1-progress);onProgress(1-progress);});
+      requestDraw();return task;
+    },
     configureJournal(book:JournalManifest,index:number,onReport:(state:BookReport)=>void,onRegion:(region:JournalRegion)=>void,onIntent:(intent:JournalIntent)=>void) {
       journalBook??=createJournalBook(renderer,scene,camera,requestDraw);
       journalBook.configure(book,onReport,onRegion,onIntent);
@@ -622,8 +629,8 @@ export async function createStudioScene(mount: HTMLElement, onAction: (action: S
     setJournalInteractionEnabled(value:boolean){
       journalInteractionEnabled=value;journalBook?.setInteractionEnabled(value);
       canvas.tabIndex=value?0:-1;
-      if(value)canvas.setAttribute("aria-keyshortcuts","Enter Space ArrowLeft ArrowRight PageUp PageDown Escape + - 0");
-      else canvas.removeAttribute("aria-keyshortcuts");
+      if(value)canvas.setAttribute("aria-keyshortcuts","Enter Space ArrowLeft ArrowRight PageUp PageDown Escape + = - 0 Home");
+      else canvas.setAttribute("aria-keyshortcuts","Escape");
     },
     async moveJournal(enter:boolean,duration:number,entrance?:EntranceTransition): Promise<OperationResult> {
       if(!journalBook||failed||destroyed)return {status:"failed",code:"三维书本不可用",retryable:true};

@@ -33,6 +33,8 @@ Justin Kit 是 Justin OS 背后的个人组件库。
 
 组件的应用数据通过适配器注入。Kit 不导入本站内容、应用流程或 Store；活动订阅源由应用层组装共享连接，API 路由、TTL 存储与展示文案归本站业务层。
 
+`runtime/shortcuts.ts` 统一管理文档级键盘输入、作用域和生命周期。组件通过 `getShortcutSystem` 注册动作；应用层拥有路由命令与场景键盘端口注入。扩展接口和退出规则见 [快捷键系统](../../docs/features/shortcuts.md)。
+
 按模块职责维护：
 
 - 展示组件的 Astro 文件与本地 CSS，
