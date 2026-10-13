@@ -15,6 +15,8 @@
 .studio-mobile-signature {display:none}
 @media(max-width:640px) {.studio-signature {display:block;height:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}.studio-signature button {display:none}.studio-mobile-signature {display:inline}}
 .studio:not([data-state="room"]) .studio-signature {visibility:hidden}
+.studio[data-fishing-active] .studio-signature {visibility:hidden;pointer-events:none}
+.studio[data-fishing-active] .studio-topbar {display:none}
 .studio-signature {color:var(--home-ink);text-shadow:var(--home-text-shadow)}
 .alpha-shell .app-dock[hidden] {display:none}
 .studio button:focus-visible,.alpha-shell button:focus-visible {outline:2px solid var(--home-focus);outline-offset:4px}

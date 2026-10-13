@@ -16,7 +16,7 @@ import { createDockFishing } from './dockFishing.ts';
 import { createCampfireLogs } from './campfireLogs.ts';
 import type { CampfireState } from '../../../contracts/campfire.ts';
 
-/** Decorative beach objects; intentionally independent of the furniture picking tree. */
+/** Beach objects keep their own interaction roots outside the furniture tree. */
 export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Material>,textures:Set<THREE.Texture>,geometries:Set<THREE.BufferGeometry>) {
   const group=new THREE.Group();group.name='island-leisure';
   const {timber,canvas,cork,end}=createWorkspaceMaterials(materials,textures);
@@ -160,10 +160,11 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
     const lantern=lamp.clone(true);lantern.position.set(x,d.deck+.07,d.z-d.width*.32);dock.add(lantern);
     const light=new THREE.PointLight(0xffc78b,1.3,3.1,1.5);light.position.copy(lantern.position).y+=.4;dock.add(light);dockLights.push(light);
   }
-  createDockFishing(p,dock,metal,cork);
+  const fishing=createDockFishing(p,dock,metal,cork);
   // Keep the many deck fixings and chair joints from becoming separate draw calls.
   group.updateMatrixWorld(true);
   const movingLogs=new Set<THREE.Object3D>([fireLogs.debris]);fireLogs.group.traverse(object=>movingLogs.add(object));
+  fishing.group.traverse(object=>movingLogs.add(object));
   const batches=new Map<string,THREE.Mesh[]>();
   group.traverse(object=>{if(!movingLogs.has(object)&&object instanceof THREE.Mesh&&object.material instanceof THREE.MeshStandardMaterial&&!object.material.transparent){
     const key=`${object.material.uuid}:${object.castShadow}:${object.receiveShadow}`;
@@ -183,7 +184,7 @@ export function createIslandLeisure(p:StudioPrimitives,materials:Set<THREE.Mater
     flame.setHeat(heat);
   }
   const boat=createDockBoat(p,materials,textures);group.add(boat.group);
-  return {group,fireLogs,flame,tickCampfire(seconds:number){fireTime+=seconds;const moving=flame.tick(seconds);updateFireLight();return moving;},updateCampfire(state:CampfireState,value:number,updateLogs=true,animate=false){if(updateLogs)fireLogs.update(state,animate);heat=value;updateFireLight();},boatInverse:boat.inverse,setWaterTime:boat.update,setLighting(value:number){daylight=value;updateFireLight();gameLight.intensity=.8+(1-value)*1.7;dockLights.forEach(light=>light.intensity=.35+(1-value)*1.3);},setWind(seconds:number){
+  return {group,fireLogs,flame,fishing,tickCampfire(seconds:number){fireTime+=seconds;const moving=flame.tick(seconds);updateFireLight();return moving;},updateCampfire(state:CampfireState,value:number,updateLogs=true,animate=false){if(updateLogs)fireLogs.update(state,animate);heat=value;updateFireLight();},boatInverse:boat.inverse,setWaterTime:boat.update,setLighting(value:number){daylight=value;updateFireLight();gameLight.intensity=.8+(1-value)*1.7;dockLights.forEach(light=>light.intensity=.35+(1-value)*1.3);},setWind(seconds:number){
     wick.uniforms.time.value=seconds;
     updateFireLight();
   }};

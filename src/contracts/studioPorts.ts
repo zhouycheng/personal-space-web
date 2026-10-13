@@ -46,6 +46,9 @@ export interface ScenePort extends TransitionPort {
   adjustView(action: RoomViewAction): void;
   spinChair(reducedMotion?: boolean): void;
   addFirewood(): FirewoodResult;
+  startFishing(): void;
+  fishingAction(): void;
+  endFishing(): void;
   setLampEnabled(enabled: boolean): void;
   setClockMode(mode: "time" | "date"): void;
   setDrawerOpen(action: DrawerId, open: boolean): void;
