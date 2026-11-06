@@ -9,7 +9,7 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 | `src/pages/` | `/home`、`/works`、`/canvas`、`/os`、`/journal` 和 API 入口 | 装配其他层，入口保持薄 |
 | `src/app/` | 路由、History API、依赖装配及页面生命周期 | 可组合内部层 |
 | `src/contracts/` | 内容模型、`StudioIntent`、`ScenePort`、`TransitionPort` | 只依赖本层；不含 DOM、ReactFlow、Three.js |
-| `src/content/` | 简历、作品、文件顺序、画布发布内容、日记和站点素材 | 可引用纯契约；真实个人内容另受 [CONTENT-LICENSE.md](../../legal/CONTENT-LICENSE.md) 约束 |
+| `src/content/` | 作品、文件顺序、画布发布内容、日记和站点素材 | 可引用纯契约；真实个人内容另受 [CONTENT-LICENSE.md](../../legal/CONTENT-LICENSE.md) 约束 |
 | `src/config/` | 场景配色、光照和书本外观 | 纯配置 |
 | `src/data/repositories/` | 发布内容读取入口 | 内容与契约 |
 | `src/data/selectors/` | 文件盒、作品列表、画布结构、实体书页等纯派生数据 | 输入参数、契约与配置；不读取 repository |
@@ -37,7 +37,7 @@ Astro 负责路由与服务端渲染，React 负责画布，Three.js 负责工�
 
 检查选择遵循[开发工作流](workflow.md)，以下按行为定位检查范围：
 
-- 改简历、作品或文件顺序：编辑 `src/content/site/`，选择相关内容、repository、selector 用例和受影响的展示流程。
+- 改作品或文件顺序：编辑 `src/content/site/`，选择相关内容、repository、selector 用例和受影响的展示流程。
 - 改画布发布内容：使用 `justinspace-canvas-content`，保持卡片 ID 和边端点有效，按改动选择内容、位置恢复/重置或卡片渲染检查。
 - 改模型：保持 `ScenePort`；对照相同相机、视口和光照的变更前后画面，涉及生命周期或失败恢复时检查 GPU 释放或 WebGL 失败入口。
 - 改过场：检查受影响的中断、URL、返回、监听器和资源状态。

@@ -7,11 +7,10 @@ import { resolveStudioIntent, studioTargetsForIntent } from "../src/application/
 test("one content repository feeds the room file order and project reading data", () => {
   const repository = {
     projects: () => [{ id: "new-work", title: "New Work", summary: "Changed content", tags: ["New"], links: [{ kind: "github", href: "/source", label: "Source" }] }],
-    resume: () => ({ name: "Example", summary: "Resume summary", role: "Developer", sections: [] }),
-    studioFiles: () => [{ id: "new-work", kind: "project", source: "new-work" }, { id: "resume", kind: "resume" }],
+    studioFiles: () => [{ id: "new-work", kind: "project", source: "new-work" }],
   };
   const files = selectStudioFiles(repository);
-  assert.deepEqual(files.map(file => file.title), ["New Work", "Example简历"]);
+  assert.deepEqual(files.map(file => file.title), ["New Work"]);
   assert.equal(files[0].project.title, files[0].title);
   assert.deepEqual(files[0].project.links.map(link => link.href), ["/source"]);
 });

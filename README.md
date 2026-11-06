@@ -22,7 +22,7 @@ JustinSpace 用 Astro、React 和 Three.js 展示个人作品、日记与文件�
 ## 页面
 
 - `/home`：海岛上的 Three.js 工作室；默认展示完整岛岸，可缩放靠近桌面、连续环绕并点击物件。
-- `/works`：项目作品和简历。
+- `/works`：项目作品。
 - `/canvas`：可拖动浏览的个人画布。
 - `/os`：文件驱动的桌面与窗口。
 - `/journal`：实体翻页效果的 3D 日记，文章可通过 `/journal/[slug]` 直接访问。
@@ -66,4 +66,4 @@ justin-activity status
 
 ## 授权
 
-网站自有代码使用 [Zlib](LICENSE)。真实简历、日记、头像、作品资料和其他个人内容保留权利；第三方材料沿用其原许可。Fork 后可修改网站代码并替换个人资料。完整范围见[授权说明](legal/LICENSING.md)、[个人内容许可](legal/CONTENT-LICENSE.md)和[第三方材料清单](legal/THIRD_PARTY_NOTICES.md)。
+网站自有代码使用 [Zlib](LICENSE)。日记、头像、作品资料和其他个人内容保留权利；第三方材料沿用其原许可。Fork 后可修改网站代码并替换个人资料。完整范围见[授权说明](legal/LICENSING.md)、[个人内容许可](legal/CONTENT-LICENSE.md)和[第三方材料清单](legal/THIRD_PARTY_NOTICES.md)。

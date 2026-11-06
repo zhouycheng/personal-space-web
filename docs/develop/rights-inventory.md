@@ -33,7 +33,6 @@
 | `src/content/games.json` | 空登记清单，Zlib |
 | `src/content/journal/20260527-记录和节奏.md` | 个人日记，保留权利 |
 | `src/content/site/projects.json` | 个人作品介绍，保留权利 |
-| `src/content/site/resume.json` | 个人简历，保留权利 |
 | `src/content/site/studio-files.json` | 展示编排清单，保留权利 |
 | `src/content/site/site.json` | 个人站点名、署名和描述，保留权利 |
 | `src/content/scene/rock-sections.bin.gz` | 本项目程序化岩石几何的派生接触数据，Zlib |

@@ -1,5 +1,4 @@
 [
   { "id": "framelean", "kind": "project", "source": "framelean" },
-  { "id": "exercises-eagles", "kind": "project", "source": "exercises-eagles" },
-  { "id": "resume", "kind": "resume" }
+  { "id": "exercises-eagles", "kind": "project", "source": "exercises-eagles" }
 ]
