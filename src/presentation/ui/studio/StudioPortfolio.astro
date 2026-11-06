@@ -16,7 +16,7 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
         <div class="gallery-file">
         <button class="gallery-print" data-gallery-file={file.id} aria-haspopup="dialog" aria-label={`查看 ${file.title}`}>
           <div class="gallery-art">
-            {file.kind==="resume"?<div class="resume-cover"><span>个人简历</span><strong>{file.resume.name}</strong><p>{file.resume.role}</p><div class="resume-cover-rule"></div><small>{file.resume.summary}</small><span>教育 / 技能 / 竞赛 / 项目</span></div>:file.project.preview.kind==="framelean-workbench"?<FrameLeanWorkbenchPreview alt={file.project.preview.alt}/>:file.id==="exercises-eagles"?<div class="study-cover" aria-label="QandA 刷题工具作品封面"><span>学 · 而时习之</span><strong>Q<span>&</span>A</strong><p>语文 / 英语 / Python</p><small>把复习，变成日常。</small></div>:<img src={imageUrl(file.project.preview.src!)} alt={file.project.preview.alt} draggable="false"/>}
+            {file.project.preview.kind==="framelean-workbench"?<FrameLeanWorkbenchPreview alt={file.project.preview.alt}/>:file.id==="exercises-eagles"?<div class="study-cover" aria-label="QandA 刷题工具作品封面"><span>学 · 而时习之</span><strong>Q<span>&</span>A</strong><p>语文 / 英语 / Python</p><small>把复习，变成日常。</small></div>:<img src={imageUrl(file.project.preview.src!)} alt={file.project.preview.alt} draggable="false"/>}
           </div>
           <span class="gallery-print-meta"><span>{String(index+1).padStart(2,"0")}</span><span>{file.tags.slice(0,2).join(" / ")}</span></span>
         </button>
@@ -30,17 +30,11 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
     <div class="gallery-detail-toolbar"><h2 id="gallery-detail-title" tabindex="-1" autofocus></h2><button class="gallery-detail-close" aria-label="关闭文件详情" aria-keyshortcuts="Escape" title="关闭文件详情（Esc）">✕</button></div>
     {studioFiles.map(file=><section data-gallery-content={file.id} hidden>
       <p class="gallery-tags">{file.tags.join(" · ")}</p>
-      {file.kind==="resume"?<div class="resume-body">
-        <p>意向岗位：{file.resume.role} · 年龄：{file.resume.age}</p>
-        <address><a href={`tel:${file.resume.phone}`}>{file.resume.phone}</a><a href={`mailto:${file.resume.email}`}>{file.resume.email}</a></address>
-        {file.resume.sections.map(section=><section><h3>{section.title}</h3>{section.paragraphs.map(paragraph=><p>{paragraph}</p>)}</section>)}
-      </div>:<>
-        <p class="gallery-description">{file.project.description}</p>
-        <p class="gallery-dates">{file.project.lastUpdatedText}<br/>{file.project.startedText}</p>
-        <div class="gallery-links">{file.project.links.map(link=><a href={link.href} target="_blank" rel="noreferrer">{link.label} ↗</a>)}
-          {file.project.downloads&&<ProjectDownloadMenu projectTitle={file.project.title} downloads={file.project.downloads}/>}
-        </div>
-      </>}
+      <p class="gallery-description">{file.project.description}</p>
+      <p class="gallery-dates">{file.project.lastUpdatedText}<br/>{file.project.startedText}</p>
+      <div class="gallery-links">{file.project.links.map(link=><a href={link.href} target="_blank" rel="noreferrer">{link.label} ↗</a>)}
+        {file.project.downloads&&<ProjectDownloadMenu projectTitle={file.project.title} downloads={file.project.downloads}/>}
+      </div>
     </section>)}
   </dialog>
 </section>
@@ -87,10 +81,8 @@ const imageUrl = (src: string) => { const image=images[src]?.default; return typ
   .gallery-detail-close:focus-visible{outline-offset:2px}
   .gallery-detail h2{margin:0;font-size:30px;font-weight:500;outline:none}.gallery-tags,.gallery-dates{font-size:12px;line-height:1.8;color:#74796f}.gallery-description{white-space:pre-line;line-height:1.9;font-size:15px}.gallery-links{display:flex;align-items:center;flex-wrap:wrap;gap:12px 20px;margin-top:30px;color:#52614e}
   .gallery-links>a{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
-  .resume-cover{box-sizing:border-box;width:100%;height:100%;padding:26px;text-align:left;display:flex;flex-direction:column;justify-content:center;background:#ebe8df;color:#303b39;gap:16px}.resume-cover>span{font-size:10px;letter-spacing:2px;color:#68706a}.resume-cover strong{font-size:clamp(30px,4vw,44px);font-weight:500;letter-spacing:5px}.resume-cover p{font-size:14px;margin:0;color:#52614e}.resume-cover small{font-size:12px;line-height:1.8;max-width:24em}.resume-cover-rule{height:2px;width:32px;background:#52614e}
-  .resume-body{font-size:15px;line-height:1.9;overflow-wrap:anywhere}.resume-body address{display:flex;flex-wrap:wrap;gap:4px 20px;font-style:normal;font-size:14px}.resume-body a{color:#52614e;min-height:44px;display:inline-flex;align-items:center}.resume-body h3{font-size:19px;margin:32px 0 12px}.resume-body p{margin:12px 0}
-  @media(max-width:640px){.studio-gallery{--card-width:78vw}.gallery-header{padding:20px;grid-template-columns:1fr auto}.gallery-header h1{font-size:20px}.gallery-file>p{font-size:12px}.gallery-track{gap:24px;padding-inline:calc((100vw - var(--card-width))/2)}.gallery-print{padding:14px}.gallery-item h2{margin-top:22px}.gallery-detail{padding:0 22px max(24px,env(safe-area-inset-bottom));max-height:calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}.gallery-detail h2{font-size:26px}.resume-cover{padding:22px;gap:12px}}
-  @media(max-height:640px){.gallery-header{padding-block:12px}.gallery-art{height:28svh;min-height:100px}.gallery-file>p{display:none}.gallery-footer{padding:10px}.gallery-item h2{font-size:18px;margin:12px 0 0}.gallery-track{padding-block:12px}.gallery-print-meta{margin-top:12px}.resume-cover{padding:12px;gap:6px}.resume-cover strong{font-size:24px}.resume-cover small,.resume-cover-rule,.resume-cover>span:last-child{display:none}.study-cover strong{font-size:44px;margin:6px 0}.study-cover>span,.study-cover small{display:none}.study-cover p{margin:0}}
+  @media(max-width:640px){.studio-gallery{--card-width:78vw}.gallery-header{padding:20px;grid-template-columns:1fr auto}.gallery-header h1{font-size:20px}.gallery-file>p{font-size:12px}.gallery-track{gap:24px;padding-inline:calc((100vw - var(--card-width))/2)}.gallery-print{padding:14px}.gallery-item h2{margin-top:22px}.gallery-detail{padding:0 22px max(24px,env(safe-area-inset-bottom));max-height:calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}.gallery-detail h2{font-size:26px}}
+  @media(max-height:640px){.gallery-header{padding-block:12px}.gallery-art{height:28svh;min-height:100px}.gallery-file>p{display:none}.gallery-footer{padding:10px}.gallery-item h2{font-size:18px;margin:12px 0 0}.gallery-track{padding-block:12px}.gallery-print-meta{margin-top:12px}.study-cover strong{font-size:44px;margin:6px 0}.study-cover>span,.study-cover small{display:none}.study-cover p{margin:0}}
   @keyframes files-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes file-open{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
   @keyframes file-close{to{opacity:0;transform:translateY(8px) scale(.98)}}
