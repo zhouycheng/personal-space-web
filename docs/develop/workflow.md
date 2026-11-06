@@ -79,7 +79,7 @@ rtk npm run test:e2e -- tests/e2e/entrance.spec.ts --project=desktop-chromium --
 ## Git 与交付
 
 - 日常开发默认使用 `develop`；用户授权提交或推送时，默认目标也是 `develop`。
-- `main` 是受保护的生产分支，禁止直接推送。生产变更通过 `develop` 到 `main` 的 PR 合并；PR 必须通过 `verify`，不要求额外审批。推送到 `develop` 不会部署生产环境。
+- `main` 是受保护的生产分支，禁止直接推送。生产变更通过 `develop` 到 `main` 的 PR 合并；PR 必须通过 `verify`，不要求额外审批。只有仓库变量 `JUSTINSPACE_AUTO_DEPLOY` 为 `true` 时，合并才触发生产部署；推送到 `develop` 不会部署生产环境。
 - 除用户明确要求外，不创建或切换分支、不提交或推送、不打标签或发布。
 - 保留不相关的用户变更。
 - 准备提交建议时使用 Conventional Commit 风格。

@@ -1,4 +1,4 @@
-import type { ProjectRecord, ResumeRecord, SiteContentRepository, SiteIdentity, StudioFileEntry } from '../../contracts/content';
+import type { ProjectRecord, SiteContentRepository, SiteIdentity, StudioFileEntry } from '../../contracts/content';
 
 type ObjectRecord = Record<string, unknown>;
 function record(value: unknown, label: string): asserts value is ObjectRecord {
@@ -36,8 +36,8 @@ export function validateSiteIdentity(input: unknown): SiteIdentity {
   return input as SiteIdentity;
 }
 
-export function createSiteRepository(projects: unknown, resume: unknown, files: unknown): SiteContentRepository {
-  list(projects, 'projects'); record(resume, 'resume'); list(files, 'studio files');
+export function createSiteRepository(projects: unknown, files: unknown): SiteContentRepository {
+  list(projects, 'projects'); list(files, 'studio files');
   const projectIds = new Set<string>();
   for (const project of projects) {
     record(project, 'project'); identifier(project.id, projectIds, 'project');
@@ -63,16 +63,11 @@ export function createSiteRepository(projects: unknown, resume: unknown, files: 
       }
     }
   }
-  for (const key of ['name', 'role', 'phone', 'email', 'summary']) text(resume[key], `resume.${key}`);
-  if (!Number.isInteger(resume.age) || Number(resume.age) < 0) throw new Error('resume.age: invalid age');
-  if (resume.tags !== undefined) strings(resume.tags, 'resume.tags');
-  list(resume.sections, 'resume.sections');
-  for (const section of resume.sections) { record(section, 'section'); text(section.title, 'section.title'); strings(section.paragraphs, 'section.paragraphs'); }
   const fileIds = new Set<string>();
   for (const file of files) {
     record(file, 'file'); identifier(file.id, fileIds, 'file');
-    if (file.kind === 'project') { if (!projectIds.has(String(file.source))) throw new Error(`Missing studio project: ${file.source}`); }
-    else if (file.kind !== 'resume') throw new Error('file: invalid kind');
+    if (file.kind !== 'project') throw new Error('file: invalid kind');
+    if (!projectIds.has(String(file.source))) throw new Error(`Missing studio project: ${file.source}`);
   }
-  return { projects: () => projects as ProjectRecord[], resume: () => resume as ResumeRecord, studioFiles: () => files as StudioFileEntry[] };
+  return { projects: () => projects as ProjectRecord[], studioFiles: () => files as StudioFileEntry[] };
 }

@@ -16,6 +16,4 @@ export const ACTION_LABELS: Record<StudioAction, string> = {
   "zoom-in": "放大场景", "zoom-out": "缩小场景", "reset-view": "重置视角",
   "view-left":"向左转动", "view-right":"向右转动", "view-up":"抬高视角", "view-down":"降低视角",
 };
-export type StudioSceneFile =
-  | { id: string; title: string; kind: "project" }
-  | { id: string; title: string; kind: "resume"; resume: { name: string; role: string; sections: { title: string }[] } };
+export type StudioSceneFile = { id: string; title: string; kind: "project" };

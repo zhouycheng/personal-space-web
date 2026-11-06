@@ -5,6 +5,8 @@ test("file selection centers before opening, preserves copyable details and supp
   await page.goto("/works");
   await expect(page.locator('[data-cloud-entrance]')).toBeHidden({ timeout: 35000 });
   const buttons = page.locator("[data-gallery-file]"), dialog = page.locator("[data-gallery-detail]");
+  await expect(buttons).toHaveCount(2);
+  await expect(page.locator('[data-gallery-file="resume"], [data-gallery-content="resume"]')).toHaveCount(0);
   expect(await page.locator("[data-studio-gallery]").evaluate(element => getComputedStyle(element).userSelect)).toBe("none");
   expect(await dialog.evaluate(element => getComputedStyle(element).userSelect)).toBe("text");
   const activate = async (index: number) => {
@@ -30,8 +32,9 @@ test("file selection centers before opening, preserves copyable details and supp
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("h2")).toHaveText("QandA");
   await page.keyboard.press("Escape"); await expect(dialog).not.toBeVisible();
-  await buttons.nth(2).focus();
-  await expect(page.locator('.gallery-item').nth(2)).toHaveAttribute("data-file-position", "current");
+  await buttons.first().focus();
+  await expect(page.locator('.gallery-item').first()).toHaveAttribute("data-file-position", "current");
   await page.keyboard.press("Enter"); await expect(dialog).toBeVisible();
+  await expect(dialog.locator("h2")).toHaveText("FrameLean");
   await page.keyboard.press("Escape"); await expect(dialog).not.toBeVisible();
 });

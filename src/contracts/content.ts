@@ -30,17 +30,6 @@ export type ProjectRecord = {
   downloads?: { version: string; releasePage: string; packages: DownloadPackage[] };
 };
 
-export type ResumeRecord = {
-  name: string;
-  role: string;
-  tags?: string[];
-  phone: string;
-  email: string;
-  age: number;
-  summary: string;
-  sections: { title: string; paragraphs: string[] }[];
-};
-
 export type SiteIdentity = {
   brand: string;
   author: string;
@@ -52,12 +41,9 @@ export type SiteIdentity = {
   articleTitleTemplate: string;
 };
 
-export type StudioFileEntry =
-  | { id: string; kind: "project"; source: string }
-  | { id: string; kind: "resume" };
+export type StudioFileEntry = { id: string; kind: "project"; source: string };
 
 export type SiteContentRepository = {
   projects(): readonly ProjectRecord[];
-  resume(): ResumeRecord;
   studioFiles(): readonly StudioFileEntry[];
 };
