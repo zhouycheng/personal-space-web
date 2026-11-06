@@ -34,7 +34,7 @@ jobs:
 
   publish:
     needs: [verify, scene-debug-panel-policy]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.JUSTINSPACE_AUTO_DEPLOY == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: justinspace-image-publish
@@ -79,7 +79,7 @@ jobs:
 
   deploy:
     needs: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.JUSTINSPACE_AUTO_DEPLOY == 'true'
     runs-on: ubuntu-latest
     environment:
       name: production
