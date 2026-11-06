@@ -1,6 +1,6 @@
 # 部署手册
 
-生产环境使用 Docker Compose 运行 GHCR 发布的镜像。日常开发和提交默认使用 `develop`；将 `develop` 的 PR 合并到 `main` 后，GitHub Actions 执行检查、构建不可变镜像摘要，通过 Tailscale SSH 部署，并检查容器健康和公开页面。推送到 `develop` 不会部署。服务器 Nginx 提供 HTTPS，应用端口只绑定到本机回环地址。
+生产环境使用 Docker Compose 运行 GHCR 发布的镜像。日常开发和提交默认使用 `develop`；将 `develop` 的 PR 合并到 `main` 后，GitHub Actions 执行检查。仓库变量 `JUSTINSPACE_AUTO_DEPLOY` 为 `true` 时，构建不可变镜像摘要，通过 Tailscale SSH 部署，并检查容器健康和公开页面。推送到 `develop` 不会部署。服务器 Nginx 提供 HTTPS，应用端口只绑定到本机回环地址。
 
 ## 首次准备服务器
 
@@ -205,13 +205,15 @@ workflow 使用作业级短期 `GITHUB_TOKEN` 发布并拉取 `ghcr.io/zhouychen
 
 仓库 Actions variable `PUBLIC_SCENE_DEBUG_PANEL` 默认按 `false` 处理。发布前的 `scene-debug-panel-policy.yml` 要求它为 `false`；`true` 或其他值会使发布检查失败。生产仍可通过快捷键和热角临时打开面板，设置与操作见[工作室环境](../features/studio-environment.md)。
 
+仓库 Actions variable `JUSTINSPACE_AUTO_DEPLOY` 控制镜像发布与生产部署；只有设为 `true` 才会执行这两个作业，未设置或其他值均跳过。PR 的 `verify` 检查不受此变量影响。
+
 ## 日常发布、检查与回滚
 
-Pull request 会运行 `npm ci`、日记清单检查、边界检查、类型检查、单元测试和生产构建。日常变更推送到 `develop` 后，创建或更新目标为 `main` 的 PR；`verify` 通过后合并。合并会在 `main` 产生 push 事件，GitHub Actions 随后构建并发布固定的 `repository@sha256:...` 镜像摘要，再通过 Tailnet 调用 `deployctl` 更新容器。直接推送 `main` 不受允许。
+Pull request 会运行 `npm ci`、日记清单检查、边界检查、类型检查、单元测试和生产构建。日常变更推送到 `develop` 后，创建或更新目标为 `main` 的 PR；`verify` 通过后合并。当 `JUSTINSPACE_AUTO_DEPLOY` 为 `true` 时，合并产生的 `main` push 事件会构建并发布固定的 `repository@sha256:...` 镜像摘要，再通过 Tailnet 调用 `deployctl` 更新容器。直接推送 `main` 不受允许。
 
 部署入口只接受 allowlist 中的目标和镜像摘要。registry 凭据通过标准输入传递，在服务器 `/run` 的临时 Docker 配置中短暂保存并在操作结束后清除。入口等待 Docker healthcheck，通过后记录当前和上一镜像；新镜像未通过时恢复上一镜像。首次部署失败时移除新容器。随后 workflow 检查 `/api/health` 及 `/`、`/home`、`/works`、`/canvas`、`/os`；公开检查失败时再次触发回滚。
 
-日常发布只需完成合并。Compose 将应用端口 `4321` 绑定到 `127.0.0.1`，Nginx 代理到容器。部署入口不会清理 Docker 镜像、卷或其他服务。
+启用自动部署后，日常发布只需完成合并。Compose 将应用端口 `4321` 绑定到 `127.0.0.1`，Nginx 代理到容器。部署入口不会清理 Docker 镜像、卷或其他服务。
 
 ## 活动监听器排查
 
